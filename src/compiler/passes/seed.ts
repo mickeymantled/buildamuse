@@ -9,6 +9,13 @@ function stripTrailingPeriod(clause: string): string {
   return clause.endsWith('.') ? clause.slice(0, -1) : clause;
 }
 
+// Clauses land mid-sentence after "Remember that", so lowercase the first letter
+// ("My days are meetings" becomes "my days ...") unless it is the pronoun I.
+function midSentence(clause: string): string {
+  if (/^I\b/.test(clause)) return clause;
+  return clause.charAt(0).toLowerCase() + clause.slice(1);
+}
+
 export function seed(build: Build, lib: Library): string {
   const hardPart = lib.heart.hardParts.find((h) => h.id === build.heart.hardPart);
   if (!hardPart) {
@@ -21,7 +28,7 @@ export function seed(build: Build, lib: Library): string {
     const chip = lib.chips.find((c) => c.id === chipId);
     if (!chip) continue;
     if (chip.seed) {
-      chipClauses.push(stripTrailingPeriod(chip.seed));
+      chipClauses.push(midSentence(stripTrailingPeriod(chip.seed)));
     }
     if (chip.domainNoun) {
       nouns.push(chip.domainNoun);
