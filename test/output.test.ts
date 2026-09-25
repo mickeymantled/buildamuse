@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { compile, library } from '../src/compiler/compile.js';
 import type { Build } from '../src/compiler/types.js';
 
-const EM_DASH = '—';
+const EM_DASH = '\u2014';
 
 interface BuildCase {
   label: string;
