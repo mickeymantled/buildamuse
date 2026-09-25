@@ -1,0 +1,66 @@
+[
+  {
+    "id": "trader",
+    "label": "I trade the trenches",
+    "defaults": { "blunt": 3, "warm": 1, "funny": 3, "chatty": 1, "proactive": 2 },
+    "chipsFirst": "Markets",
+    "baseLine": "Most of what I bring you is markets, plus whatever else needs doing.",
+    "noun": "Trench Companion"
+  },
+  {
+    "id": "builder",
+    "label": "I build things",
+    "defaults": { "blunt": 3, "warm": 1, "funny": 2, "chatty": 1, "proactive": 2 },
+    "chipsFirst": "Work",
+    "baseLine": "Most of what I bring you is building and shipping, plus life admin I'd rather not do.",
+    "noun": "Reviewer"
+  },
+  {
+    "id": "professional",
+    "label": "I have a real job",
+    "defaults": { "blunt": 3, "warm": 2, "funny": 1, "chatty": 2, "proactive": 2 },
+    "chipsFirst": "Work",
+    "baseLine": "Most of what I bring you is work. Keep it clean enough that I could forward it.",
+    "noun": "Second Chair"
+  },
+  {
+    "id": "parent",
+    "label": "I'm running a family",
+    "defaults": { "blunt": 2, "warm": 3, "funny": 2, "chatty": 2, "proactive": 3 },
+    "chipsFirst": "Life",
+    "baseLine": "Most of what I bring you is the family calendar and everything that falls out of it.",
+    "noun": "Playmaker"
+  },
+  {
+    "id": "student",
+    "label": "I'm in school",
+    "defaults": { "blunt": 2, "warm": 2, "funny": 2, "chatty": 3, "proactive": 2 },
+    "chipsFirst": "Work",
+    "baseLine": "Most of what I bring you is learning and deadlines. Explain, then quiz me.",
+    "noun": "Study Partner"
+  },
+  {
+    "id": "creator",
+    "label": "I make stuff",
+    "defaults": { "blunt": 2, "warm": 2, "funny": 3, "chatty": 2, "proactive": 2 },
+    "chipsFirst": "Work",
+    "baseLine": "Most of what I bring you is drafts and ideas. Taste matters more than speed.",
+    "noun": "Editor"
+  },
+  {
+    "id": "operator",
+    "label": "I run a business",
+    "defaults": { "blunt": 3, "warm": 2, "funny": 1, "chatty": 1, "proactive": 3 },
+    "chipsFirst": "Work",
+    "baseLine": "Most of what I bring you is decisions and people. Tell me what it displaces.",
+    "noun": "Chief of Staff"
+  },
+  {
+    "id": "chaos",
+    "label": "It's chaos, help",
+    "defaults": { "blunt": 2, "warm": 3, "funny": 2, "chatty": 1, "proactive": 3 },
+    "chipsFirst": "Life",
+    "baseLine": "I don't have a system. You're the system.",
+    "noun": "Fixer"
+  }
+]
