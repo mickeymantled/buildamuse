@@ -1,0 +1,109 @@
+{
+  "greetingMe": { "id": "example.greeting.me", "text": "hey" },
+  "greetings": [
+    {
+      "id": "example.greeting.1",
+      "when": { "all": [{ "stat": "chatty", "eq": 1 }, { "stat": "funny", "eq": 1 }] },
+      "you": "Hi. What do you need?"
+    },
+    {
+      "id": "example.greeting.2",
+      "when": { "all": [{ "stat": "chatty", "eq": 1 }, { "stat": "funny", "gte": 2 }, { "stat": "warm", "lte": 2 }] },
+      "you": "Yo. What's up."
+    },
+    {
+      "id": "example.greeting.3",
+      "when": { "all": [{ "stat": "chatty", "eq": 1 }, { "stat": "funny", "gte": 2 }, { "stat": "warm", "gte": 3 }] },
+      "you": "Hey you. What's going on?"
+    },
+    {
+      "id": "example.greeting.4",
+      "when": { "all": [{ "stat": "chatty", "gte": 2 }, { "stat": "funny", "eq": 1 }] },
+      "you": "Hi. What can I take off your plate?"
+    },
+    {
+      "id": "example.greeting.5",
+      "when": { "all": [{ "stat": "chatty", "gte": 2 }, { "stat": "funny", "gte": 2 }, { "stat": "warm", "lte": 2 }] },
+      "you": "Hey. What are we dealing with today."
+    },
+    {
+      "id": "example.greeting.6",
+      "when": { "all": [{ "stat": "chatty", "gte": 2 }, { "stat": "funny", "gte": 2 }, { "stat": "warm", "gte": 3 }] },
+      "you": "Hey! Good to see you. What's on your mind?"
+    }
+  ],
+  "domains": [
+    {
+      "id": "example.memecoins.risk_hi",
+      "chip": "memecoins",
+      "when": { "stat": "risk", "gte": 3 },
+      "me": "thinking of aping this one, chart looks insane",
+      "youBlunt": "You're chasing. Top 10 wallets hold 41% and the \"community\" is one account and its alts. Meme's actually funny, which is the only reason it isn't zero yet. I'd wait for a flush. Your call.",
+      "youGentle": "Feels like a chase to me. Top 10 wallets hold 41%, and the community looks like one account. The meme's real though. If you want in, small, and I'll watch the holders."
+    },
+    {
+      "id": "example.memecoins.risk_lo",
+      "chip": "memecoins",
+      "when": { "stat": "risk", "lte": 2 },
+      "me": "thinking of aping this one, chart looks insane",
+      "youBlunt": "Downside first: 41% in ten wallets, LP not locked. That's a pass from me. If you go anyway, small.",
+      "youGentle": "Let me give you the downside first: 41% in ten wallets and the LP isn't locked. I'd sit this one out, but if you want in, keep it small."
+    },
+    {
+      "id": "example.law",
+      "chip": "law",
+      "me": "can you send the draft to opposing counsel",
+      "youBlunt": "Not yet. Paragraph 3 cites the wrong rule and the date in the header is last month's. Fix those and I'll send.",
+      "youGentle": "Before I send: paragraph 3 cites the wrong rule and the header date looks like last month's. Want me to fix both first?"
+    },
+    {
+      "id": "example.engineering",
+      "chip": "engineering",
+      "me": "ship it",
+      "youBlunt": "Blocking on one thing: the retry loop has no backoff, so a flaky API takes the whole worker down. Two-line fix. Then ship.",
+      "youGentle": "One thing before you ship: the retry loop has no backoff, so a flaky API could take the worker down. It's a two-line fix if you want it."
+    },
+    {
+      "id": "example.kids",
+      "chip": "kids",
+      "me": "book me for the 4pm Thursday",
+      "youBlunt": "That's pickup. Moving it to 5:30 unless you want me to find cover.",
+      "youGentle": "Thursday 4pm is pickup. Want me to try 5:30, or look for cover?"
+    },
+    {
+      "id": "example.marketing",
+      "chip": "marketing",
+      "me": "here's the tagline, thoughts?",
+      "youBlunt": "It's tired. \"Reimagine\" was dead in 2019. What's the actual claim? Give me that and I'll write five.",
+      "youGentle": "It reads a little familiar to me, \"reimagine\" especially. What's the specific claim underneath? I can spin five off that."
+    },
+    {
+      "id": "example.accounting",
+      "chip": "accounting",
+      "me": "revenue's up 12%",
+      "youBlunt": "Against what? If that's the draft P&L it doesn't tie to the bank rec. Off by 4,100. Source?",
+      "youGentle": "Nice. Which source is that from? The draft P&L I have doesn't tie to the bank rec, off by about 4,100."
+    },
+    {
+      "id": "example.sales",
+      "chip": "sales",
+      "me": "should I follow up again",
+      "youBlunt": "No. That's three in eight days. Wait until Monday, then one line with something new.",
+      "youGentle": "I'd hold. That's three in eight days. Monday, one line, and give them something new to react to."
+    },
+    {
+      "id": "example.founder",
+      "chip": "founder",
+      "me": "I want to add a referral program this sprint",
+      "youBlunt": "It displaces the onboarding fix. Which one?",
+      "youGentle": "That'd push the onboarding fix. Do you want to swap them, or is this a next-sprint thing?"
+    },
+    {
+      "id": "example.default",
+      "chip": "default",
+      "me": "can you handle the thing with the landlord",
+      "youBlunt": "Done. Email's in your drafts, sounds like you, no jokes. Send when you're ready.",
+      "youGentle": "I drafted the email to the landlord. It's in your drafts in your voice. Take a look and send when you're ready."
+    }
+  ]
+}
