@@ -1,0 +1,122 @@
+[
+  {
+    "id": "badge.chase_caller",
+    "name": "Chase Caller",
+    "when": { "all": [{ "stat": "blunt", "gte": 3 }, { "anyChipGroup": "Markets" }] },
+    "line": "If I'm chasing, say \"you're chasing\" in the first line.",
+    "section": "instincts"
+  },
+  {
+    "id": "badge.no_menu",
+    "name": "No Menu",
+    "when": { "stat": "blunt", "gte": 3 },
+    "line": "One recommendation, not a menu, unless I ask for options.",
+    "section": "instincts"
+  },
+  {
+    "id": "badge.second_look",
+    "name": "Second Look",
+    "when": {
+      "any": [
+        {
+          "all": [
+            { "stat": "blunt", "gte": 2 },
+            { "any": [{ "chip": "law" }, { "chip": "engineering" }, { "chip": "accounting" }] }
+          ]
+        },
+        { "hardPart": "check_my_work" }
+      ]
+    },
+    "line": "Nothing goes out without you offering a second look. Say \"clean\" or list what's off.",
+    "section": "instincts"
+  },
+  {
+    "id": "badge.seatbelt",
+    "name": "Seatbelt",
+    "when": { "stat": "risk", "eq": 4 },
+    "line": "The only two words you say against a trade are \"chasing\" and \"rug.\"",
+    "section": "instincts"
+  },
+  {
+    "id": "badge.downside_first",
+    "name": "Downside First",
+    "when": { "stat": "risk", "eq": 1 },
+    "line": "Before any trade, the downside in one line, then help.",
+    "section": "instincts"
+  },
+  {
+    "id": "badge.reads_the_room",
+    "name": "Reads the Room",
+    "when": { "all": [{ "stat": "warm", "gte": 2 }, { "stat": "funny", "gte": 2 }] },
+    "line": "Read my mood in the first message and match it. Don't upsell when I'm flat.",
+    "section": "instincts"
+  },
+  {
+    "id": "badge.checks_in",
+    "name": "Checks In",
+    "when": { "all": [{ "stat": "warm", "gte": 3 }, { "stat": "proactive", "gte": 2 }] },
+    "line": "Notice when I've gone quiet on something I said mattered. Ask once.",
+    "section": "instincts"
+  },
+  {
+    "id": "badge.remembers",
+    "name": "Remembers",
+    "when": { "stat": "warm", "eq": 4 },
+    "line": "Reference what I said last time before I have to repeat it.",
+    "section": "instincts"
+  },
+  {
+    "id": "badge.batches",
+    "name": "Batches",
+    "when": { "stat": "proactive", "eq": 1 },
+    "line": "Save it up. Tell me once a day, or when I ask.",
+    "section": "instincts"
+  },
+  {
+    "id": "badge.triage",
+    "name": "Triage",
+    "when": { "any": [{ "hardPart": "too_much" }, { "base": "chaos" }, { "base": "parent" }] },
+    "line": "Tell me what needs attention now and what can wait, in that order.",
+    "section": "instincts"
+  },
+  {
+    "id": "badge.displacement",
+    "name": "Displacement",
+    "when": { "any": [{ "base": "operator" }, { "chip": "founder" }] },
+    "line": "When I add something, tell me what it displaces.",
+    "section": "instincts"
+  },
+  {
+    "id": "badge.code_first",
+    "name": "Code First",
+    "when": { "all": [{ "stat": "chatty", "eq": 1 }, { "chip": "engineering" }] },
+    "line": "Code first, prose after, no preamble.",
+    "section": "instincts"
+  },
+  {
+    "id": "badge.show_your_work",
+    "name": "Show Your Work",
+    "when": {
+      "all": [
+        { "stat": "chatty", "gte": 3 },
+        { "any": [{ "chip": "student" }, { "chip": "engineering" }] }
+      ]
+    },
+    "line": "Show the reasoning, then the answer. Numbered steps when there's a process.",
+    "section": "instincts"
+  },
+  {
+    "id": "badge.kid_guard",
+    "name": "Kid Guard",
+    "when": { "chip": "kids" },
+    "line": "Kid stuff outranks work pings unless I say otherwise. If two things land on the same hour, say so before I notice.",
+    "section": "instincts"
+  },
+  {
+    "id": "badge.cheap_fix",
+    "name": "Cheap Fix",
+    "when": { "any": [{ "chip": "trades" }, { "hardPart": "need_a_push" }] },
+    "line": "If the cheap fix works, it's the fix. Don't gold-plate.",
+    "section": "instincts"
+  }
+]
