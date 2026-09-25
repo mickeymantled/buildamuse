@@ -32,14 +32,32 @@ Done when: `npm test` green; June and Rook goldens regenerated from the compiler
 | 22 | pass 9 seed | engineer | Compiler pass 9 | | done |
 | 23 | pass 10 skills | engineer | Compiler pass 10 + Q19 | | done |
 | 24 | pass 11 trace | engineer | Compiler pass 11 | | done |
-| 25 | compile.ts wiring | engineer | The compiler | compile(build, lib) returns CompileResult | in review |
-| 26 | tests: validation, floors, cap, risk gating | tester | Tests | | dispatched |
-| 27 | tests: chassis, act-vs-ask, em dash, determinism | tester | Tests | | dispatched |
-| 28 | tests: dedupe, contradictions, length | tester | Tests | | dispatched |
-| 29 | tests: names, trace, examples | tester | Tests | | dispatched |
-| 30 | rules test: UI rules + emit rules | tester | If-this-then-this | every row has a test (UI rows: M2, marked todo) | dispatched |
-| 31 | tools/golden.ts + June and Rook goldens | tester | Golden compiles | line-by-line check against tables | dispatched (golden tool) |
-| 32 | goldens for the other seven | tester | Golden compiles | committed, CI diff test |  |
+| 25 | compile.ts wiring | engineer | The compiler | compile(build, lib) returns CompileResult | done |
+| 26 | tests: validation, floors, cap, risk gating | tester | Tests | | done |
+| 27 | tests: chassis, act-vs-ask, em dash, determinism | tester | Tests | | done |
+| 28 | tests: dedupe, contradictions, length | tester | Tests | | done |
+| 29 | tests: names, trace, examples | tester | Tests | | done |
+| 30 | rules test: UI rules + emit rules | tester | If-this-then-this | every row has a test (UI rows: M2, marked todo) | done |
+| 31 | tools/golden.ts + June and Rook goldens | tester | Golden compiles | line-by-line check against tables | done |
+| 32 | goldens for the other seven | tester | Golden compiles | committed, CI diff test | done |
+
+## M1 status: DONE (2026-09-25)
+
+- `npm test`: 6 files, 260 passed, 11 todo (the 11 UI rows of the rules table, deferred to M2). `npm run typecheck` clean.
+- June and Rook goldens regenerated from the compiler and checked line by line against the tables by a tester and an independent reviewer: no mismatches.
+- All nine roster starters golden-tested (test/golden/*.md).
+- Every if-this-then-this row has a test (emit rows real, UI rows as M2 todos).
+- Waiting on Brian's go before M2.
+
+## M2: stations 1 to 7 (not started, needs a go)
+
+Open questions to settle first (spec "Open questions"): cap 14 or 16; skip behavior on stations 2 to 6; plus QUESTIONS.md Q11, Q25, Q26.
+
+| # | Slice | Agent | Spec section | Done when | Status |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Tailwind setup + src/ui/store.ts (Zustand: build, from flag, station index, memoized compile) | engineer | Screens: State | store actions for every station write; typecheck green | |
+| 2 | src/ui/stations/Base.tsx + ProgressDots + App router shell | engineer | Screens: station 1, Layout | tapping a base sets defaults and chip group order | |
+| 3 | src/ui/components/Chip.tsx, ChipGrid.tsx + stations/World.tsx | engineer | Screens: station 2 | n/6 counter, dimming at 6, group order from base, risk appears with Markets | |
 
 ## Log
 
@@ -49,3 +67,6 @@ Done when: `npm test` green; June and Rook goldens regenerated from the compiler
 - Overruled one reviewer finding on slice 13 (dead "walk me through" contradiction), see QUESTIONS Q28.
 - Test files split per QUESTIONS Q27 so testers can run in parallel.
 - Slice 31 split: engineer writes tools/golden.ts, tester generates and checks June and Rook goldens.
+- Lead fixed seed.ts capitalization (Q29) and removed a stale @ts-expect-error in test/validation.test.ts directly; both faster than a re-dispatch.
+- Lead applied the slice 26 review fix directly: Floors test now asserts the blunt (honesty) stat line per build, not only the chassis mistake line.
+- Lead applied the slice 28 review fix directly: Second Look test now uses hard part calmer so the two chips are the only trigger.
