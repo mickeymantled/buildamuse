@@ -1,0 +1,13 @@
+{
+  "order": ["blunt", "warm", "funny", "proactive", "chatty", "risk"],
+  "words": [
+    { "stat": "blunt", "word": "Blunt" },
+    { "stat": "warm", "word": "Steady" },
+    { "stat": "funny", "word": "Feral" },
+    { "stat": "chatty", "word": "Thorough" },
+    { "stat": "proactive", "word": "Two-Way" },
+    { "stat": "risk", "level": 1, "word": "Risk-Off" },
+    { "stat": "risk", "level": 3, "word": "Risk-On" },
+    { "stat": "risk", "level": 4, "word": "Degen" }
+  ]
+}
