@@ -1,0 +1,14 @@
+[
+  {
+    "id": "contra.chatty1_walk_me_through",
+    "when": { "stat": "chatty", "eq": 1 },
+    "drop": { "kind": "chip-trigger", "contains": "walk me through" },
+    "reason": "Chatty 1 vs any \"walk me through\" line"
+  },
+  {
+    "id": "contra.funny1_joke_permission",
+    "when": { "stat": "funny", "eq": 1 },
+    "drop": { "kind": "voice", "group": "Life" },
+    "reason": "Funny 1 vs any joke permission"
+  }
+]
