@@ -47,17 +47,56 @@ Done when: `npm test` green; June and Rook goldens regenerated from the compiler
 - June and Rook goldens regenerated from the compiler and checked line by line against the tables by a tester and an independent reviewer: no mismatches.
 - All nine roster starters golden-tested (test/golden/*.md).
 - Every if-this-then-this row has a test (emit rows real, UI rows as M2 todos).
-- Waiting on Brian's go before M2.
+- Brian said go (2026-10-01) with a new brief; see M2 below.
 
-## M2: stations 1 to 7 (not started, needs a go)
+## M2 (Build-a-Bot): data model v2, six runtimes, bundles
 
-Open questions to settle first (spec "Open questions"): cap 14 or 16; skip behavior on stations 2 to 6; plus QUESTIONS.md Q11, Q25, Q26.
+Brief: docs/Build-a-Bot-v2-Brief.md (Brian, 2026-10-01, supersedes everything since M1). Architecture: docs/V2-DESIGN.md (lead). M3 (UI) and later are on hold until Brian says go after M2.
 
-| # | Slice | Agent | Spec section | Done when | Status |
+Done when (Part F): npm test green; every gate appears in both layers for every golden; every dot golden emits one Custom Rule per gate; every grok golden passes all twelve Bot Ready checks; every chatgpt golden fits its mode's cap; a v1 Marty link decodes to v2 and compiles; no pack default violates Part D. Plus: 60 goldens committed, pack probe files stored, every golden set safety-reviewed with PASS.
+
+Loop per slice: plan, dispatch, verify (npm test, typecheck), review (reviewer for code, safety for goldens, safety then reviewer for content), commit. Content for packs, roles, gates, limits and target templates comes from author (never transcriber guessing, never lead).
+
+| # | Slice | Agent | Brief section | Done when | Status |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Tailwind setup + src/ui/store.ts (Zustand: build, from flag, station index, memoized compile) | engineer | Screens: State | store actions for every station write; typecheck green | |
-| 2 | src/ui/stations/Base.tsx + ProgressDots + App router shell | engineer | Screens: station 1, Layout | tapping a base sets defaults and chip group order | |
-| 3 | src/ui/components/Chip.tsx, ChipGrid.tsx + stations/World.tsx | engineer | Screens: station 2 | n/6 counter, dimming at 6, group order from base, risk appears with Markets | |
+| 0.1 | standing S1: length cap 3600, reversed order | engineer | Part A standing calls | review PASS | done |
+| 0.2 | standing S2: Risk-Off Word2 | engineer | Part A | review PASS | done |
+| 0.3 | standing S3: example 2 any group | engineer | Part A | review PASS | done |
+| 0.4 | standing S7: singular seed ending | engineer | Part A | review PASS | done |
+| 0.5 | standing S4: accounting d1 | transcriber | Part A | review PASS | done |
+| 0.6 | standing S5: Marty forget | transcriber | Part A | review PASS | done |
+| 0.7 | tests: length S1 | tester | Part A | review PASS, tests green | dispatched |
+| 0.8 | tests: names S2, examples S3 | tester | Part A | review PASS | dispatched |
+| 0.9 | tests: seed S7 | tester | Part A | review PASS | dispatched |
+| 0.10 | regenerate nine v1 goldens | tester | Part A | every diff line explained | dispatched |
+| 1 | types v2 | engineer | Part B + V2-DESIGN 2-4 | typecheck green | |
+| 2 | targets.json facts: 5 cards, 8 profiles, pinned docs, verify lines | transcriber | Part C | every Part C fact present, placeholders elsewhere | |
+| 3 | chassis.json: no_self_edit, rules.outrank | transcriber | Part C chassis changes | records verbatim | |
+| 4 | gates.json content | author, safety, transcriber | Parts B, D + V2-DESIGN 3, 7 | safety PASS, reviewer PASS | |
+| 5 | limits.json content | author, safety, transcriber | Parts B, D | safety PASS, reviewer PASS | |
+| 6 | profile templates, chassis variants, chassis short forms | author, safety, transcriber | Part C + V2-DESIGN 5, 6 | safety PASS, reviewer PASS | |
+| 7-18 | packs x12 (memecoins, perps, prediction-markets, spot, coding, research, content, sales, personal-ops, support, data, devops) incl. probe files | author, safety, transcriber | Part D | per pack: safety PASS, reviewer PASS, probes stored | |
+| 19-22 | role sets x4 (trading, coding, research, personal-ops) | author, safety, transcriber | Part D roles | per set: safety PASS, reviewer PASS | |
+| 23 | migrate v1 to v2 + share encode/decode | engineer | Part B migration + spec share links | typecheck, v1 Marty link decodes | |
+| 24 | migrate + share tests | tester | Part B | review PASS | |
+| 25 | validate v2 | engineer | V2-DESIGN 2 | review PASS | |
+| 26 | profile resolution, effective gates and limits | engineer | V2-DESIGN 1, 2, 3 | review PASS | |
+| 27 | soul layout v2: pack triggers, gate lines, rules section and blocks, chassis variants | engineer | V2-DESIGN 5 | review PASS | |
+| 28 | grok layout | engineer | Part C grok + V2-DESIGN 5 | review PASS | |
+| 29 | instructions layout incl. compact | engineer | Part C instructions + V2-DESIGN 5 | review PASS | |
+| 30 | rules layer: AGENTS.md, Never block, custom rules, top and bottom | engineer | V2-DESIGN 7 | review PASS | |
+| 31 | skills, routines, memory delivery | engineer | V2-DESIGN 8 | review PASS | |
+| 32 | roles compile | engineer | Part D roles + V2-DESIGN 9 | review PASS | |
+| 33 | bundle assembly, compile wiring, trace v2, length by profile | engineer | Part B bundle + V2-DESIGN 4 | review PASS | |
+| 34 | test: gate in both layers | tester | Part C chassis changes + V2-DESIGN 7 | review PASS | |
+| 35 | test: dot custom rules | tester | Part C dot | review PASS | |
+| 36 | test: grok Bot Ready | tester | Part C grok | review PASS | |
+| 37 | test: chatgpt caps | tester | Part C chatgpt | review PASS | |
+| 38 | test: pack-default safety | tester | Part D defaults | review PASS | |
+| 39 | test: roles (40 to 120 lines, one coordinator, locked stats, delegation lines) | tester | Part D roles | review PASS | |
+| 40 | tools/golden.ts v2 | engineer | Part F | review PASS | |
+| 41 | goldens, 60 (+ role goldens) | tester | Part F | safety PASS per profile set | |
+| 42 | probe files check, all 12 packs | author | Part D | five probes each, one gate probe | |
 
 ## Log
 

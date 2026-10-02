@@ -10,6 +10,26 @@ Each entry: what's ambiguous, the readings, the one picked. "Decided by Brian" m
 
 **Q3. Seed formula.** The spec's pass 9 formula wins: the tail is always " when you need them." even for one noun. (The library's June example says "when you need it".)
 
+## Decided by Brian (2026-10-01 standing calls, docs/Build-a-Bot-v2-Brief.md Part A)
+
+**S1. Soul cap and drop order** (supersedes Q13, Q25). Cap 3,600. Reversed order: voice lines drop first, then Life and Time chip triggers, then Work and Markets triggers (third, then second), last-tapped chip first in each group. A Work or Markets chip's first trigger is never dropped.
+
+**S2. Risk-Off** (supersedes Q26). Whenever risk = 1, Word2 is Risk-Off. Word1 is the top non-risk stat by the usual sort and tiebreak.
+
+**S3. Example 2 row** (supersedes Q11). The first tapped chip in tap order that has a row, any group; else the default row. June gets the kids row.
+
+**S4. Accounting d1** (supersedes Q5 for accounting). "To make the number tie. A figure that doesn't reconcile isn't a figure yet."
+
+**S5. Marty's hard part** (supersedes Q4). forget. d1 stays the memecoins suggestion ("To be early.").
+
+**S6. Taglines.** Brian's brief says "the nine taglines I gave", but they are not in the brief, this repo, or the docs. Open: Brian, please paste them. Until then each stays `[TODO: tagline]` (Q22).
+
+**S7. Seed ending** (supersedes Q3). One domain noun: " when you need it." Two or more: " when you need them."
+
+**S8. Stat cap** stays 14 (spec open question closed).
+
+**S9. Skipped stations** keep base defaults; the certificate shows a muted "you skipped X" line (UI, M3/M4).
+
 ## Lead calls
 
 **Q4. Marty's hard part.** The roster Heart column for Marty says "be early", which is the memecoins d1 suggestion, not a hard part. A build needs a hard part. Picked: `calmer` (no forced badge, fits a trader). d1 is the memecoins drive.
@@ -63,3 +83,33 @@ Each entry: what's ambiguous, the readings, the one picked. "Decided by Brian" m
 **Q28. "Walk me through" contradiction has no current target.** No chip trigger in the library contains "walk me through" (only the chatty 4 stat line does, and stat lines always win). The reviewer flagged the record as dead. Picked: keep it, because the library lists the pair explicitly and it engages as soon as such a chip line is added; tests exercise it with an injected line. Also noted by review: the id `student` is both a base id and a chip id. They live in different namespaces (base ids never become soul line ids), so no trace collision.
 
 **Q29. Seed clause capitalization.** The meetings chip seed is "My days are meetings." and it lands mid-sentence ("Remember that I'm a lawyer, My days are meetings."). Picked: lowercase the first letter of each chip clause unless it is the pronoun I. Only this one clause changes today. Lead fixed this directly in seed.ts (two lines) rather than re-dispatching.
+
+## M2 (Build-a-Bot v2) lead calls
+
+Architecture is in docs/V2-DESIGN.md. Each entry below is a call Brian can overturn.
+
+**V1. "Six targets", "6 records".** Part C lists five targets (Muse, OpenClaw, Hermes, Grok Bot, ChatGPT) with ChatGPT in four modes, which is eight delivery profiles. Picked: targets.json holds 5 target cards (station 0) and 8 delivery profiles. The six golden columns are muse, openclaw, hermes, grok, chatgpt-dot, chatgpt-gpt.
+
+**V2. Instructions plan default.** Part B makes `plan` optional. Picked: absent means free (the stricter 1,500 cap), so a build without a plan still fits.
+
+**V3. Gate and limit merging.** Picked: pay is present in every build and locked at forbid ("pay defaults to forbid everywhere"). When two selected packs default the same action differently, the stricter setting wins (forbid over approve over auto); when they default the same limit differently, the stricter value wins (each limit says whether lower or higher is stricter). User overrides apply after, except pay.
+
+**V4. Packs that act without a Part D gate.** prediction-markets places bets but Part D gives it no gates, and support replies to customers but has only refund. Under "Any pack with trade: trade=approve" and the new stop condition, picked: author and safety must give every pack a gate for any money, mail or data action it can take; any gate added beyond Part D is listed here once authored.
+
+**V5. Who writes gate, limit and template text.** Parts B and D give gate and limit names but almost no text (only the trade soul line, the dot opener and suffix, the dot setting names, the grok install steps and the variants in Part C). Picked: the author agent writes the missing text as testable lines, safety reviews it, the transcriber writes the JSON. Every authored line is reported so Brian can approve or rewrite it. Text Brian gave is used verbatim.
+
+**V6. Act-vs-ask pair in v2.** Picked: chassis.act.approval stays as a generic catch-all (chassis can't be removed), followed by one generated soul line per gate, then chassis.act.reversible. The rules layer lists the same gates with thresholds.
+
+**V7. Chassis inside small caps.** Grok's description is capped at 2,000 and free custom instructions at 1,500; the full chassis alone is about 950 characters. Brian's compact list for 1,500 doesn't mention chassis. Picked: every chassis line still ships, in a short form (a `short` text per chassis line, authored and safety-reviewed) on grok and on instructions free. Brian: confirm, or say which chassis lines the compact variant may leave out.
+
+**V8. Bundle shape extensions.** Part B's CompileResult plus: each file has `label`, `delivery` ('file' or 'paste') and traced `lines`; spoken items carry `ids`; `notes` (verify lines, reload notes, venue notes, fallback warnings) for the certificate; `description` (gpt); the effective `gates`, `limits`, `packs`, `roles`.
+
+**V9. Roster stays target-agnostic.** Starters keep the v1 build shape; compiling a starter for a target runs the v1 to v2 migration with that target (packs from chips, default gates and limits).
+
+**V10. Skill shapes.** Pack skills use the six-field shape plus an `actions` list (the gated actions the skill can take) so tests can check each skill's approval field. Chip skills keep their v1 shape and render through a per-profile legacy template.
+
+**V11. Rules-outrank line.** Present for openclaw and hermes (Part C text) and for chatgpt-dot (Part C variant). Muse, grok, gpt, instructions and project carry their rules in the same text as the personality, so they have no outrank line. Muse keeps the refine line (Part C); every other profile drops it (it contradicts "You never edit this file").
+
+**V12. Role fallbacks Part C doesn't name.** Muse and custom instructions: no role output, one note saying roles aren't supported there. Project: like gpt, one instructions bundle per role plus the manual-handoff warning.
+
+**V13. Placeholders that only Brian can fill.** The OpenClaw template opener text and the five promise lines are not in the brief. Picked: `[TODO: ...]` placeholders, shown in goldens.
