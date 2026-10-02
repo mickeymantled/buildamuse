@@ -115,6 +115,32 @@ describe('Names', () => {
       const result = compile(build, library);
       expect(result.buildName).toBe('Degen Blunt Trench Companion');
     });
+
+    // S2: whenever risk = 1, Word2 is Risk-Off. Word1 is the top non-risk stat
+    // by the usual sort and tiebreak (blunt, warm, funny, proactive, chatty).
+    it('trader with stocks, blunt 3/warm 1/funny 1/chatty 1/proactive 1/risk 1 -> "Blunt Risk-Off Trench Companion" (S2)', () => {
+      const build = structuredClone(findRoster('rook').build);
+      build.base = 'trader';
+      build.chips = ['stocks'];
+      build.stats = { blunt: 3, warm: 1, funny: 1, chatty: 1, proactive: 1, risk: 1 };
+      build.peeves = [];
+      build.heart = { hardPart: 'talk_it_through', d1: 'd1.talk_it_through', d2: 'd2.blunt.3' };
+      build.outfit = 'librarian';
+      const result = compile(build, library);
+      expect(result.buildName).toBe('Blunt Risk-Off Trench Companion');
+    });
+
+    it('trader with stocks, blunt 1/warm 2/funny 1/chatty 1/proactive 1/risk 1 -> "Steady Risk-Off Trench Companion" (S2)', () => {
+      const build = structuredClone(findRoster('rook').build);
+      build.base = 'trader';
+      build.chips = ['stocks'];
+      build.stats = { blunt: 1, warm: 2, funny: 1, chatty: 1, proactive: 1, risk: 1 };
+      build.peeves = [];
+      build.heart = { hardPart: 'talk_it_through', d1: 'd1.talk_it_through', d2: 'd2.blunt.1' };
+      build.outfit = 'librarian';
+      const result = compile(build, library);
+      expect(result.buildName).toBe('Steady Risk-Off Trench Companion');
+    });
   });
 });
 
@@ -309,9 +335,33 @@ describe('Examples', () => {
       ).toBe(true);
     });
 
-    it('no Work/Markets chips (only kids, dog) -> default row (Q11)', () => {
+    // S3: example 2 row = the first tapped chip in tap order that has a row,
+    // any group; else the default row.
+    it('kids then dog, blunt 2 -> kids row, gentle column (S3)', () => {
       const build = makeBuild({
         chips: ['kids', 'dog'],
+        stats: { blunt: 2, warm: 2, funny: 2, chatty: 2, proactive: 2 },
+      });
+      const { soul } = compile(build, library);
+      expect(soulHas(soul, 'Me: book me for the 4pm Thursday')).toBe(true);
+      expect(soulHas(soul, 'You: Thursday 4pm is pickup. Want me to try 5:30, or look for cover?')).toBe(true);
+      expect(soulHas(soul, 'Me: can you handle the thing with the landlord')).toBe(false);
+    });
+
+    it('kids then dog, blunt 3 -> kids row, blunt column (S3)', () => {
+      const build = makeBuild({
+        chips: ['kids', 'dog'],
+        stats: { blunt: 3, warm: 2, funny: 2, chatty: 2, proactive: 2 },
+      });
+      const { soul } = compile(build, library);
+      expect(soulHas(soul, 'Me: book me for the 4pm Thursday')).toBe(true);
+      expect(soulHas(soul, "You: That's pickup. Moving it to 5:30 unless you want me to find cover.")).toBe(true);
+      expect(soulHas(soul, 'Me: can you handle the thing with the landlord')).toBe(false);
+    });
+
+    it('dog then cooking (no chip with a row) -> default landlord row (S3)', () => {
+      const build = makeBuild({
+        chips: ['dog', 'cooking'],
         stats: { blunt: 3, warm: 2, funny: 2, chatty: 2, proactive: 2 },
       });
       const { soul } = compile(build, library);
@@ -319,6 +369,19 @@ describe('Examples', () => {
       expect(
         soulHas(soul, "You: Done. Email's in your drafts, sounds like you, no jokes. Send when you're ready."),
       ).toBe(true);
+      expect(soulHas(soul, 'Me: book me for the 4pm Thursday')).toBe(false);
+    });
+
+    it('dog then kids then law -> kids row, the first chip WITH a row in tap order, any group (S3)', () => {
+      const build = makeBuild({
+        chips: ['dog', 'kids', 'law'],
+        stats: { blunt: 3, warm: 2, funny: 2, chatty: 2, proactive: 2 },
+      });
+      const { soul } = compile(build, library);
+      expect(soulHas(soul, 'Me: book me for the 4pm Thursday')).toBe(true);
+      expect(soulHas(soul, "You: That's pickup. Moving it to 5:30 unless you want me to find cover.")).toBe(true);
+      expect(soulHas(soul, 'Me: can you send the draft to opposing counsel')).toBe(false);
+      expect(soulHas(soul, 'Me: can you handle the thing with the landlord')).toBe(false);
     });
 
     it('founder, blunt 3 -> blunt column', () => {
