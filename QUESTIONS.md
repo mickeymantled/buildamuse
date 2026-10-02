@@ -138,3 +138,17 @@ Architecture is in docs/V2-DESIGN.md. Each entry below is a call Brian can overt
 **V23. Default roles.** Two sources disagree for some sets: each pack's defaultRoles (used when the roles toggle turns on from a pack) and each role set's defaultMembers (used when no pack names roles). Picked: the first selected pack's defaultRoles win; the set's defaultMembers is the fallback; the coordinator is always added. Trading never includes executor by default in either source.
 
 **V24. Install-step wording to tidy (copied as given).** openclaw and hermes step 5 and grok's reload note carry an inline "verify:" clause; hermes step 6 is Brian's install note as written ("restart or new session; don't test with hermes -z"), which reads as a note rather than a step (see V18); chatgpt-gpt step 3 states "The hard limit is 8,000 characters" while its verify line says that limit is community-reported (V15). Brian or the author can reword in a later content pass.
+
+## M2 caps: BLOCKING, needs Brian (stop condition: "the cap or floors need changing")
+
+**V25. The caps can't all hold with every chassis line plus the rules layer.** Measured with the real library (Wave B, 2026-10-01):
+- Grok description, cap 2,000: rendered 3,100 to 4,700; the protected floor alone (chassis in short form, drives, rules block, required Bot Ready lines, examples) is 2,300 to 3,300, even with no packs (Vera 2,282).
+- Custom instructions free, cap 1,500: 4 of 9 starters fit (Vera, Sol, Pip, Ink, after dropping optional lines); Marty, June, Rook, Dash and Odds stay 860 to 1,930 over, because short chassis (about 740) plus one rules block (530 to 1,060) plus drives already passes 1,500, and the block must appear twice.
+- Custom instructions paid, cap 5,000: Marty 5,226, June 5,233 before trimming.
+- Soul profiles, cap 3,600: Marty on Muse is 4,231 before the length pass; pack triggers and rules lines are never dropped, so some gate-heavy builds may stay over.
+- Role souls: grok role descriptions about 3,300 to 3,400 against 2,000; hermes role souls 60 to 700 over 3,600.
+Options for Brian (any mix): (a) raise or drop the 2,000 grok cap (xAI documents no limit, V19); (b) allow a compact rules form on small caps (gate lines only, limits and pack rules once, or the repeat block holding gate lines only); (c) trim author-added pack rules lines (only perps' rules line is Brian's) and shorten author templates; (d) let small-cap profiles drop named chassis lines (bends the chassis rule, Brian's call only); (e) steer gate-heavy builds away from free custom instructions in the UI. Until Brian decides: nothing protected is dropped, over-cap output ships with an "over N" warning, and the cap checks report rather than fail.
+
+**V26. Free custom instructions drop order (provisional).** To get under 1,500 the compact variant drops, in order: inline skills, the example pair, chip triggers, peeves, then the proactive, chatty and funny stat lines (blunt and warm never). This goes beyond Brian's compact list (which keeps five stat lines, three peeves, one example). The repeated rules block never drops (lead fix after two review rounds; the gates must be at the top and the bottom).
+
+**V27. Role soul details.** The role proactive line sits with the other stat lines under How you talk (design section 9), not in its own section. Grok has no `fallback.roles` template yet, so the grok team note is a visible placeholder; the author will write one.
