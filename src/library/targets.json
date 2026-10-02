@@ -557,6 +557,10 @@
         "routine.sentence": {
           "id": "profile.grok.routine.sentence",
           "line": "Create a routine called {name} on this Bot.\nSchedule: {schedule}. Ask me to confirm the time zone.\nInput source: {inputs}\nExpected result: {returns}\nApproval boundary: {requiresApproval}\nIf the source is missing: say which one in the first line and stop. Don't guess.\nBefore you save it, read all of this back to me, including the owning Bot. Test run it first, and don't enable it until two runs look right."
+        },
+        "fallback.roles": {
+          "id": "profile.grok.fallback.roles",
+          "line": "Create one Bot per role ({roles}) and paste each description, put them all in one group chat (at most 6 Bots), then @mention the coordinator to start work. Hard rules and approvals live in each Bot's description."
         }
       }
     },
