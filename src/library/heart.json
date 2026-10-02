@@ -97,7 +97,7 @@
     {
       "id": "d1.chip.accounting",
       "slot": "d1",
-      "line": "[TODO: accounting d1 drive line] the number has to tie.",
+      "line": "To make the number tie. A figure that doesn't reconcile isn't a figure yet.",
       "chip": "accounting"
     },
     {
