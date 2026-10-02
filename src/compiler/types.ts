@@ -70,7 +70,8 @@ export type Section =
   | 'sources'
   | 'never'
   | 'missing'
-  | 'return';
+  | 'return'
+  | 'skills';
 
 // The only runtime value in this file: section render order.
 export const SECTION_ORDER: readonly Section[] = [
@@ -96,6 +97,7 @@ export const SECTION_ORDER: readonly Section[] = [
   'never',
   'missing',
   'return',
+  'skills',
 ] as const;
 
 // Small predicate language evaluated against a Build. Conditions live in JSON, not in code.
