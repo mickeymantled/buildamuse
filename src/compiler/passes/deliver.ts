@@ -1,0 +1,369 @@
+// Delivery of skills, routines, memory and the AGENTS.md rules file. Every text comes from a
+// library record or a profile template; this file only fills placeholders and lays out lines.
+
+import { fill } from '../fill.js';
+import { rulesItems } from '../gates.js';
+import type {
+  BundleFile,
+  ChipSkill,
+  CompileContext,
+  GateSetting,
+  Item,
+  Library,
+  Line,
+  Skill,
+  SpokenItem,
+  TracedLine,
+} from '../types.js';
+
+type Entry =
+  | { src: 'pack'; id: string; dir: string; skill: Skill }
+  | { src: 'chip'; id: string; dir: string; skill: ChipSkill };
+
+// Same rule as passes/skills.ts: lowercase the first letter unless the second is uppercase.
+function lowerFirst(s: string): string {
+  if (s.length < 2) return s.toLowerCase();
+  const second = s[1];
+  if (second >= 'A' && second <= 'Z') return s;
+  return s[0].toLowerCase() + s.slice(1);
+}
+
+function template(ctx: CompileContext, key: string): Line {
+  const found = Object.hasOwn(ctx.profile.templates, key) ? ctx.profile.templates[key] : undefined;
+  if (!found) {
+    throw new Error(`Profile ${ctx.profile.id} has no template "${key}"`);
+  }
+  return found;
+}
+
+function filled(
+  ctx: CompileContext,
+  key: string,
+  vars: Record<string, string>,
+): { text: string; id: string } {
+  const t = template(ctx, key);
+  return { text: fill(t.line, vars), id: t.id };
+}
+
+function blankLine(lib: Library): TracedLine {
+  return { text: '', id: lib.chassis.blank.id, kind: 'blank' };
+}
+
+export function fileFromLines(
+  path: string,
+  label: string,
+  delivery: BundleFile['delivery'],
+  lines: TracedLine[],
+): BundleFile {
+  return { path, label, delivery, content: lines.map((l) => l.text).join('\n'), lines };
+}
+
+// Chip skills first in tap order, then pack skills in pack order. A directory name that is
+// already taken (two packs can share a skill id) gets the pack id in front.
+function collectSkills(ctx: CompileContext): Entry[] {
+  const used = new Set<string>();
+  const claim = (dir: string, packId?: string): string => {
+    let name = dir;
+    if (used.has(name) && packId !== undefined) {
+      name = `${packId}-${dir}`;
+    }
+    const base = name;
+    for (let n = 2; used.has(name); n++) {
+      name = `${base}-${n}`;
+    }
+    used.add(name);
+    return name;
+  };
+
+  const entries: Entry[] = [];
+  for (const chipId of ctx.build.chips) {
+    const chip = ctx.lib.chips.find((c) => c.id === chipId);
+    for (const skill of chip?.skills ?? []) {
+      const last = skill.id.split('.').at(-1) as string;
+      entries.push({ src: 'chip', id: skill.id, dir: claim(last), skill });
+    }
+  }
+  for (const pack of ctx.packs) {
+    for (const skill of pack.skills) {
+      entries.push({
+        src: 'pack',
+        id: `pack.${pack.id}.skill.${skill.id}`,
+        dir: claim(skill.id, pack.id),
+        skill,
+      });
+    }
+  }
+  return entries;
+}
+
+function varsOf(e: Entry): Record<string, string> {
+  if (e.src === 'pack') {
+    const s = e.skill;
+    return {
+      name: s.name,
+      whenToUse: s.whenToUse,
+      inputs: s.inputs,
+      steps: s.steps.map((step, i) => `${i + 1}. ${step}`).join('\n'),
+      validate: s.validate,
+      returns: s.returns,
+      requiresApproval: s.requiresApproval,
+      schedule: s.schedule ?? '',
+      task: s.name,
+      sentence: s.whenToUse,
+      detail: s.whenToUse,
+    };
+  }
+  const s = e.skill;
+  return {
+    name: s.name,
+    sentence: lowerFirst(s.sentence),
+    schedule: s.schedule ?? '',
+    detail: s.detail,
+    task: s.name,
+  };
+}
+
+// The rules lines of the gates picked by `include`, in registry order, with their record ids.
+function gateRules(
+  ctx: CompileContext,
+  include: (action: string, setting: GateSetting) => boolean,
+): { texts: string[]; ids: string[] } {
+  const texts: string[] = [];
+  const ids: string[] = [];
+  for (const gate of ctx.lib.gates) {
+    if (!Object.hasOwn(ctx.gates, gate.id)) continue;
+    const setting = ctx.gates[gate.id] as GateSetting;
+    if (!include(gate.id, setting)) continue;
+    texts.push(gate.rulesLine[setting]);
+    ids.push(`gate.${gate.id}.rules.${setting}`);
+  }
+  return { texts, ids };
+}
+
+function skillSpoken(ctx: CompileContext, e: Entry): SpokenItem {
+  const vars = varsOf(e);
+  const main = filled(ctx, e.src === 'pack' ? 'skill.sentence' : 'skill.legacy', vars);
+  const label = `Skill: ${e.skill.name}`;
+
+  if (ctx.profile.id === 'chatgpt-dot') {
+    const suffix = filled(ctx, 'skill.suffix', vars);
+    return { label, text: `${main.text} ${suffix.text}`, ids: [main.id, suffix.id, e.id] };
+  }
+
+  if (ctx.profile.id === 'grok') {
+    const rules =
+      e.src === 'pack'
+        ? gateRules(ctx, (action) => (e.skill as Skill).actions.includes(action))
+        : gateRules(ctx, (_action, setting) => setting !== 'auto');
+    const ruleText =
+      e.src === 'pack' && rules.texts.length === 0
+        ? e.skill.requiresApproval
+        : rules.texts.join(' ');
+    const suffix = filled(ctx, 'skill.approvalSuffix', { ...vars, rules: ruleText });
+    return {
+      label,
+      text: `${main.text}\n${suffix.text}`,
+      ids: [main.id, suffix.id, ...rules.ids, e.id],
+    };
+  }
+
+  return { label, text: main.text, ids: [main.id, e.id] };
+}
+
+function routineSpoken(ctx: CompileContext, e: Entry): SpokenItem {
+  const main = filled(ctx, e.src === 'pack' ? 'routine.sentence' : 'routine.legacy', varsOf(e));
+  return { label: `Routine: ${e.skill.name}`, text: main.text, ids: [main.id, e.id] };
+}
+
+function skillPath(ctx: CompileContext, e: Entry): string {
+  switch (ctx.profile.id) {
+    case 'chatgpt-gpt':
+      return `knowledge/${e.dir}.md`;
+    case 'chatgpt-project':
+      return `project/${e.dir}.md`;
+    default:
+      return `skills/${e.dir}/SKILL.md`;
+  }
+}
+
+// One file per skill. Pack skills render their profile template; chip skills render a
+// heading and the library detail text.
+function skillFile(ctx: CompileContext, e: Entry): BundleFile {
+  const withFileTemplate = ctx.profile.id === 'openclaw' || ctx.profile.id === 'hermes';
+  let text: string;
+  let id: string;
+  if (e.src === 'pack') {
+    const t = filled(ctx, withFileTemplate ? 'skill.file' : 'knowledge.file', varsOf(e));
+    text = t.text;
+    id = t.id;
+  } else {
+    text = `# ${e.skill.name}\n\n${e.skill.detail}`;
+    id = e.id;
+  }
+  const lines: TracedLine[] = text.split('\n').map((line) =>
+    line === ''
+      ? blankLine(ctx.lib)
+      : { text: line, id, kind: 'skill', sources: [e.id] },
+  );
+  return fileFromLines(skillPath(ctx, e), `Skill: ${e.skill.name}`, 'file', lines);
+}
+
+function pointerItem(ctx: CompileContext, e: Entry): Item {
+  const t = filled(ctx, 'skill.pointer', {
+    whenToUse: e.src === 'pack' ? e.skill.whenToUse : e.skill.detail,
+    file: `${e.dir}.md`,
+  });
+  return {
+    id: t.id,
+    text: t.text,
+    kind: 'skill',
+    section: 'skills',
+    format: 'bullet',
+    sources: [e.id],
+  };
+}
+
+// The chip sentence already carries the skill name, so the inline line uses the name-less
+// detail for chip skills and whenToUse for pack skills.
+function inlineItem(ctx: CompileContext, e: Entry): Item {
+  const sentence = e.src === 'pack' ? e.skill.whenToUse : e.skill.detail;
+  const t = filled(ctx, 'skill.inline', { ...varsOf(e), sentence });
+  return {
+    id: t.id,
+    text: t.text,
+    kind: 'skill',
+    section: 'skills',
+    format: 'bullet',
+    sources: [e.id],
+  };
+}
+
+export function skillsAndRoutines(ctx: CompileContext): {
+  spoken: SpokenItem[];
+  files: BundleFile[];
+  pointers: Item[];
+  inline: Item[];
+} {
+  const spoken: SpokenItem[] = [];
+  const files: BundleFile[] = [];
+  const pointers: Item[] = [];
+  const inline: Item[] = [];
+  const entries = collectSkills(ctx);
+  const id = ctx.profile.id;
+
+  if (id === 'chatgpt-instructions') {
+    // Routines are not delivered on this profile, so only trigger skills take the three slots.
+    for (const e of entries.filter((x) => x.skill.kind === 'trigger').slice(0, 3)) {
+      inline.push(inlineItem(ctx, e));
+    }
+    return { spoken, files, pointers, inline };
+  }
+
+  for (const e of entries) {
+    const isSkill = e.skill.kind === 'trigger';
+    switch (id) {
+      case 'muse':
+      case 'chatgpt-dot':
+      case 'grok':
+        spoken.push(isSkill ? skillSpoken(ctx, e) : routineSpoken(ctx, e));
+        break;
+      case 'openclaw':
+      case 'hermes':
+        if (isSkill) {
+          files.push(skillFile(ctx, e));
+        } else {
+          spoken.push(routineSpoken(ctx, e));
+        }
+        break;
+      case 'chatgpt-gpt':
+      case 'chatgpt-project':
+        if (isSkill) {
+          files.push(skillFile(ctx, e));
+          pointers.push(pointerItem(ctx, e));
+        } else {
+          spoken.push(routineSpoken(ctx, e));
+        }
+        break;
+    }
+  }
+  return { spoken, files, pointers, inline };
+}
+
+export function memoryDelivery(
+  ctx: CompileContext,
+  seedText: string,
+  seedIdList: string[],
+): { spoken: SpokenItem[]; files: BundleFile[]; block?: { text: string; ids: string[] } } {
+  switch (ctx.profile.memoryDelivery) {
+    case 'spoken': {
+      const t = filled(ctx, 'memory.sentence', { seed: seedText });
+      return {
+        spoken: [{ label: 'Memory sentence', text: t.text, ids: [t.id, ...seedIdList] }],
+        files: [],
+      };
+    }
+    case 'inline': {
+      const t = filled(ctx, 'memory.block', { seed: seedText });
+      return { spoken: [], files: [], block: { text: t.text, ids: [t.id, ...seedIdList] } };
+    }
+    case 'file': {
+      const heading = template(ctx, 'memory.file.heading');
+      const lines: TracedLine[] = [
+        { text: heading.line, id: heading.id, kind: 'heading' },
+        blankLine(ctx.lib),
+      ];
+      for (const chipId of ctx.build.chips) {
+        const chip = ctx.lib.chips.find((c) => c.id === chipId);
+        if (chip?.seed) {
+          lines.push({ text: `- ${chip.seed}`, id: `chip.${chip.id}.seed`, kind: 'memory' });
+        }
+      }
+      for (const pack of ctx.packs) {
+        for (const line of pack.seeds) {
+          lines.push({ text: `- ${line.line}`, id: line.id, kind: 'memory' });
+        }
+      }
+      const hardPart = ctx.lib.heart.hardParts.find((h) => h.id === ctx.build.heart.hardPart);
+      if (!hardPart) {
+        throw new Error(`Unknown hard part: ${ctx.build.heart.hardPart}`);
+      }
+      lines.push({
+        text: `- ${hardPart.seedClause}`,
+        id: `heart.${hardPart.id}.seedClause`,
+        kind: 'memory',
+      });
+      return { spoken: [], files: [fileFromLines('USER.md', 'Memory', 'file', lines)] };
+    }
+  }
+}
+
+function bulletLine(item: Item): TracedLine {
+  const line: TracedLine = { text: `- ${item.text}`, id: item.id, kind: item.kind };
+  if (item.sources) {
+    line.sources = item.sources;
+  }
+  return line;
+}
+
+// The rules file for openclaw and hermes: heading, intro, any extra items, then the rules block.
+export function agentsFile(
+  ctx: CompileContext,
+  extraItems: Item[] = [],
+  path = 'AGENTS.md',
+): BundleFile {
+  const heading = template(ctx, 'agents.heading');
+  const intro = template(ctx, 'agents.intro');
+  const lines: TracedLine[] = [
+    { text: heading.line, id: heading.id, kind: 'heading' },
+    blankLine(ctx.lib),
+    { text: intro.line, id: intro.id, kind: 'template' },
+    blankLine(ctx.lib),
+  ];
+  for (const item of extraItems) {
+    lines.push(bulletLine(item));
+  }
+  for (const item of rulesItems(ctx.build, ctx.gates, ctx.limits, ctx.lib, 'rules')) {
+    lines.push(bulletLine(item));
+  }
+  return fileFromLines(path, 'Rules', 'file', lines);
+}
