@@ -65,10 +65,10 @@ Loop per slice: plan, dispatch, verify (npm test, typecheck), review (reviewer f
 | 0.4 | standing S7: singular seed ending | engineer | Part A | review PASS | done |
 | 0.5 | standing S4: accounting d1 | transcriber | Part A | review PASS | done |
 | 0.6 | standing S5: Marty forget | transcriber | Part A | review PASS | done |
-| 0.7 | tests: length S1 | tester | Part A | review PASS, tests green | dispatched |
-| 0.8 | tests: names S2, examples S3 | tester | Part A | review PASS | dispatched |
-| 0.9 | tests: seed S7 | tester | Part A | review PASS | dispatched |
-| 0.10 | regenerate nine v1 goldens | tester | Part A | every diff line explained | dispatched |
+| 0.7 | tests: length S1 | tester | Part A | review PASS, tests green | done |
+| 0.8 | tests: names S2, examples S3 | tester | Part A | review PASS | done |
+| 0.9 | tests: seed S7 | tester | Part A | review PASS | done |
+| 0.10 | regenerate nine v1 goldens | tester | Part A | every diff line explained | done |
 | 1 | types v2 | engineer | Part B + V2-DESIGN 2-4 | typecheck green | |
 | 2 | targets.json facts: 5 cards, 8 profiles, pinned docs, verify lines | transcriber | Part C | every Part C fact present, placeholders elsewhere | |
 | 3 | chassis.json: no_self_edit, rules.outrank | transcriber | Part C chassis changes | records verbatim | |
@@ -109,3 +109,4 @@ Loop per slice: plan, dispatch, verify (npm test, typecheck), review (reviewer f
 - Lead fixed seed.ts capitalization (Q29) and removed a stale @ts-expect-error in test/validation.test.ts directly; both faster than a re-dispatch.
 - Lead applied the slice 26 review fix directly: Floors test now asserts the blunt (honesty) stat line per build, not only the chassis mistake line.
 - Lead applied the slice 28 review fix directly: Second Look test now uses hard part calmer so the two chips are the only trigger.
+- M2 0.7: length-test slice failed review twice (test strength: no Markets chip, no multi-trigger Life chip, cap pinned only from above). Lead added two tests directly: stop-point check and a Markets plus injected two-trigger Life build.
