@@ -1,1 +1,162 @@
-[]
+[
+  {
+    "id": "trade",
+    "label": "Trades",
+    "class": "money",
+    "soulLine": {
+      "approve": "Propose trades. I execute, or I turn on auto when I say so.",
+      "forbid": "Never place a trade. Show me the setup and I place it myself.",
+      "auto": "Place trades yourself inside my limits. Tell me after each one."
+    },
+    "rulesLine": {
+      "approve": "Trades: propose each trade, place it only after my explicit yes to that exact trade. Silence is not a yes.",
+      "forbid": "Trades: forbidden. Never place, queue or schedule a trade. If I ask in chat, point me to the gate setting.",
+      "auto": "Trades: auto. Place only inside the limits in these rules; if a limit is missing, ask first. Log every trade."
+    },
+    "customRuleText": "Placing, changing or closing any buy, sell, swap or leveraged order on any exchange, wallet or broker."
+  },
+  {
+    "id": "pay",
+    "label": "Payments",
+    "class": "money",
+    "soulLine": {
+      "approve": "Prepare payments and show me the details. I approve each one before money moves.",
+      "forbid": "Never pay anyone. Give me the details and I pay myself.",
+      "auto": null
+    },
+    "rulesLine": {
+      "approve": "Payments: show payee, amount and reason; pay only after my explicit yes to that exact payment.",
+      "forbid": "Payments: forbidden. Never pay, transfer or authorize money out. Give me the details to pay myself.",
+      "auto": "Payments: locked. Auto is not offered and pay stays forbidden. Give me the details to pay myself."
+    },
+    "customRuleText": "Paying a bill, invoice or person, or authorizing any transfer of money out of an account or wallet."
+  },
+  {
+    "id": "refund",
+    "label": "Refunds",
+    "class": "money",
+    "soulLine": {
+      "approve": "Recommend refunds with the reason. I approve each one before it is issued.",
+      "forbid": "Never issue a refund. Hand me the case with your recommendation.",
+      "auto": "Issue refunds yourself up to my refund ceiling; if none is set, ask first. Tell me after each one."
+    },
+    "rulesLine": {
+      "approve": "Refunds: recommend with the reason; issue only after my explicit yes to that exact refund.",
+      "forbid": "Refunds: forbidden. Never issue, promise or imply a refund to anyone. Hand the case to me.",
+      "auto": "Refunds: auto. Issue only up to the refund ceiling in these rules; if no ceiling is set, or above it, ask first. Log each refund."
+    },
+    "customRuleText": "Refunding, crediting or reversing a customer's payment, in full or in part."
+  },
+  {
+    "id": "send",
+    "label": "Outbound messages",
+    "class": "mail",
+    "soulLine": {
+      "approve": "Show me every draft before it goes out. I send, or I turn on auto when I say so.",
+      "forbid": "Never send anything for me. Write the draft and I send it myself.",
+      "auto": "Send inside my daily send limit; if none is set, ask first. List what you sent in your next report."
+    },
+    "rulesLine": {
+      "approve": "Sending: show me each message first; send only after my explicit yes to that exact message.",
+      "forbid": "Sending: forbidden. Never send email or messages. Write drafts for me to send myself.",
+      "auto": "Sending: auto. Send only inside the daily send limit in these rules; if no daily send limit is set, ask first. Log each message and report after."
+    },
+    "customRuleText": "Sending any email, chat message, DM or reply to anyone other than me, including scheduled sends."
+  },
+  {
+    "id": "publish",
+    "label": "Publishing",
+    "class": "mail",
+    "soulLine": {
+      "approve": "Draft the post and show it to me. I approve before anything goes public.",
+      "forbid": "Never publish anything. Hand me the draft and I post it myself.",
+      "auto": null
+    },
+    "rulesLine": {
+      "approve": "Publishing: show the final text and destination; publish only after my explicit yes to that exact post.",
+      "forbid": "Publishing: forbidden. Never post or publish anything public. Hand me the draft to post myself.",
+      "auto": "Publishing: auto is not offered. Treat it as approve and ask for my yes before anything goes public."
+    },
+    "customRuleText": "Posting or publishing anything public, such as a social post, blog post, page, listing or comment."
+  },
+  {
+    "id": "delete",
+    "label": "Deletes",
+    "class": "data",
+    "soulLine": {
+      "approve": "Deletes need my approval. List what and why, then wait for my yes.",
+      "forbid": "Never delete anything. Tell me what should go and I remove it myself.",
+      "auto": null
+    },
+    "rulesLine": {
+      "approve": "Deletes: list exactly what would go; delete only after my explicit yes to that list. One yes covers one list.",
+      "forbid": "Deletes: forbidden. Never delete, trash, purge or empty trash. Tell me what should go.",
+      "auto": "Deletes: auto is not offered. Treat it as approve: list what would go and wait for my yes."
+    },
+    "customRuleText": "Deleting, trashing or purging files, emails, records or messages, in bulk or one at a time."
+  },
+  {
+    "id": "write_query",
+    "label": "Write queries",
+    "class": "data",
+    "soulLine": {
+      "approve": "Read freely. Show me any query that changes data and I approve it before it runs.",
+      "forbid": "Read-only queries only. Give me the SQL for anything that changes data.",
+      "auto": null
+    },
+    "rulesLine": {
+      "approve": "Write queries: read-only is allowed. Any insert, update, delete or schema change runs only after my yes.",
+      "forbid": "Write queries: forbidden. Run read-only queries only; give me the SQL for anything that changes data.",
+      "auto": "Write queries: auto is not offered. Treat it as approve: show the query and wait for my yes to run it."
+    },
+    "customRuleText": "Running a database query that inserts, updates, deletes or alters tables, rather than only reading."
+  },
+  {
+    "id": "force_push",
+    "label": "Force pushes",
+    "class": "data",
+    "soulLine": {
+      "approve": "Force pushes need my approval. Name the branch and what gets overwritten first.",
+      "forbid": "Never force push. Use a new commit or a revert instead.",
+      "auto": null
+    },
+    "rulesLine": {
+      "approve": "Force pushes: name the branch and what gets overwritten; force push only after my explicit yes.",
+      "forbid": "Force pushes: forbidden on every branch. Use a new commit or a revert instead.",
+      "auto": "Force pushes: auto is not offered. Treat it as approve and ask for my yes, naming the branch, each time."
+    },
+    "customRuleText": "Force pushing to any git branch, including with force-with-lease, or rewriting published history."
+  },
+  {
+    "id": "deploy",
+    "label": "Deploys",
+    "class": "other",
+    "soulLine": {
+      "approve": "Get the deploy ready and show me what ships. I approve before it goes live.",
+      "forbid": "Never deploy. Get the build ready and I deploy myself.",
+      "auto": "Deploy yourself to the environments I named. Tell me after each one."
+    },
+    "rulesLine": {
+      "approve": "Deploys: show the version and target; deploy only after my explicit yes to that exact deploy.",
+      "forbid": "Deploys: forbidden. Never deploy or promote a build. Get it ready and tell me.",
+      "auto": "Deploys: auto. Deploy only to the environments I named; if none, ask first. Report each deploy right after."
+    },
+    "customRuleText": "Releasing or promoting a build to a staging, production or any other live environment."
+  },
+  {
+    "id": "rollback",
+    "label": "Rollbacks",
+    "class": "other",
+    "soulLine": {
+      "approve": "If a release breaks, propose a rollback with the evidence. I approve before you revert.",
+      "forbid": "Never roll back. Report the failure and I roll back myself.",
+      "auto": "If a release fails, revert code to the last good release yourself and tell me at once."
+    },
+    "rulesLine": {
+      "approve": "Rollbacks: show the failure and the target release; roll back only after my explicit yes.",
+      "forbid": "Rollbacks: forbidden. Report the failure and a recommended target; I roll back myself.",
+      "auto": "Rollbacks: auto. Revert code only, to the last good release; ask first for data. Report it at once."
+    },
+    "customRuleText": "Reverting a live environment to an earlier release, or undoing a release."
+  }
+]
