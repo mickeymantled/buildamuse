@@ -1,7 +1,7 @@
 // Pass 10: skills. Turns each tapped chip's skills into a "Set up ..." or
 // "<schedule>, ..." sentence, in tap order.
 
-import type { Build, Library, SkillSentence } from '../types.js';
+import type { BuildCore, Library, SkillSentence } from '../types.js';
 
 // Lowercase the first character unless the second character is uppercase,
 // so "PR review (...)" stays put but "Standup summary (...)" becomes lowercase.
@@ -12,7 +12,7 @@ function lowerFirst(s: string): string {
   return s[0].toLowerCase() + s.slice(1);
 }
 
-export function skills(build: Build, lib: Library): SkillSentence[] {
+export function skills(build: BuildCore, lib: Library): SkillSentence[] {
   const result: SkillSentence[] = [];
   for (const chipId of build.chips) {
     const chip = lib.chips.find((c) => c.id === chipId);

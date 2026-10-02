@@ -3,9 +3,9 @@
 
 import { describe, it, expect } from 'vitest';
 import { compile, library } from '../src/compiler/compile.js';
-import type { Build } from '../src/compiler/types.js';
+import type { BuildV1 } from '../src/compiler/types.js';
 
-function juneBuild(): Build {
+function juneBuild(): BuildV1 {
   return structuredClone(library.roster.find((r) => r.id === 'june')!.build);
 }
 
@@ -17,6 +17,7 @@ const BLUNT_1_LINE = "If I'm off track, raise it kindly and clearly before helpi
 describe('Validation', () => {
   it('v 0 throws', () => {
     const b = juneBuild();
+    // @ts-expect-error deliberately invalid v for the test
     b.v = 0;
     expect(() => compile(b)).toThrow();
   });

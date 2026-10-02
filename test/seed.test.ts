@@ -7,11 +7,11 @@
 
 import { describe, it, expect } from 'vitest';
 import { compile, library } from '../src/compiler/compile.js';
-import type { Build } from '../src/compiler/types.js';
+import type { BuildV1 } from '../src/compiler/types.js';
 
 const EM_DASH = String.fromCharCode(0x2014);
 
-function rosterBuild(id: string): Build {
+function rosterBuild(id: string): BuildV1 {
   const entry = library.roster.find((r) => r.id === id);
   if (!entry) throw new Error(`roster entry "${id}" not found`);
   return structuredClone(entry.build);
@@ -19,7 +19,7 @@ function rosterBuild(id: string): Build {
 
 // Minimal valid build with a caller-chosen chip list. Hard part calmer, so the
 // hard part clause is "The hard part right now is I need it calmer."
-function minimalBuild(chips: string[]): Build {
+function minimalBuild(chips: string[]): BuildV1 {
   return {
     v: 1,
     base: 'chaos',

@@ -1,6 +1,6 @@
 // Pass 1: validate a Build against a Library. Pure. Throws on the first violation found.
 
-import type { Build, Library, StatId } from '../types.js';
+import type { BuildV1, Library, StatId } from '../types.js';
 
 export const STAT_CAP = 14;
 export const MAX_CHIPS = 6;
@@ -22,7 +22,7 @@ function hasDuplicates(ids: readonly string[]): boolean {
   return new Set(ids).size !== ids.length;
 }
 
-export function validate(build: Build, lib: Library): void {
+export function validate(build: BuildV1, lib: Library): void {
   // 1. v is a positive integer.
   if (!isPositiveInteger(build.v)) {
     fail('v must be a positive integer');

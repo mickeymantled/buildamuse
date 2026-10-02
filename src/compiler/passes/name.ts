@@ -2,12 +2,12 @@
 // When risk is 1, Word2 is the risk level 1 word and Word1 is the top non-risk stat.
 // All word and noun text comes from the library (lib.names.words, lib.bases); none of it lives here.
 
-import type { Build, Level, Library, StatId } from '../types.js';
+import type { BuildCore, Level, Library, StatId } from '../types.js';
 
 // Fixed candidate set: every stat the Stats shape can carry. This is schema, not library text.
 const ALL_STATS: StatId[] = ['blunt', 'warm', 'funny', 'chatty', 'proactive', 'risk'];
 
-export function buildName(build: Build, lib: Library): string {
+export function buildName(build: BuildCore, lib: Library): string {
   const base = lib.bases.find((b) => b.id === build.base);
   if (!base) {
     throw new Error(`buildName: no base found for id "${build.base}"`);

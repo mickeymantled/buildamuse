@@ -1,10 +1,10 @@
 // Pass 2: resolve conditions. Evaluate every Cond in the library once against the build.
 // Produces the active set of badges, chassis variants, drive variants and example rows.
 
-import type { Build, Library, Resolved, BadgeId } from '../types.js';
+import type { BuildCore, Library, Resolved, BadgeId } from '../types.js';
 import { evalCond, evalWhen } from '../cond.js';
 
-export function resolve(build: Build, lib: Library): Resolved {
+export function resolve(build: BuildCore, lib: Library): Resolved {
   const chips = lib.chips;
 
   // Badges: library order, when holds, or the id is the hard part's forceBadge. No duplicates.

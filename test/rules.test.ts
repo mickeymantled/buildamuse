@@ -5,22 +5,22 @@
 
 import { describe, it, expect } from 'vitest';
 import { compile, library } from '../src/compiler/compile.js';
-import type { Build, Library } from '../src/compiler/types.js';
+import type { BuildV1, Library } from '../src/compiler/types.js';
 
 // Builds a valid Build with sane defaults (stats sum well under the cap, no risk unless a
 // Markets chip and stats.risk are both supplied, a hard part whose own d1 is used unless
 // overridden). Every field can be overridden per test.
 function makeBuild(opts: {
-  base?: Build['base'];
+  base?: BuildV1['base'];
   chips?: string[];
-  stats?: Partial<Build['stats']>;
+  stats?: Partial<BuildV1['stats']>;
   peeves?: string[];
   hardPart?: string;
   d1?: string;
   d2?: string;
   outfit?: string;
   name?: string;
-} = {}): Build {
+} = {}): BuildV1 {
   return {
     v: 1,
     base: opts.base ?? 'trader',
@@ -35,7 +35,7 @@ function makeBuild(opts: {
     },
     peeves: opts.peeves ?? [],
     heart: {
-      hardPart: (opts.hardPart ?? 'calmer') as Build['heart']['hardPart'],
+      hardPart: (opts.hardPart ?? 'calmer') as BuildV1['heart']['hardPart'],
       d1: opts.d1 ?? 'd1.calmer',
       d2: opts.d2 ?? 'd2.blunt.2',
     },

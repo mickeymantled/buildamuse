@@ -1,13 +1,13 @@
 // Pass 5: contradictions. Apply the library's pair table to drop losing lines.
 // The stat or chassis side always wins; each record only names what to drop.
 
-import type { Build, Item, Library, PassResult } from '../types.js';
+import type { BuildCore, Item, Library, PassResult } from '../types.js';
 import { evalWhen } from '../cond.js';
 
 // These kinds never lose a contradiction, even if a record names them.
 const PROTECTED_KINDS = new Set(['chassis', 'opening', 'stat', 'drive']);
 
-export function contradictions(items: Item[], build: Build, lib: Library): PassResult {
+export function contradictions(items: Item[], build: BuildCore, lib: Library): PassResult {
   const chips = lib.chips;
   const warnings: string[] = [];
   let current = items;

@@ -1,9 +1,9 @@
 // Cond evaluator: a small predicate language evaluated against a Build.
 // Conditions live in JSON, not in code, so every Cond shape must be handled here.
 
-import type { Build, Chip, Cond } from './types';
+import type { BuildCore, Chip, Cond } from './types';
 
-export function evalCond(cond: Cond, build: Build, chips: Chip[]): boolean {
+export function evalCond(cond: Cond, build: BuildCore, chips: Chip[]): boolean {
   if ('stat' in cond) {
     const level = build.stats[cond.stat];
     if (level === undefined) return false;
@@ -39,7 +39,7 @@ export function evalCond(cond: Cond, build: Build, chips: Chip[]): boolean {
   throw new Error('Unknown Cond: ' + JSON.stringify(cond));
 }
 
-export function evalWhen(when: Cond | undefined, build: Build, chips: Chip[]): boolean {
+export function evalWhen(when: Cond | undefined, build: BuildCore, chips: Chip[]): boolean {
   if (when === undefined) return true;
   return evalCond(when, build, chips);
 }

@@ -1,13 +1,13 @@
 // Pass: assemble resolved picks and library records into items, in fixed section order.
 
-import type { Build, ChassisLine, Item, Library, Resolved, Section } from '../types.js';
+import type { BuildCore, ChassisLine, Item, Library, Resolved, Section } from '../types.js';
 import { exampleItems } from './examples.js';
 
 function chassisBySection(chassis: ChassisLine[], section: Section): ChassisLine[] {
   return chassis.filter((line) => line.section === section);
 }
 
-export function assemble(build: Build, lib: Library, resolved: Resolved): Item[] {
+export function assemble(build: BuildCore, lib: Library, resolved: Resolved): Item[] {
   const items: Item[] = [];
 
   // opening: chassis lines, first plain, rest blank-led.

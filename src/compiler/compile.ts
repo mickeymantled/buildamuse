@@ -2,7 +2,7 @@
 // same CompileResult out, every time. Runs the ten passes in order and
 // traces the result before returning.
 
-import type { Build, CompileResult, Library } from './types.js';
+import type { BuildV1, CompileResult, Library } from './types.js';
 import { validate } from './passes/validate.js';
 import { resolve } from './passes/resolve.js';
 import { assemble } from './passes/assemble.js';
@@ -18,7 +18,7 @@ import library from '../library/index.js';
 
 export { library };
 
-export function compile(build: Build, lib: Library = library): CompileResult {
+export function compile(build: BuildV1, lib: Library = library): CompileResult {
   // 1. Validate. Throws on the first violation found.
   validate(build, lib);
 

@@ -1,7 +1,7 @@
 // Pass 9: seed. Builds the "Remember that ..." memory sentence from tapped chips
 // and the hard part, plus a domain nouns tail when any tapped chip has one.
 
-import type { Build, Library } from '../types.js';
+import type { BuildCore, Library } from '../types.js';
 
 // Chip seed values end with a period in the library ("I have kids."). Strip
 // exactly one trailing period so clauses can be joined with commas.
@@ -16,7 +16,7 @@ function midSentence(clause: string): string {
   return clause.charAt(0).toLowerCase() + clause.slice(1);
 }
 
-export function seed(build: Build, lib: Library): string {
+export function seed(build: BuildCore, lib: Library): string {
   const hardPart = lib.heart.hardParts.find((h) => h.id === build.heart.hardPart);
   if (!hardPart) {
     throw new Error(`Unknown hard part: ${build.heart.hardPart}`);

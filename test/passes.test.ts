@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { compile, library } from '../src/compiler/compile.js';
-import type { Build, Library } from '../src/compiler/types.js';
+import type { BuildV1, Library } from '../src/compiler/types.js';
 
 // Counts non-overlapping exact occurrences of `needle` in `haystack`.
 function countOccurrences(haystack: string, needle: string): number {
@@ -23,7 +23,7 @@ function countOccurrences(haystack: string, needle: string): number {
 const STAT_NAMES = ['blunt', 'warm', 'funny', 'chatty', 'proactive'] as const;
 
 // Q15: first match in table order: risk = 4, then base = parent, then base = student, else default.
-function expectedD3Id(build: Build): string {
+function expectedD3Id(build: BuildV1): string {
   if (build.stats.risk === 4) return 'd3.risk4';
   if (build.base === 'parent') return 'd3.parent';
   if (build.base === 'student') return 'd3.student';
@@ -33,7 +33,7 @@ function expectedD3Id(build: Build): string {
 // Shared invariant: chassis lines with no `when`, the build's d1/d2/d3 drives,
 // every stat line, every peeve-with-a-line, and the 4 example lines must all
 // survive dedupe + contradictions + length, for any build.
-function expectProtectedLinesPresent(build: Build, lib: Library, ids: string[], soulLines: { kind: string }[]): void {
+function expectProtectedLinesPresent(build: BuildV1, lib: Library, ids: string[], soulLines: { kind: string }[]): void {
   for (const line of lib.chassis.lines) {
     if (line.when === undefined) {
       expect(ids).toContain(line.id);
@@ -104,7 +104,7 @@ describe('Dedupe', () => {
   });
 
   it('Second Look is emitted exactly once when two chips (law, engineering) unlock it (hard part calmer, so the chips are the only trigger)', () => {
-    const build: Build = {
+    const build: BuildV1 = {
       v: 1,
       base: 'professional',
       chips: ['law', 'engineering'],
@@ -162,7 +162,7 @@ describe('Dedupe', () => {
   it('options_not_answer peeve is dropped at blunt 3 (covered by No Menu) and present at blunt 2', () => {
     const noMenuLine = 'Pick one. I asked you, not a menu.';
 
-    const buildAt = (blunt: 2 | 3): Build => ({
+    const buildAt = (blunt: 2 | 3): BuildV1 => ({
       v: 1,
       base: 'professional',
       chips: [],
@@ -183,7 +183,7 @@ describe('Dedupe', () => {
 
 describe('Contradictions', () => {
   it('funny = 1 drops Life chip voice permissions but keeps Work chip voice; funny = 2 keeps both', () => {
-    const buildAt = (funny: 1 | 2): Build => ({
+    const buildAt = (funny: 1 | 2): BuildV1 => ({
       v: 1,
       base: 'professional',
       chips: ['law', 'gym'],
@@ -213,7 +213,7 @@ describe('Contradictions', () => {
     expect(teaching.triggers.length).toBe(2);
     teaching.triggers.push({ id: 'chip.teaching.t3', line: 'Walk me through the lesson plan.' });
 
-    const buildAt = (chatty: 1 | 2): Build => ({
+    const buildAt = (chatty: 1 | 2): BuildV1 => ({
       v: 1,
       base: 'professional',
       chips: ['teaching'],
@@ -237,7 +237,7 @@ describe('Contradictions', () => {
 
 // S1 length fixtures. The build below has six chips in this tap order:
 // engineering, founder, sales (Work), gym, dog (Life), night_owl (Time).
-function overflowBuild(): Build {
+function overflowBuild(): BuildV1 {
   return {
     v: 1,
     base: 'builder',
@@ -254,7 +254,7 @@ function overflowBuild(): Build {
 // then Life/Time triggers in reverse tap order (highest index first), then
 // Work/Markets index 3 then 2 (array positions 2 then 1) in reverse tap order.
 // A Work/Markets chip's first trigger is never in the sequence.
-function expectedDropSequence(build: Build, lib: Library): string[] {
+function expectedDropSequence(build: BuildV1, lib: Library): string[] {
   const reverseTapped = [...build.chips].reverse();
   const chipOf = (id: string) => lib.chips.find((c) => c.id === id)!;
 
@@ -410,7 +410,7 @@ describe('Length', () => {
     const bigLib: Library = structuredClone(library);
     bigLib.bases.find((b) => b.id === 'builder')!.baseLine = 'x'.repeat(4000);
     bigLib.chips.find((c) => c.id === 'dog')!.triggers.push({ id: 'chip.dog.t2', line: 'Test trigger two for the dog chip.' });
-    const build: Build = {
+    const build: BuildV1 = {
       v: 1,
       base: 'builder',
       chips: ['memecoins', 'dog', 'engineering'],

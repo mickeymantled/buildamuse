@@ -3,13 +3,13 @@
 
 import { describe, it, expect } from 'vitest';
 import { compile, library } from '../src/compiler/compile.js';
-import type { Build } from '../src/compiler/types.js';
+import type { BuildV1 } from '../src/compiler/types.js';
 
 const EM_DASH = '\u2014';
 
 interface BuildCase {
   label: string;
-  build: Build;
+  build: BuildV1;
 }
 
 // --- Build set -------------------------------------------------------------
@@ -22,12 +22,12 @@ const rosterCases: BuildCase[] = library.roster.map((entry) => ({
 // (a) June with funny 1.
 const juneEntry = library.roster.find((r) => r.id === 'june');
 if (!juneEntry) throw new Error('roster entry "june" not found');
-const juneFunny1: Build = structuredClone(juneEntry.build);
+const juneFunny1: BuildV1 = structuredClone(juneEntry.build);
 juneFunny1.stats.funny = 1;
 
 // (b) minimal build: base chaos, no chips, stats all 1, no peeves, heart
 // calmer / d1.calmer / d2.blunt.1, outfit butler, name "Ada".
-const minimalBuild: Build = {
+const minimalBuild: BuildV1 = {
   v: 1,
   base: 'chaos',
   chips: [],
@@ -40,7 +40,7 @@ const minimalBuild: Build = {
 
 // (c) six-chip build: base builder, six chips, five peeves, heart
 // check_my_work / d1.check_my_work / d2.blunt.3, outfit lawyer, name "Quill".
-const sixChipBuild: Build = {
+const sixChipBuild: BuildV1 = {
   v: 1,
   base: 'builder',
   chips: ['law', 'engineering', 'founder', 'sales', 'consulting', 'night_owl'],
@@ -53,7 +53,7 @@ const sixChipBuild: Build = {
 
 // (d) Markets build with risk 1: base trader, chips [stocks, options], heart
 // forget / d1.forget / d2.blunt.2, outfit captain, name "Tide".
-const marketsRiskBuild: Build = {
+const marketsRiskBuild: BuildV1 = {
   v: 1,
   base: 'trader',
   chips: ['stocks', 'options'],
@@ -95,7 +95,7 @@ const EXPECTED_HEADINGS_NO_TRADING = [
   '## If rules clash',
 ];
 
-function expectedHeadings(build: Build): string[] {
+function expectedHeadings(build: BuildV1): string[] {
   if (build.stats.risk === undefined) return EXPECTED_HEADINGS_NO_TRADING;
   const idx = EXPECTED_HEADINGS_NO_TRADING.indexOf('## Acting for me');
   return [

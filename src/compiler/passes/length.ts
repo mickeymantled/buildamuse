@@ -1,6 +1,6 @@
 // Pass: trim the soul under the max length by dropping low-priority lines.
 
-import type { Build, Item, Library, PassResult } from '../types.js';
+import type { BuildCore, Item, Library, PassResult } from '../types.js';
 import { render } from './render.js';
 
 export const MAX_SOUL_LENGTH = 3600;
@@ -18,7 +18,7 @@ function findVoice(items: Item[], chip: string): Item | undefined {
 }
 
 // Builds the ordered drop candidate list per the documented priority order.
-function buildCandidates(items: Item[], build: Build, lib: Library): Item[] {
+function buildCandidates(items: Item[], build: BuildCore, lib: Library): Item[] {
   const reverseTapped = [...build.chips].reverse();
   const candidates: Item[] = [];
   const seen = new Set<string>();
@@ -56,7 +56,7 @@ function buildCandidates(items: Item[], build: Build, lib: Library): Item[] {
   return candidates;
 }
 
-export function length(items: Item[], build: Build, lib: Library): PassResult {
+export function length(items: Item[], build: BuildCore, lib: Library): PassResult {
   let current = items;
   let soulLength = render(current, lib).soul.length;
 

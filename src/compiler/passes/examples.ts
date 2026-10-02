@@ -1,8 +1,8 @@
 // Pass: build the four "How this sounds" example items from resolved picks.
 
-import type { Build, Item, Library, Resolved } from '../types.js';
+import type { BuildCore, Item, Library, Resolved } from '../types.js';
 
-export function exampleItems(build: Build, lib: Library, resolved: Resolved): Item[] {
+export function exampleItems(build: BuildCore, lib: Library, resolved: Resolved): Item[] {
   return [
     {
       id: lib.examples.greetingMe.id,

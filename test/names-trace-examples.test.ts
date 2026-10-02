@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { compile, library } from '../src/compiler/compile.js';
 import { libraryIds, trace, traceLine } from '../src/compiler/trace.js';
-import type { Build } from '../src/compiler/types.js';
+import type { BuildV1 } from '../src/compiler/types.js';
 
 function findRoster(id: string) {
   const entry = library.roster.find((r) => r.id === id);
@@ -16,7 +16,7 @@ function findRoster(id: string) {
 // A minimal, valid, self-contained build used as the starting point for
 // constructed test builds. hardPart/d1 are fixed so heart.d1 validation
 // (d1 === hardPart.d1) always holds no matter what chips are tapped.
-function baseBuild(): Build {
+function baseBuild(): BuildV1 {
   return {
     v: 1,
     base: 'operator',
@@ -66,7 +66,7 @@ describe('Names', () => {
     // Base builder chips (engineering, founder, gaming, night_owl), peeves
     // cleared per the case instructions. Only stats (and d2, to keep the
     // build internally consistent) change per case.
-    function builderTieBuild(stats: Build['stats']): Build {
+    function builderTieBuild(stats: BuildV1['stats']): BuildV1 {
       const build = structuredClone(findRoster('rook').build);
       build.stats = stats;
       build.peeves = [];
@@ -147,7 +147,7 @@ describe('Names', () => {
 describe('Trace', () => {
   it('every soulLines id is in libraryIds(library), for all roster builds plus June with funny 1', () => {
     const ids = libraryIds(library);
-    const builds: Build[] = library.roster.map((entry) => entry.build);
+    const builds: BuildV1[] = library.roster.map((entry) => entry.build);
 
     const juneFunny1 = structuredClone(findRoster('june').build);
     juneFunny1.stats = { ...juneFunny1.stats, funny: 1 };
@@ -184,10 +184,10 @@ describe('Trace', () => {
 
 describe('Examples', () => {
   function makeBuild(overrides: {
-    base?: Build['base'];
+    base?: BuildV1['base'];
     chips?: string[];
-    stats: Build['stats'];
-  }): Build {
+    stats: BuildV1['stats'];
+  }): BuildV1 {
     const build = baseBuild();
     if (overrides.base) build.base = overrides.base;
     if (overrides.chips) build.chips = overrides.chips;
