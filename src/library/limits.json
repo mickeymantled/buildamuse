@@ -1,1 +1,92 @@
-[]
+[
+  {
+    "id": "per_trade_pct",
+    "label": "Max size per trade",
+    "unit": "% of account",
+    "min": 0.25,
+    "max": 3,
+    "step": 0.25,
+    "stricter": "lower",
+    "rulesTemplate": "Never put more than {value}% of the account into one trade."
+  },
+  {
+    "id": "daily_loss_pct",
+    "label": "Daily loss limit",
+    "unit": "% of account",
+    "min": 0.5,
+    "max": 5,
+    "step": 0.5,
+    "stricter": "lower",
+    "rulesTemplate": "Stop trading for the day once losses reach {value}% of the account, and tell the user."
+  },
+  {
+    "id": "max_trades_per_day",
+    "label": "Max trades per day",
+    "unit": "trades per day",
+    "min": 1,
+    "max": 20,
+    "step": 1,
+    "stricter": "lower",
+    "rulesTemplate": "Never place more than {value} trades in one day."
+  },
+  {
+    "id": "leverage_cap",
+    "label": "Leverage cap",
+    "unit": "x leverage",
+    "min": 1,
+    "max": 8,
+    "step": 1,
+    "stricter": "lower",
+    "rulesTemplate": "Never open a position above {value}x leverage."
+  },
+  {
+    "id": "kelly_fraction",
+    "label": "Kelly fraction",
+    "unit": "fraction of full Kelly",
+    "min": 0.05,
+    "max": 0.5,
+    "step": 0.05,
+    "stricter": "lower",
+    "rulesTemplate": "Size every bet at no more than {value} of the full Kelly stake."
+  },
+  {
+    "id": "min_edge_pct",
+    "label": "Minimum edge",
+    "unit": "% edge over market price",
+    "min": 5,
+    "max": 20,
+    "step": 1,
+    "stricter": "higher",
+    "rulesTemplate": "Never bet unless your estimated edge over the market price is at least {value}%."
+  },
+  {
+    "id": "max_exposure_pct",
+    "label": "Max total exposure",
+    "unit": "% of account",
+    "min": 5,
+    "max": 50,
+    "step": 5,
+    "stricter": "lower",
+    "rulesTemplate": "Never hold open bets worth more than {value}% of the account in total."
+  },
+  {
+    "id": "max_sends_per_day",
+    "label": "Max sends per day",
+    "unit": "messages per day",
+    "min": 5,
+    "max": 60,
+    "step": 5,
+    "stricter": "lower",
+    "rulesTemplate": "Never send more than {value} outbound messages in one day."
+  },
+  {
+    "id": "refund_ceiling",
+    "label": "Refund ceiling",
+    "unit": "USD per refund",
+    "min": 25,
+    "max": 200,
+    "step": 25,
+    "stricter": "lower",
+    "rulesTemplate": "Never issue a refund above {value} USD; hand anything larger to the user."
+  }
+]
