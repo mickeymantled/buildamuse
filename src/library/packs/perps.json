@@ -1,1 +1,105 @@
-null
+{
+  "id": "perps",
+  "label": "Perps",
+  "triggers": [
+    { "id": "pack.perps.t1", "line": "Every position has a stop at entry." },
+    { "id": "pack.perps.t2", "line": "Never average down." },
+    { "id": "pack.perps.t3", "line": "Check funding before entry." }
+  ],
+  "gatesDefault": {
+    "trade": "approve",
+    "pay": "forbid"
+  },
+  "limitsDefault": {
+    "leverage_cap": 5,
+    "per_trade_pct": 2,
+    "daily_loss_pct": 2
+  },
+  "limitChips": ["leverage_cap", "per_trade_pct", "daily_loss_pct"],
+  "skills": [
+    {
+      "id": "funding-check",
+      "name": "Funding check",
+      "kind": "trigger",
+      "whenToUse": "Before any perp entry proposal, and when the user asks what holding a position will cost.",
+      "inputs": "Market symbol, side (long or short), planned hold time, planned target price.",
+      "steps": [
+        "Read the current funding rate and its interval for the market from the venue.",
+        "Say who pays whom: a positive rate means longs pay shorts, a negative rate means shorts pay longs.",
+        "If the user's side pays, multiply the rate by the intervals in the planned hold and state the cost in percent.",
+        "If the user's side receives, state the credit and do not count it as a reason to enter.",
+        "Compare the cost to the distance from entry to target in percent. If the cost is larger, the verdict is SKIP.",
+        "If the rate or interval cannot be read, the verdict is CANNOT CHECK. Do not estimate it.",
+        "Place no order and change no setting."
+      ],
+      "validate": "The rate, interval, source and read time are stated, and the cost shows its arithmetic.",
+      "returns": "Verdict first (GO, SKIP or CANNOT CHECK), then rate, who pays, cost to exit and next funding time, one line each, to the user.",
+      "requiresApproval": "none",
+      "actions": []
+    },
+    {
+      "id": "stop-placer",
+      "name": "Stop placer",
+      "kind": "trigger",
+      "whenToUse": "When an entry is proposed or filled, when an open position has no stop, and when the user asks to change a stop.",
+      "inputs": "Market, side, entry price, position size, stop price, leverage in use.",
+      "steps": [
+        "Take the stop price from the user. If none was given, ask for it and propose no entry.",
+        "Compute the loss at the stop in percent of account, then compare it and the size to the per-trade limit.",
+        "If either breaks the limit, cut the size until both fit and show the new size.",
+        "Check the leverage against the leverage cap. Read the liquidation price at that leverage; if it sits closer than the stop, the verdict is BLOCKED.",
+        "Send entry and stop as one proposal under the trade gate. Under approve, place nothing before a yes.",
+        "After a fill, read the open orders and confirm a stop exists at the stated price and covers the full size.",
+        "If an open position has no stop, say so first and propose one. Place it only through the trade gate.",
+        "Propose only stop moves that cut risk. Never widen a stop."
+      ],
+      "validate": "Stop price, size covered, loss at stop in percent of account and liquidation price are stated, and liquidation sits beyond the stop.",
+      "returns": "Verdict first (STOP SET, STOP PROPOSED, BLOCKED or NO STOP FOUND), then market, entry, stop, size, loss at stop and liquidation price, to the user.",
+      "requiresApproval": "trade: approve. Entry and stop go to the user as one proposal; a new, moved or replaced stop order needs its own yes.",
+      "actions": ["trade"]
+    },
+    {
+      "id": "position-log",
+      "name": "Position log",
+      "kind": "trigger",
+      "whenToUse": "On every fill, stop move and close, and when the user asks how a position or the week is doing.",
+      "inputs": "Market, side, entry price and time, size, leverage, stop price, reason for the trade, and on close the exit price, fees and funding paid or received.",
+      "steps": [
+        "On every fill, add one line: time, market, side, entry, size, leverage, stop, reason.",
+        "On a stop move or a close, add a new line. Never edit or remove an earlier line; a correction is a new line.",
+        "On a close, add exit price, fees, funding paid or received, and the result in percent of account.",
+        "If an entry broke a trigger or a limit, add BREACH and name which one.",
+        "If a field is unknown, write unknown. Never fill it with a guess.",
+        "If the log location is unknown, ask the user once where it lives before writing.",
+        "If asked to remove a line, say the log is append-only and add a correction line instead."
+      ],
+      "validate": "Every new line has all eight fields or the word unknown, and the line count only goes up.",
+      "returns": "Verdict first (LOGGED or LOG GAP), then the new line exactly as written, to the user.",
+      "requiresApproval": "none",
+      "actions": []
+    }
+  ],
+  "seeds": [
+    { "id": "pack.perps.seed.1", "line": "I trade perpetual futures with leverage, so show the liquidation price on every entry proposal." },
+    { "id": "pack.perps.seed.2", "line": "I pay or receive funding on every open position, so count it in what a trade costs." }
+  ],
+  "defaultRoles": ["risk-manager", "analyst", "journal"],
+  "rulesLines": [
+    { "id": "pack.perps.rule.1", "line": "The agent wallet is trade-only. It cannot withdraw." },
+    { "id": "pack.perps.rule.2", "line": "No entry goes out without a stop price, and the liquidation price must sit beyond that stop." },
+    { "id": "pack.perps.rule.3", "line": "Never add size to a losing position, and never widen a stop." },
+    { "id": "pack.perps.rule.4", "line": "Never add collateral or move funds in or out of the venue account. Tell the user what to do instead." }
+  ],
+  "venueNotes": {
+    "hermes": { "id": "pack.perps.venue.hermes", "line": "Use a trade-only agent wallet; one per process." },
+    "openclaw": { "id": "pack.perps.venue.openclaw", "line": "Use a trade-only agent wallet; one per process." }
+  },
+  "job": { "id": "pack.perps.job", "line": "Turn each named perp market into a trade proposal: entry, stop, size, funding cost, liquidation price." },
+  "sources": [
+    { "id": "pack.perps.source.1", "line": "The venue's public market data: funding rate, mark price and open interest for each named market." },
+    { "id": "pack.perps.source.2", "line": "The venue's margin and liquidation rules page for the market, read each time, never from memory." },
+    { "id": "pack.perps.source.3", "line": "The user's position log, pasted into the chat or pointed to." }
+  ],
+  "deliverable": { "id": "pack.perps.deliverable", "line": "Verdict first (GO, SKIP, CANNOT CHECK), then side, entry, stop, size, leverage, funding cost, liquidation." },
+  "firstTask": { "id": "pack.perps.firstTask", "line": "Ask for one perp market, then return a long proposal and a short proposal in the deliverable format." }
+}
