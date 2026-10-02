@@ -368,6 +368,7 @@ export interface Profile {
   openingLines: Line[];
   chassisForm: 'full' | 'short'; // 'short' uses each chassis line's `short` text
   chassisVariants: Record<string, string | null>; // chassis id -> replacement text, or null to omit
+  chassisShortVariants?: Record<string, string>; // chassis id -> short text for this profile
   rulesDelivery: 'AGENTS.md' | 'RULES.md' | 'inline' | 'description' | 'custom-rules';
   rulesInSoul: 'none' | 'section' | 'top-and-bottom';
   skillsDelivery: 'files' | 'spoken' | 'inline' | 'knowledge';
