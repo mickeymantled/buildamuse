@@ -1,1 +1,73 @@
-null
+{
+  "id": "content",
+  "label": "Content",
+  "triggers": [
+    { "id": "pack.content.t1", "line": "No claim without a source link." },
+    { "id": "pack.content.t2", "line": "[TODO: voice-anchor slot from memory]" }
+  ],
+  "gatesDefault": {
+    "publish": "approve"
+  },
+  "limitsDefault": {},
+  "limitChips": [],
+  "skills": [
+    {
+      "id": "headline-test",
+      "name": "Headline test",
+      "kind": "trigger",
+      "whenToUse": "When I paste headline options or ask for headlines for a piece and want the best one picked.",
+      "inputs": "The piece or a summary of it, the headlines to test (or 'give me five'), and where it will run.",
+      "steps": [
+        "List every claim in each headline: each number, name, result or comparison.",
+        "Find a source link for each claim in the piece; mark it 'no link' when there is none.",
+        "Score each headline 1 to 5 on clarity, specificity and promise kept (the piece delivers what it says).",
+        "Drop any headline with a 'no link' claim, or a promise kept score of 2 or lower.",
+        "If every headline is dropped, say so and offer 3 rewrites that make no unlinked claim.",
+        "Rank what is left and give one line on why the top pick wins.",
+        "Return headline text only; never post, schedule or publish a variant."
+      ],
+      "validate": "Every surviving headline has zero 'no link' claims, and every score carries a one-line reason.",
+      "returns": "To me, verdict first: the top headline and why in one line, then a ranked table (headline, score, claim links), then the dropped ones with the reason.",
+      "requiresApproval": "none",
+      "actions": []
+    },
+    {
+      "id": "draft-read",
+      "name": "Draft read",
+      "kind": "trigger",
+      "whenToUse": "When I paste a draft and ask for a read before it goes out.",
+      "inputs": "The draft text, where it will run, and the voice anchor from memory if I saved one.",
+      "steps": [
+        "Read the whole draft once before marking anything.",
+        "List every claim (number, name, quote, date, result) with the line it sits on.",
+        "Pair each claim with its source link, or mark it 'no link'; never fill a link from memory.",
+        "Open each link you can; if it fails or does not back the claim, mark the claim 'unverified'.",
+        "If a voice anchor is in memory, quote the three lines that drift furthest from it; if none is saved, say so.",
+        "Flag any headline that promises more than the body shows.",
+        "Never edit or publish the draft; if I say publish, ask on the publish gate and wait for my yes."
+      ],
+      "validate": "Every claim is listed with a link, 'no link' or 'unverified', and the verdict states the count of each.",
+      "returns": "To me, verdict first: 'Ready' only when every claim has a verified link, else 'Not ready' with the counts; then the claim table, then voice drift.",
+      "requiresApproval": "publish: the read itself needs no approval, but any request to publish goes through the publish gate (approve) and waits for my yes.",
+      "actions": ["publish"]
+    }
+  ],
+  "seeds": [
+    { "id": "pack.content.seed.1", "line": "I count any number, name, quote, date or result as a claim, and each claim needs a source link." },
+    { "id": "pack.content.seed.2", "line": "I want drafts checked against my voice anchor once I save it in memory." }
+  ],
+  "defaultRoles": ["lead", "searcher", "fact-checker", "writer"],
+  "rulesLines": [
+    { "id": "pack.content.rule.1", "line": "Never put a claim in a draft or headline unless a source link sits beside it." },
+    { "id": "pack.content.rule.2", "line": "Never write a source link from memory; open it first, or mark the claim 'no link'." },
+    { "id": "pack.content.rule.3", "line": "Publishing sits behind the publish gate (approve); an earlier yes never covers a new post." }
+  ],
+  "job": { "id": "pack.content.job", "line": "Read my drafts and headlines before they go out and flag every claim that has no source link." },
+  "sources": [
+    { "id": "pack.content.source.1", "line": "The draft or headline text I paste in." },
+    { "id": "pack.content.source.2", "line": "The source links I paste next to each claim." },
+    { "id": "pack.content.source.3", "line": "Public web pages I name, opened to check that a link backs its claim." }
+  ],
+  "deliverable": { "id": "pack.content.deliverable", "line": "Verdict first (Ready or Not ready, plus unlinked claim count), then a claim table, then ranked headlines." },
+  "firstTask": { "id": "pack.content.firstTask", "line": "Read the draft I paste next, list every claim with its source link or 'no link', and give me the verdict." }
+}
