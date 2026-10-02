@@ -491,6 +491,7 @@ export interface Library {
   packs: WorkflowPack[];
   roleSets: RoleSet[];
   roles: RolePack[];
+  probes: Line[]; // the six probe messages, ids probe.1 to probe.6
 }
 
 export interface SkillSentence {
@@ -498,18 +499,7 @@ export interface SkillSentence {
   sentence: string;
 }
 
-export interface CompileResult {
-  soul: string; // the SOUL.md text
-  soulLines: TracedLine[]; // every line with the record id that emitted it
-  seed: string; // the memory sentence
-  skills: SkillSentence[]; // in chip tap order
-  badges: BadgeId[]; // for the UI and certificate
-  buildName: string;
-  length: number; // soul.length
-  warnings: string[]; // e.g. over-length, dropped lines
-}
-
-// The v2 bundle fields. A later slice makes CompileResult extend this.
+// The v2 bundle fields.
 export interface BundleFile {
   path: string;
   label: string;
@@ -544,6 +534,17 @@ export interface BundleFields {
   limits: Record<LimitId, number>;
   packs: PackId[];
   roles: RoleId[];
+}
+
+export interface CompileResult extends BundleFields {
+  soul: string; // the main personality artifact as delivered
+  soulLines: TracedLine[]; // every line with the record id that emitted it
+  seed: string; // the memory sentence
+  skills: SkillSentence[]; // in chip tap order
+  badges: BadgeId[]; // for the UI and certificate
+  buildName: string;
+  length: number; // soul.length
+  warnings: string[]; // e.g. over-length, dropped lines
 }
 
 // Shared state for the v2 layout, delivery and role passes (lead-defined so

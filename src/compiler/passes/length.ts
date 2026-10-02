@@ -1,6 +1,6 @@
 // Pass: trim the soul under the max length by dropping low-priority lines.
 
-import type { BuildCore, Item, Library, PassResult } from '../types.js';
+import type { BuildCore, Item, Library, PassResult, RenderOptions } from '../types.js';
 import { render } from './render.js';
 
 export const MAX_SOUL_LENGTH = 3600;
@@ -56,11 +56,18 @@ function buildCandidates(items: Item[], build: BuildCore, lib: Library): Item[] 
   return candidates;
 }
 
-export function length(items: Item[], build: BuildCore, lib: Library): PassResult {
+// The cap and render options default to the soul layout, so a bare call behaves as it always did.
+export function length(
+  items: Item[],
+  build: BuildCore,
+  lib: Library,
+  cap: number = MAX_SOUL_LENGTH,
+  opts?: RenderOptions,
+): PassResult {
   let current = items;
-  let soulLength = render(current, lib).soul.length;
+  let soulLength = render(current, lib, opts).soul.length;
 
-  if (soulLength <= MAX_SOUL_LENGTH) {
+  if (soulLength <= cap) {
     return { items: current, warnings: [] };
   }
 
@@ -68,14 +75,14 @@ export function length(items: Item[], build: BuildCore, lib: Library): PassResul
   const warnings: string[] = [];
 
   for (const candidate of candidates) {
-    if (soulLength <= MAX_SOUL_LENGTH) break;
+    if (soulLength <= cap) break;
     current = current.filter((it) => it.id !== candidate.id);
-    warnings.push(`length: dropped ${candidate.id} (soul over ${MAX_SOUL_LENGTH})`);
-    soulLength = render(current, lib).soul.length;
+    warnings.push(`length: dropped ${candidate.id} (soul over ${cap})`);
+    soulLength = render(current, lib, opts).soul.length;
   }
 
-  if (soulLength > MAX_SOUL_LENGTH) {
-    warnings.push(`length: soul is ${soulLength} characters, over ${MAX_SOUL_LENGTH} with nothing left to drop`);
+  if (soulLength > cap) {
+    warnings.push(`length: soul is ${soulLength} characters, over ${cap} with nothing left to drop`);
   }
 
   return { items: current, warnings };

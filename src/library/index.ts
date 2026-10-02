@@ -3,7 +3,7 @@
 // JSON imports widen string literals, so each field is cast through `unknown` into its
 // precise Library type.
 
-import type { Library, RolePack, RoleSet, WorkflowPack } from '../compiler/types.js';
+import type { Library, Line, RolePack, RoleSet, WorkflowPack } from '../compiler/types.js';
 import { LIBRARY_VERSION } from './version.js';
 
 import chassisData from './chassis.json';
@@ -21,6 +21,7 @@ import contradictionsData from './contradictions.json';
 import targetsData from './targets.json';
 import gatesData from './gates.json';
 import limitsData from './limits.json';
+import probesData from '../probes/probes.json';
 
 import memecoinsPack from './packs/memecoins.json';
 import perpsPack from './packs/perps.json';
@@ -84,6 +85,9 @@ const roleFiles = (
 const roleSets: RoleSet[] = roleFiles.map((f) => f.set);
 const roles: RolePack[] = roleFiles.flatMap((f) => f.roles);
 
+// The probe messages, numbered from 1 so ids read probe.1 to probe.6.
+const probes: Line[] = (probesData as string[]).map((line, i) => ({ id: `probe.${i + 1}`, line }));
+
 export const library: Library = {
   version: LIBRARY_VERSION,
   chassis,
@@ -104,6 +108,7 @@ export const library: Library = {
   packs,
   roleSets,
   roles,
+  probes,
 } as Library;
 
 export default library;
