@@ -163,7 +163,11 @@ export type LineKind =
   | 'rule'
   | 'limit'
   | 'pack-rule'
-  | 'role';
+  | 'role'
+  | 'template'
+  | 'pack-line'
+  | 'skill'
+  | 'memory';
 
 export interface ChassisLine {
   id: string;
@@ -538,4 +542,25 @@ export interface BundleFields {
   limits: Record<LimitId, number>;
   packs: PackId[];
   roles: RoleId[];
+}
+
+// Shared state for the v2 layout, delivery and role passes (lead-defined so
+// parallel slices agree on one interface).
+export interface CompileContext {
+  build: Build; // v2, validated
+  lib: Library;
+  profile: Profile;
+  form: 'full' | 'short';
+  cap: number;
+  resolved: Resolved; // v1 resolve on the build
+  chassis: ChassisLine[]; // resolved.chassis after applyChassis(profile, form)
+  gates: Record<ActionId, GateSetting>; // effectiveGates
+  limits: Record<LimitId, number>; // effectiveLimits
+  packs: WorkflowPack[]; // selected packs, in build order
+  roles: RolePack[]; // normalized roles, set member order; [] when none
+}
+
+export interface RenderOptions {
+  order?: readonly Section[]; // section order for this layout; default SECTION_ORDER
+  headings?: Partial<Record<Section, { id: string; text: string } | null>>; // override or suppress a section heading
 }
