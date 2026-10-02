@@ -3,7 +3,7 @@
 import type { Build, Item, Library, PassResult } from '../types.js';
 import { render } from './render.js';
 
-export const MAX_SOUL_LENGTH = 3200;
+export const MAX_SOUL_LENGTH = 3600;
 
 // Finds the chip-trigger item for a chip at a given trigger index, if present.
 function findTrigger(items: Item[], chip: string, triggerIndex: number): Item | undefined {
@@ -30,13 +30,9 @@ function buildCandidates(items: Item[], build: Build, lib: Library): Item[] {
     }
   }
 
-  // 1. Work/Markets chips, last-tapped back: third trigger, then second.
-  // First trigger of a Work/Markets chip is never a candidate.
+  // 1. Voice lines, last-tapped back.
   for (const chipId of reverseTapped) {
-    const chip = lib.chips.find((c) => c.id === chipId);
-    if (!chip || (chip.group !== 'Work' && chip.group !== 'Markets')) continue;
-    add(findTrigger(items, chipId, 2));
-    add(findTrigger(items, chipId, 1));
+    add(findVoice(items, chipId));
   }
 
   // 2. Life/Time chips, last-tapped back: all triggers, highest index first.
@@ -48,9 +44,13 @@ function buildCandidates(items: Item[], build: Build, lib: Library): Item[] {
     for (const t of sorted) add(t);
   }
 
-  // 3. Voice lines, last-tapped back.
+  // 3. Work/Markets chips, last-tapped back: third trigger, then second.
+  // First trigger of a Work/Markets chip is never a candidate.
   for (const chipId of reverseTapped) {
-    add(findVoice(items, chipId));
+    const chip = lib.chips.find((c) => c.id === chipId);
+    if (!chip || (chip.group !== 'Work' && chip.group !== 'Markets')) continue;
+    add(findTrigger(items, chipId, 2));
+    add(findTrigger(items, chipId, 1));
   }
 
   return candidates;
@@ -70,12 +70,12 @@ export function length(items: Item[], build: Build, lib: Library): PassResult {
   for (const candidate of candidates) {
     if (soulLength <= MAX_SOUL_LENGTH) break;
     current = current.filter((it) => it.id !== candidate.id);
-    warnings.push(`length: dropped ${candidate.id} (soul over 3200)`);
+    warnings.push(`length: dropped ${candidate.id} (soul over ${MAX_SOUL_LENGTH})`);
     soulLength = render(current, lib).soul.length;
   }
 
   if (soulLength > MAX_SOUL_LENGTH) {
-    warnings.push(`length: soul is ${soulLength} characters, over 3200 with nothing left to drop`);
+    warnings.push(`length: soul is ${soulLength} characters, over ${MAX_SOUL_LENGTH} with nothing left to drop`);
   }
 
   return { items: current, warnings };
