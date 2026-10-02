@@ -10,7 +10,7 @@
       "chips": ["memecoins", "solana", "nba", "night_owl"],
       "stats": { "blunt": 4, "warm": 1, "funny": 3, "chatty": 1, "proactive": 1, "risk": 4 },
       "peeves": [],
-      "heart": { "hardPart": "calmer", "d1": "d1.chip.memecoins", "d2": "d2.blunt.4" },
+      "heart": { "hardPart": "forget", "d1": "d1.chip.memecoins", "d2": "d2.blunt.4" },
       "outfit": "terminally_online",
       "name": "Marty"
     }
