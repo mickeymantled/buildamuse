@@ -64,7 +64,7 @@ Honesty first, then my instructions, then brevity, then jokes.
 
 ## Seed
 
-Remember that I'm a lawyer, my days are meetings. The hard part right now is I need my work checked. Ask me about my matters when you need them.
+Remember that I'm a lawyer, my days are meetings. The hard part right now is I need my work checked. Ask me about my matters when you need it.
 
 ## Skills
 
