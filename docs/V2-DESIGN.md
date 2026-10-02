@@ -159,6 +159,29 @@ interface CompileResult {
 
 Trace (pass 11) holds for every line of every file and every spoken item: every non-blank line's id, and every id in `SpokenItem.ids` and `CustomRule.ids`, is a library id.
 
+### Trace ids for v2 lines
+
+`libraryIds(lib)` must contain every id below, generated from the library (never from a build):
+
+| Line | Id |
+| --- | --- |
+| chassis line with a profile variant | `<chassisId>@<profileId>` |
+| chassis short form | `<chassisId>#short` |
+| chassis short form with a profile short variant | `<chassisId>#short@<profileId>` |
+| gate soul line | `gate.<actionId>.soul.<setting>` (only settings whose text is non-null) |
+| gate rules line | `gate.<actionId>.rules.<setting>` |
+| custom rule action text | `gate.<actionId>.custom` |
+| custom rule setting label | `profile.chatgpt-dot.setting.<setting>` |
+| limit line | `limit.<limitId>` |
+| profile template | the template Line's own id, `profile.<profileId>.<key>` |
+| install step, verify line, reload note, opening line | `profile.<profileId>.step.<n>`, `.verify.<n>`, `.reload`, `.opening.<n>` |
+| target card promise, mode note | `target.<targetId>.promise`, `target.chatgpt.mode.<mode>` |
+| pack lines | their own Line ids (`pack.<packId>.t<n>`, `.seed.<n>`, `.rule.<n>`, `.job`, `.source.<n>`, `.deliverable`, `.firstTask`, `.venue.<profileId>`) |
+| pack skill | `pack.<packId>.skill.<skillId>` |
+| chip seed clause, hard part seed clause | `chip.<chipId>.seed`, `heart.<hardPartId>.seedClause` |
+| role lines | their own Line ids (`role.<roleId>.<field>`, `role.<roleId>.never.<n>`), role set templates `roleset.<setId>.<key>` |
+| conversation starter | the source id (`example.<...>` or `probe.<n>`) |
+
 ## 5. Layers per profile
 
 Three layers: PERSONALITY, RULES, SKILLS, plus memory, routines and install steps.
