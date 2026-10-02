@@ -1,4 +1,5 @@
 // Pass 8: Name. Picks the top two stat words plus the base noun.
+// When risk is 1, Word2 is the risk level 1 word and Word1 is the top non-risk stat.
 // All word and noun text comes from the library (lib.names.words, lib.bases); none of it lives here.
 
 import type { Build, Level, Library, StatId } from '../types.js';
@@ -27,14 +28,28 @@ export function buildName(build: Build, lib: Library): string {
     return orderIndex(a.stat) - orderIndex(b.stat);
   });
 
+  const wordFor = (stat: StatId, level: Level): string | undefined =>
+    lib.names.words.find((w) => w.stat === stat && (w.level === undefined || w.level === level))
+      ?.word;
+
   const words: string[] = [];
-  for (const { stat, level } of sorted) {
-    if (words.length >= 2) break;
-    const match = lib.names.words.find(
-      (w) => w.stat === stat && (w.level === undefined || w.level === level)
-    );
-    if (match) {
-      words.push(match.word);
+  if (build.stats.risk === 1) {
+    // Risk-Off always takes slot two; slot one is the top non-risk stat.
+    const top = sorted
+      .filter(({ stat }) => stat !== 'risk')
+      .map(({ stat, level }) => wordFor(stat, level))
+      .find((w) => w !== undefined);
+    const riskOff = wordFor('risk', 1);
+    if (top !== undefined && riskOff !== undefined) {
+      words.push(top, riskOff);
+    }
+  } else {
+    for (const { stat, level } of sorted) {
+      if (words.length >= 2) break;
+      const word = wordFor(stat, level);
+      if (word !== undefined) {
+        words.push(word);
+      }
     }
   }
 
