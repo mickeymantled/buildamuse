@@ -1,6 +1,6 @@
 // Pass 1: validate a Build against a Library. Pure. Throws on the first violation found.
 
-import type { BuildV1, Library, StatId } from '../types.js';
+import type { Build, BuildCore, BuildV1, Library, StatId } from '../types.js';
 
 export const STAT_CAP = 14;
 export const MAX_CHIPS = 6;
@@ -22,12 +22,8 @@ function hasDuplicates(ids: readonly string[]): boolean {
   return new Set(ids).size !== ids.length;
 }
 
-export function validate(build: BuildV1, lib: Library): void {
-  // 1. v is a positive integer.
-  if (!isPositiveInteger(build.v)) {
-    fail('v must be a positive integer');
-  }
-
+// Every check except the version check. Works on a v1 or a v2 build.
+export function validateCore(build: BuildCore & { v?: unknown }, lib: Library): void {
   // 2. base is the id of a base in lib.bases.
   if (!lib.bases.some((b) => b.id === build.base)) {
     fail('base is not a known base id');
@@ -127,5 +123,146 @@ export function validate(build: BuildV1, lib: Library): void {
   const trimmedLength = build.name.trim().length;
   if (trimmedLength < 1 || trimmedLength > 24) {
     fail('name trimmed length must be 1..24');
+  }
+}
+
+export function validate(build: BuildV1, lib: Library): void {
+  // 1. v is a positive integer.
+  if (!isPositiveInteger(build.v)) {
+    fail('v must be a positive integer');
+  }
+  validateCore(build, lib);
+}
+
+const TARGETS: readonly string[] = ['muse', 'openclaw', 'hermes', 'grok', 'chatgpt'];
+const MODES: readonly string[] = ['dot', 'gpt', 'instructions', 'project'];
+const PLANS: readonly string[] = ['free', 'paid'];
+const GATE_SETTINGS: readonly string[] = ['auto', 'approve', 'forbid'];
+export const MAX_PACKS = 3;
+const STEP_EPSILON = 1e-6;
+
+function isRecord(x: unknown): x is Record<string, unknown> {
+  return typeof x === 'object' && x !== null && !Array.isArray(x);
+}
+
+export function validateV2(build: Build, lib: Library): void {
+  // v is exactly 2.
+  if ((build.v as unknown) !== 2) {
+    fail('v must be 2');
+  }
+
+  validateCore(build, lib);
+
+  // target is one of the five known targets.
+  if (!TARGETS.includes(build.target)) {
+    fail('target is not a known target id');
+  }
+
+  // mode only for chatgpt, and a known mode.
+  if (build.mode !== undefined) {
+    if (build.target !== 'chatgpt') {
+      fail('mode is only allowed when target is chatgpt');
+    }
+    if (!MODES.includes(build.mode)) {
+      fail('mode is not a known chatgpt mode');
+    }
+  }
+
+  // plan only for chatgpt in instructions mode (absent mode means dot), and a known plan.
+  if (build.plan !== undefined) {
+    if (build.target !== 'chatgpt' || (build.mode ?? 'dot') !== 'instructions') {
+      fail('plan is only allowed for chatgpt in instructions mode');
+    }
+    if (!PLANS.includes(build.plan)) {
+      fail('plan is not a known plan');
+    }
+  }
+
+  // packs: array of 0..3, unique, every id exists in lib.packs.
+  if (!Array.isArray(build.packs) || build.packs.length > MAX_PACKS) {
+    fail(`packs must be an array of at most ${MAX_PACKS}`);
+  }
+  if (hasDuplicates(build.packs)) {
+    fail('packs contains duplicates');
+  }
+  const selected = build.packs.map((packId) => {
+    const pack = lib.packs.find((p) => p.id === packId);
+    if (!pack) {
+      fail(`pack id not found in library: ${String(packId)}`);
+    }
+    return pack;
+  });
+
+  // gates: keys are pay or an action some selected pack exposes; values are gate settings; pay is forbid.
+  if (!isRecord(build.gates)) {
+    fail('gates must be an object');
+  }
+  const gateActions = new Set<string>(['pay']);
+  for (const pack of selected) {
+    for (const action of Object.keys(pack.gatesDefault)) {
+      gateActions.add(action);
+    }
+  }
+  for (const [action, setting] of Object.entries(build.gates)) {
+    if (!gateActions.has(action)) {
+      fail(`gate action is not exposed by a selected pack: ${action}`);
+    }
+    if (typeof setting !== 'string' || !GATE_SETTINGS.includes(setting)) {
+      fail(`gate ${action} must be auto, approve or forbid`);
+    }
+  }
+  if (build.gates.pay !== undefined && build.gates.pay !== 'forbid') {
+    fail('gate pay must be forbid');
+  }
+
+  // limits: keys are in some selected pack's limitChips; values within min..max and on step.
+  if (!isRecord(build.limits)) {
+    fail('limits must be an object');
+  }
+  const limitIds = new Set<string>();
+  for (const pack of selected) {
+    for (const limitId of pack.limitChips) {
+      limitIds.add(limitId);
+    }
+  }
+  for (const [limitId, value] of Object.entries(build.limits)) {
+    if (!limitIds.has(limitId)) {
+      fail(`limit is not exposed by a selected pack: ${limitId}`);
+    }
+    const limit = lib.limits.find((l) => l.id === limitId);
+    if (!limit) {
+      fail(`limit id not found in library: ${limitId}`);
+    }
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      fail(`limit ${limitId} must be a number`);
+    }
+    if (value < limit.min - STEP_EPSILON || value > limit.max + STEP_EPSILON) {
+      fail(`limit ${limitId} must be within ${limit.min}..${limit.max}`);
+    }
+    const steps = (value - limit.min) / limit.step;
+    if (Math.abs(steps - Math.round(steps)) > STEP_EPSILON) {
+      fail(`limit ${limitId} must be on a step of ${limit.step}`);
+    }
+  }
+
+  // roles: known ids, all from one role set, no duplicates.
+  if (build.roles !== undefined) {
+    if (!Array.isArray(build.roles)) {
+      fail('roles must be an array when present');
+    }
+    const sets = new Set<string>();
+    for (const roleId of build.roles) {
+      const role = lib.roles.find((r) => r.id === roleId);
+      if (!role) {
+        fail(`role id not found in library: ${String(roleId)}`);
+      }
+      sets.add(role.set);
+    }
+    if (sets.size > 1) {
+      fail('roles must all belong to one role set');
+    }
+    if (hasDuplicates(build.roles)) {
+      fail('roles contains duplicates');
+    }
   }
 }
