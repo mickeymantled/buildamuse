@@ -37,7 +37,9 @@ export function seed(build: Build, lib: Library): string {
 
   // No chip seed clauses (including the no-chips case): just the hard part clause.
   const remember = chipClauses.length > 0 ? `Remember that ${chipClauses.join(', ')}. ` : '';
-  const tail = nouns.length > 0 ? ` Ask me about ${nouns.join(' and ')} when you need them.` : '';
+  // S7: singular ending for one noun, plural for two or more.
+  const ending = nouns.length === 1 ? 'when you need it.' : 'when you need them.';
+  const tail = nouns.length > 0 ? ` Ask me about ${nouns.join(' and ')} ${ending}` : '';
 
   return remember + hardPart.seedClause + tail;
 }
