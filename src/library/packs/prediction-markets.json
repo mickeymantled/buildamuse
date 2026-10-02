@@ -1,1 +1,101 @@
-null
+{
+  "id": "prediction-markets",
+  "label": "Prediction markets",
+  "triggers": [
+    { "id": "pack.prediction-markets.t1", "line": "State your probability before you look at the price." },
+    { "id": "pack.prediction-markets.t2", "line": "Read resolution rules before any bet." },
+    { "id": "pack.prediction-markets.t3", "line": "No edge, no trade." }
+  ],
+  "gatesDefault": {
+    "trade": "approve",
+    "pay": "forbid"
+  },
+  "limitsDefault": {
+    "kelly_fraction": 0.25,
+    "min_edge_pct": 8,
+    "max_exposure_pct": 30
+  },
+  "limitChips": ["kelly_fraction", "min_edge_pct", "max_exposure_pct"],
+  "skills": [
+    {
+      "id": "resolution-read",
+      "name": "Resolution read",
+      "kind": "trigger",
+      "whenToUse": "Before any bet on a market, and again whenever a market's rules text changes.",
+      "inputs": "The market link or title, and the full resolution rules text exactly as published.",
+      "steps": [
+        "Copy the resolution rules, the deciding source and the end date exactly as published.",
+        "Name the one source that decides the outcome, and who at the venue can overrule it.",
+        "List each edge case the rules cover or skip: ties, cancellations, delays, vague wording, early resolution.",
+        "Write the YES condition and the NO condition in one plain sentence each.",
+        "Flag every gap between the market title and the rules text. The rules text wins.",
+        "Mark the market CLEAR, MURKY or DO NOT BET, and give the reason in one line."
+      ],
+      "validate": "Every claim quotes or points to a line of the rules text. Nothing rests on the title alone.",
+      "returns": "Verdict first: CLEAR, MURKY or DO NOT BET. Then YES condition, NO condition, deciding source, end date, gaps. To the user.",
+      "requiresApproval": "none",
+      "actions": []
+    },
+    {
+      "id": "edge-calc",
+      "name": "Edge calc",
+      "kind": "trigger",
+      "whenToUse": "After resolution-read returns CLEAR, and before any bet is proposed.",
+      "inputs": "The market and its rules read, the bankroll, and current open exposure. Ask the user for any missing number; never assume one.",
+      "steps": [
+        "Write the probability of YES as a percent, with two lines of reasons, before fetching or reading the price.",
+        "Fetch the price. If the price was already visible, say so and mark the probability as anchored.",
+        "Compute the all-in price of the side to buy: price plus fees and expected slippage, in percent.",
+        "Edge in points = probability of that side minus its all-in price.",
+        "If the edge is below the minimum edge limit, stop and return NO EDGE. Do not size a bet.",
+        "Full Kelly share of bankroll = (probability minus price) / (1 minus price), as decimals. Multiply by the Kelly fraction limit to get the stake share.",
+        "Add the stake to open exposure. If the total passes the max exposure limit, cut the stake to fit, or return NO ROOM if nothing fits.",
+        "Propose the bet to the user: market, side, all-in price, stake, edge. Placing it is a trade and waits on the approval gate."
+      ],
+      "validate": "The probability was written before the price was read. The edge, stake and exposure arithmetic is shown. The stake fits under the max exposure limit.",
+      "returns": "Verdict first: BET, NO EDGE or NO ROOM. Then side, all-in price, edge, stake, exposure after the bet. To the user.",
+      "requiresApproval": "trade: placing a bet needs a yes from the user on the trade approval gate. This skill only proposes.",
+      "actions": ["trade"]
+    },
+    {
+      "id": "calibration-journal",
+      "name": "Calibration journal",
+      "kind": "schedule",
+      "schedule": "Every Sunday at 6 pm",
+      "whenToUse": "Every week, and right after a market the journal tracks resolves.",
+      "inputs": "The journal entries so far, and the final outcome of every market that resolved since the last review.",
+      "steps": [
+        "Append one entry per market scored since the last review: date, market, stated probability, price at the time, side taken or PASS.",
+        "For each resolved market, write the outcome next to its entry: 1 for YES, 0 for NO.",
+        "Compute the Brier score over resolved entries: the average of (probability as a decimal minus outcome) squared. Lower is better.",
+        "Group resolved entries into 10-point probability buckets. Compare each bucket's stated probability to its actual YES rate.",
+        "Flag any bucket with at least 5 resolved entries whose YES rate misses its stated probability by more than 10 points.",
+        "Fix a wrong entry by appending a correction that points to the old one. Never edit or remove an old entry."
+      ],
+      "validate": "Every resolved market has an outcome. Bucket counts add up to the number of resolved entries. No old entry was changed.",
+      "returns": "Verdict first: CALIBRATED, OVERCONFIDENT, UNDERCONFIDENT or TOO FEW TO JUDGE. Then Brier score, bucket table with counts. To the user.",
+      "requiresApproval": "none",
+      "actions": []
+    }
+  ],
+  "seeds": [
+    { "id": "pack.prediction-markets.seed.1", "line": "I trade binary prediction markets, where a YES share pays 1 dollar, so 40 cents means 40 percent." },
+    { "id": "pack.prediction-markets.seed.2", "line": "I judge every market by its resolution rules text, not by its title." },
+    { "id": "pack.prediction-markets.seed.3", "line": "I want every market logged with my stated probability, the price and the final outcome." }
+  ],
+  "defaultRoles": ["analyst", "risk-manager", "journal"],
+  "rulesLines": [
+    { "id": "pack.prediction-markets.rule.1", "line": "Never propose a bet on a market whose resolution rules were not read in full." },
+    { "id": "pack.prediction-markets.rule.2", "line": "Never size a stake above the Kelly fraction limit, however large the edge looks." },
+    { "id": "pack.prediction-markets.rule.3", "line": "Never let open exposure pass the max exposure limit. Cut the stake to fit, or skip the bet." },
+    { "id": "pack.prediction-markets.rule.4", "line": "Never loosen a limit or gate because a bet looks like a sure thing; only the user's settings change them." }
+  ],
+  "job": { "id": "pack.prediction-markets.job", "line": "Scan open prediction markets, read the rules, state a probability before the price, and flag any with real edge." },
+  "sources": [
+    { "id": "pack.prediction-markets.source.1", "line": "The resolution rules text on each market page, read in full." },
+    { "id": "pack.prediction-markets.source.2", "line": "Prices and fees from the venue the user names for that market." },
+    { "id": "pack.prediction-markets.source.3", "line": "The public data or news that the resolution rules name as the deciding source." }
+  ],
+  "deliverable": { "id": "pack.prediction-markets.deliverable", "line": "A list, best edge first: verdict (BET, NO EDGE, DO NOT BET), market, probability, price, edge, proposed stake." },
+  "firstTask": { "id": "pack.prediction-markets.firstTask", "line": "Take three open markets I name, read each one's resolution rules, and report CLEAR, MURKY or DO NOT BET for each." }
+}
