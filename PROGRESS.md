@@ -69,34 +69,34 @@ Loop per slice: plan, dispatch, verify (npm test, typecheck), review (reviewer f
 | 0.8 | tests: names S2, examples S3 | tester | Part A | review PASS | done |
 | 0.9 | tests: seed S7 | tester | Part A | review PASS | done |
 | 0.10 | regenerate nine v1 goldens | tester | Part A | every diff line explained | done |
-| 1 | types v2 | engineer | Part B + V2-DESIGN 2-4 | typecheck green | |
-| 2 | targets.json facts: 5 cards, 8 profiles, pinned docs, verify lines | transcriber | Part C | every Part C fact present, placeholders elsewhere | |
-| 3 | chassis.json: no_self_edit, rules.outrank | transcriber | Part C chassis changes | records verbatim | |
-| 4 | gates.json content | author, safety, transcriber | Parts B, D + V2-DESIGN 3, 7 | safety PASS, reviewer PASS | |
-| 5 | limits.json content | author, safety, transcriber | Parts B, D | safety PASS, reviewer PASS | |
-| 6 | profile templates, chassis variants, chassis short forms | author, safety, transcriber | Part C + V2-DESIGN 5, 6 | safety PASS, reviewer PASS | |
-| 7-18 | packs x12 (memecoins, perps, prediction-markets, spot, coding, research, content, sales, personal-ops, support, data, devops) incl. probe files | author, safety, transcriber | Part D | per pack: safety PASS, reviewer PASS, probes stored | |
-| 19-22 | role sets x4 (trading, coding, research, personal-ops) | author, safety, transcriber | Part D roles | per set: safety PASS, reviewer PASS | |
-| 23 | migrate v1 to v2 + share encode/decode | engineer | Part B migration + spec share links | typecheck, v1 Marty link decodes | |
-| 24 | migrate + share tests | tester | Part B | review PASS | |
-| 25 | validate v2 | engineer | V2-DESIGN 2 | review PASS | |
-| 26 | profile resolution, effective gates and limits | engineer | V2-DESIGN 1, 2, 3 | review PASS | |
-| 27 | soul layout v2: pack triggers, gate lines, rules section and blocks, chassis variants | engineer | V2-DESIGN 5 | review PASS | |
-| 28 | grok layout | engineer | Part C grok + V2-DESIGN 5 | review PASS | |
-| 29 | instructions layout incl. compact | engineer | Part C instructions + V2-DESIGN 5 | review PASS | |
-| 30 | rules layer: AGENTS.md, Never block, custom rules, top and bottom | engineer | V2-DESIGN 7 | review PASS | |
-| 31 | skills, routines, memory delivery | engineer | V2-DESIGN 8 | review PASS | |
-| 32 | roles compile | engineer | Part D roles + V2-DESIGN 9 | review PASS | |
-| 33 | bundle assembly, compile wiring, trace v2, length by profile | engineer | Part B bundle + V2-DESIGN 4 | review PASS | |
-| 34 | test: gate in both layers | tester | Part C chassis changes + V2-DESIGN 7 | review PASS | |
-| 35 | test: dot custom rules | tester | Part C dot | review PASS | |
-| 36 | test: grok Bot Ready | tester | Part C grok | review PASS | |
-| 37 | test: chatgpt caps | tester | Part C chatgpt | review PASS | |
-| 38 | test: pack-default safety | tester | Part D defaults | review PASS | |
-| 39 | test: roles (40 to 120 lines, one coordinator, locked stats, delegation lines) | tester | Part D roles | review PASS | |
-| 40 | tools/golden.ts v2 | engineer | Part F | review PASS | |
-| 41 | goldens, 60 (+ role goldens) | tester | Part F | safety PASS per profile set | |
-| 42 | probe files check, all 12 packs | author | Part D | five probes each, one gate probe | |
+| 1 | types v2 | engineer | Part B + V2-DESIGN 2-4 | typecheck green | done |
+| 2 | targets.json facts: 5 cards, 8 profiles, pinned docs, verify lines | transcriber | Part C | every Part C fact present, placeholders elsewhere | done |
+| 3 | chassis.json: no_self_edit, rules.outrank | transcriber | Part C chassis changes | records verbatim | dispatched |
+| 4 | gates.json content | author, safety, transcriber | Parts B, D + V2-DESIGN 3, 7 | safety PASS, reviewer PASS | done |
+| 5 | limits.json content | author, safety, transcriber | Parts B, D | safety PASS, reviewer PASS | done |
+| 6 | profile templates, chassis variants, chassis short forms | author, safety, transcriber | Part C + V2-DESIGN 5, 6 | safety PASS, reviewer PASS | done |
+| 7-18 | packs x12 (memecoins, perps, prediction-markets, spot, coding, research, content, sales, personal-ops, support, data, devops) incl. probe files | author, safety, transcriber | Part D | per pack: safety PASS, reviewer PASS, probes stored | done |
+| 19-22 | role sets x4 (trading, coding, research, personal-ops) | author, safety, transcriber | Part D roles | per set: safety PASS, reviewer PASS | done |
+| 23 | migrate v1 to v2 + share encode/decode | engineer | Part B migration + spec share links | typecheck, v1 Marty link decodes | done |
+| 24 | migrate + share tests | tester | Part B | review PASS | next (Wave D) |
+| 25 | validate v2 | engineer | V2-DESIGN 2 | review PASS | done |
+| 26 | profile resolution, effective gates and limits | engineer | V2-DESIGN 1, 2, 3 | review PASS | done |
+| 27 | soul layout v2: pack triggers, gate lines, rules section and blocks, chassis variants | engineer | V2-DESIGN 5 | review PASS | done |
+| 28 | grok layout | engineer | Part C grok + V2-DESIGN 5 | review PASS | done |
+| 29 | instructions layout incl. compact | engineer | Part C instructions + V2-DESIGN 5 | review PASS | done |
+| 30 | rules layer: AGENTS.md, Never block, custom rules, top and bottom | engineer | V2-DESIGN 7 | review PASS | done |
+| 31 | skills, routines, memory delivery | engineer | V2-DESIGN 8 | review PASS | done |
+| 32 | roles compile | engineer | Part D roles + V2-DESIGN 9 | review PASS | done |
+| 33 | bundle assembly, compile wiring, trace v2, length by profile | engineer | Part B bundle + V2-DESIGN 4 | review PASS | dispatched |
+| 34 | test: gate in both layers | tester | Part C chassis changes + V2-DESIGN 7 | review PASS | next |
+| 35 | test: dot custom rules | tester | Part C dot | review PASS | next |
+| 36 | test: grok Bot Ready | tester | Part C grok | review PASS | next |
+| 37 | test: chatgpt caps | tester | Part C chatgpt | review PASS | next (cap tests blocked on V25) |
+| 38 | test: pack-default safety | tester | Part D defaults | review PASS | next |
+| 39 | test: roles (40 to 120 lines, one coordinator, locked stats, delegation lines) | tester | Part D roles | review PASS | next |
+| 40 | tools/golden.ts v2 | engineer | Part F | review PASS | next |
+| 41 | goldens, 60 (+ role goldens) | tester | Part F | safety PASS per profile set | after Wave D |
+| 42 | probe files check, all 12 packs | author | Part D | five probes each, one gate probe | probes stored with packs |
 
 ## Log
 
@@ -110,3 +110,7 @@ Loop per slice: plan, dispatch, verify (npm test, typecheck), review (reviewer f
 - Lead applied the slice 26 review fix directly: Floors test now asserts the blunt (honesty) stat line per build, not only the chassis mistake line.
 - Lead applied the slice 28 review fix directly: Second Look test now uses hard part calmer so the two chips are the only trigger.
 - M2 0.7: length-test slice failed review twice (test strength: no Markets chip, no multi-trigger Life chip, cap pinned only from above). Lead added two tests directly: stop-point check and a Markets plus injected two-trigger Life build.
+- M2 content: every pack, role set, gate, limit and profile template was written by author, passed safety, then was transcribed byte for byte and reviewed. Author-written lines await Brian (QUESTIONS V22).
+- M2 doc research (2026-10-01): official docs read for all five runtimes; facts that differ from the brief are logged as V14 to V20 and pinned as verify lines in targets.json.
+- M2 Wave B (slices 27 to 32) passed review except instructions (29), which failed twice on caps; lead removed its repeated-block drop and logged the cap conflict.
+- BLOCKING: V25 caps. Grok 2,000, free custom instructions 1,500, paid 5,000 and some 3,600 souls can't hold every chassis line plus the rules layer. Needs Brian; until then over-cap output ships with a warning.
