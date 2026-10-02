@@ -58,8 +58,11 @@ export function fileFromLines(
   return { path, label, delivery, content: lines.map((l) => l.text).join('\n'), lines };
 }
 
-// Chip skills first in tap order, then pack skills in pack order. A directory name that is
-// already taken (two packs can share a skill id) gets the pack id in front.
+const nameKey = (name: string): string => name.trim().toLowerCase();
+
+// Chip skills first in tap order, then pack skills in pack order. A chip skill whose name a
+// selected pack skill also carries is dropped, so the six-field pack skill is the only copy.
+// A directory name that is already taken (two packs can share a skill id) gets the pack id in front.
 function collectSkills(ctx: CompileContext): Entry[] {
   const used = new Set<string>();
   const claim = (dir: string, packId?: string): string => {
@@ -75,10 +78,16 @@ function collectSkills(ctx: CompileContext): Entry[] {
     return name;
   };
 
+  const packNames = new Set<string>();
+  for (const pack of ctx.packs) {
+    for (const skill of pack.skills) packNames.add(nameKey(skill.name));
+  }
+
   const entries: Entry[] = [];
   for (const chipId of ctx.build.chips) {
     const chip = ctx.lib.chips.find((c) => c.id === chipId);
     for (const skill of chip?.skills ?? []) {
+      if (packNames.has(nameKey(skill.name))) continue;
       const last = skill.id.split('.').at(-1) as string;
       entries.push({ src: 'chip', id: skill.id, dir: claim(last), skill });
     }
@@ -171,8 +180,31 @@ function skillSpoken(ctx: CompileContext, e: Entry): SpokenItem {
 }
 
 function routineSpoken(ctx: CompileContext, e: Entry): SpokenItem {
-  const main = filled(ctx, e.src === 'pack' ? 'routine.sentence' : 'routine.legacy', varsOf(e));
-  return { label: `Routine: ${e.skill.name}`, text: main.text, ids: [main.id, e.id] };
+  const label = `Routine: ${e.skill.name}`;
+  const vars = varsOf(e);
+
+  // Grok reads the approval boundary from the routine, so it carries the build's rules lines.
+  if (ctx.profile.id === 'grok') {
+    if (e.src === 'pack') {
+      const skill = e.skill;
+      const rules = gateRules(ctx, (action) => skill.actions.includes(action));
+      const requiresApproval =
+        rules.texts.length === 0 ? skill.requiresApproval : rules.texts.join(' ');
+      const main = filled(ctx, 'routine.sentence', { ...vars, requiresApproval });
+      return { label, text: main.text, ids: [main.id, ...rules.ids, e.id] };
+    }
+    const main = filled(ctx, 'routine.legacy', vars);
+    const rules = gateRules(ctx, (_action, setting) => setting !== 'auto');
+    const suffix = filled(ctx, 'skill.approvalSuffix', { ...vars, rules: rules.texts.join(' ') });
+    return {
+      label,
+      text: `${main.text}\n${suffix.text}`,
+      ids: [main.id, suffix.id, ...rules.ids, e.id],
+    };
+  }
+
+  const main = filled(ctx, e.src === 'pack' ? 'routine.sentence' : 'routine.legacy', vars);
+  return { label, text: main.text, ids: [main.id, e.id] };
 }
 
 function skillPath(ctx: CompileContext, e: Entry): string {
