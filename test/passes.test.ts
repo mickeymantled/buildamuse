@@ -1,11 +1,23 @@
 // Tests for three compiler passes: Dedupe, Contradictions, Length.
 // Expected values are taken from docs/Build-a-Muse-Compiler-Library-v1.md,
-// QUESTIONS.md (Q9, S1, Q15) and the library JSON text itself, never from
-// compiler output.
+// QUESTIONS.md (Q9, S1, Q15, V25) and the library JSON text itself, never from
+// compiler output. Length runs on the v2 soul profiles (Muse, OpenClaw, Hermes,
+// ChatGPT Dot); Dedupe and Contradictions run on v1 builds migrated to Muse.
 
 import { describe, it, expect } from 'vitest';
 import { compile, library } from '../src/compiler/compile.js';
-import type { BuildV1, Library } from '../src/compiler/types.js';
+import { migrate } from '../src/compiler/migrate.js';
+import { resolveProfile, capOf } from '../src/compiler/profile.js';
+import { effectiveGates } from '../src/compiler/gates.js';
+import type {
+  Build,
+  BuildV1,
+  ChatgptMode,
+  CompileResult,
+  Library,
+  TargetId,
+  TracedLine,
+} from '../src/compiler/types.js';
 
 // Counts non-overlapping exact occurrences of `needle` in `haystack`.
 function countOccurrences(haystack: string, needle: string): number {
@@ -23,43 +35,11 @@ function countOccurrences(haystack: string, needle: string): number {
 const STAT_NAMES = ['blunt', 'warm', 'funny', 'chatty', 'proactive'] as const;
 
 // Q15: first match in table order: risk = 4, then base = parent, then base = student, else default.
-function expectedD3Id(build: BuildV1): string {
+function expectedD3Id(build: Pick<Build, 'base' | 'stats'>): string {
   if (build.stats.risk === 4) return 'd3.risk4';
   if (build.base === 'parent') return 'd3.parent';
   if (build.base === 'student') return 'd3.student';
   return 'd3.default';
-}
-
-// Shared invariant: chassis lines with no `when`, the build's d1/d2/d3 drives,
-// every stat line, every peeve-with-a-line, and the 4 example lines must all
-// survive dedupe + contradictions + length, for any build.
-function expectProtectedLinesPresent(build: BuildV1, lib: Library, ids: string[], soulLines: { kind: string }[]): void {
-  for (const line of lib.chassis.lines) {
-    if (line.when === undefined) {
-      expect(ids).toContain(line.id);
-    }
-  }
-
-  expect(ids).toContain(build.heart.d1);
-  expect(ids).toContain(build.heart.d2);
-  expect(ids).toContain(expectedD3Id(build));
-
-  for (const stat of STAT_NAMES) {
-    expect(ids).toContain(`stat.${stat}.${build.stats[stat]}`);
-  }
-  if (build.stats.risk !== undefined) {
-    expect(ids).toContain(`stat.risk.${build.stats.risk}`);
-  }
-
-  for (const peeveId of build.peeves) {
-    const peeve = lib.peeves.find((p) => p.id === peeveId);
-    if (peeve?.line) {
-      expect(ids).toContain(peeveId);
-    }
-  }
-
-  const exampleCount = soulLines.filter((l) => l.kind === 'example').length;
-  expect(exampleCount).toBe(4);
 }
 
 describe('Dedupe', () => {
@@ -235,9 +215,91 @@ describe('Contradictions', () => {
   });
 });
 
-// S1 length fixtures. The build below has six chips in this tap order:
-// engineering, founder, sales (Work), gym, dog (Life), night_owl (Time).
-function overflowBuild(): BuildV1 {
+// ---------------------------------------------------------------------------
+// Length (v2). The soul-layout profiles only (Muse, OpenClaw, Hermes, ChatGPT
+// Dot, all capped at 3,600). The instructions and grok layouts fit themselves
+// and are covered by their own tests.
+//
+// What the soul now carries besides the v1 lines: gate soul lines (kind
+// 'gate'), pack triggers ('pack-trigger'), and on profiles with a rules section
+// (Muse, Hermes) the rules block ('rule', 'limit', 'pack-rule'). QUESTIONS S1
+// fixes the drop order. QUESTIONS V25: until Brian decides the caps, nothing
+// protected drops, and a soul still over the cap ships with a warning that ends
+// "over 3600 with nothing left to drop".
+//
+// The "pre-length soul" used as a reference below is the same build compiled
+// against a library clone whose profile cap is raised so high the length pass
+// never runs. Everything else about the compile is identical.
+// ---------------------------------------------------------------------------
+
+interface SoulProfile {
+  id: string;
+  target: TargetId;
+  mode?: ChatgptMode;
+}
+
+const SOUL_PROFILES: SoulProfile[] = [
+  { id: 'muse', target: 'muse' },
+  { id: 'openclaw', target: 'openclaw' },
+  { id: 'hermes', target: 'hermes' },
+  { id: 'chatgpt-dot', target: 'chatgpt', mode: 'dot' },
+];
+
+const MUSE = SOUL_PROFILES[0];
+const OPENCLAW = SOUL_PROFILES[1];
+const CHATGPT_DOT = SOUL_PROFILES[3];
+
+// The only kinds the S1 order can drop.
+const DROPPABLE_KINDS = ['voice', 'chip-trigger'];
+
+// Kinds that must come through the length pass untouched, same ids in the same order.
+const NEVER_DROPPED_KINDS = [
+  'chassis',
+  'drive',
+  'stat',
+  'peeve',
+  'example',
+  'gate',
+  'rule',
+  'limit',
+  'pack-rule',
+  'pack-trigger',
+] as const;
+
+function rosterBuild(starter: string, profile: SoulProfile): Build {
+  const entry = library.roster.find((r) => r.id === starter);
+  if (!entry) throw new Error(`no roster entry ${starter}`);
+  return migrate(entry.build, { target: profile.target, mode: profile.mode });
+}
+
+// A clone of `lib` whose profile cap is raised past any soul, so the length pass never runs.
+const uncappedCache = new Map<string, Library>();
+function uncapped(profileId: string, lib: Library = library): Library {
+  const cached = lib === library ? uncappedCache.get(profileId) : undefined;
+  if (cached) return cached;
+  const clone: Library = structuredClone(lib);
+  const profile = clone.targets.profiles.find((p) => p.id === profileId);
+  if (!profile) throw new Error(`no profile ${profileId}`);
+  profile.lengthCap = 1_000_000;
+  if (lib === library) uncappedCache.set(profileId, clone);
+  return clone;
+}
+
+function preLength(build: Build, profile: SoulProfile, lib: Library = library): CompileResult {
+  return compile(build, uncapped(profile.id, lib));
+}
+
+// The library with the builder base line inflated, so any builder soul stays over the cap
+// however many lines drop. Test data in a clone; the library file is not touched.
+function inflatedLibrary(): Library {
+  const lib: Library = structuredClone(library);
+  lib.bases.find((b) => b.id === 'builder')!.baseLine = 'x'.repeat(4000);
+  return lib;
+}
+
+// S1 build with six chips in this tap order: engineering, founder, sales (Work),
+// gym, dog (Life), night_owl (Time). v1 shape; migrated to Muse where used.
+function overflowBuildV1(): BuildV1 {
   return {
     v: 1,
     base: 'builder',
@@ -250,11 +312,16 @@ function overflowBuild(): BuildV1 {
   };
 }
 
-// S1 drop sequence, built from library data: voice lines in reverse tap order,
-// then Life/Time triggers in reverse tap order (highest index first), then
-// Work/Markets index 3 then 2 (array positions 2 then 1) in reverse tap order.
-// A Work/Markets chip's first trigger is never in the sequence.
-function expectedDropSequence(build: BuildV1, lib: Library): string[] {
+function overflowBuild(profile: SoulProfile = MUSE): Build {
+  return migrate(overflowBuildV1(), { target: profile.target, mode: profile.mode });
+}
+
+// S1 drop sequence from library data alone: voice lines in reverse tap order, then
+// Life/Time triggers in reverse tap order (highest index first within a chip), then for
+// each Work/Markets chip in reverse tap order its index 2 then index 1 (array positions).
+// A Work/Markets chip's first trigger is never in the sequence. Ids a build does not
+// emit (no voice line, fewer triggers, absorbed by dedupe) are not filtered here.
+function expectedDropSequence(build: { chips: string[] }, lib: Library): string[] {
   const reverseTapped = [...build.chips].reverse();
   const chipOf = (id: string) => lib.chips.find((c) => c.id === id)!;
 
@@ -276,8 +343,9 @@ function expectedDropSequence(build: BuildV1, lib: Library): string[] {
   return [...voiceIds, ...lifeTimeIds, ...workMarketsIds];
 }
 
-// The same sequence written out by hand from the library tables (chip.night_owl has no voice line).
-const EXPECTED_DROP_SEQUENCE = [
+// The same sequence for overflowBuild, written out by hand from the library tables
+// (chip.night_owl has no voice line; chip.dog and chip.gym have one trigger each).
+const OVERFLOW_DROP_SEQUENCE = [
   'chip.dog.voice',
   'chip.gym.voice',
   'chip.sales.voice',
@@ -294,175 +362,595 @@ const EXPECTED_DROP_SEQUENCE = [
   'chip.engineering.t2',
 ];
 
-const WORK_MARKETS_FIRST_TRIGGERS = ['chip.engineering.t1', 'chip.founder.t1', 'chip.sales.t1'];
+// Hand-written from the tables. Dash chips in tap order: founder, sales (Work), meetings (Time).
+// Meetings has no voice line and one trigger.
+const DASH_DROP_SEQUENCE = [
+  'chip.sales.voice',
+  'chip.founder.voice',
+  'chip.meetings.t1',
+  'chip.sales.t3',
+  'chip.sales.t2',
+  'chip.founder.t3',
+  'chip.founder.t2',
+];
+
+// Hand-written from the tables. Rook chips in tap order: engineering, founder (Work),
+// gaming (Life, voice, no triggers), night_owl (Time, no voice, one trigger).
+const ROOK_DROP_SEQUENCE = [
+  'chip.gaming.voice',
+  'chip.founder.voice',
+  'chip.engineering.voice',
+  'chip.night_owl.t1',
+  'chip.founder.t3',
+  'chip.founder.t2',
+  'chip.engineering.t3',
+  'chip.engineering.t2',
+];
+
+// Hand-written from the tables. Odds chips in tap order: prediction_markets (Markets, two
+// triggers), stocks (Markets, one), early_riser (Time, one). None has a voice line.
+const ODDS_DROP_SEQUENCE = ['chip.early_riser.t1', 'chip.prediction_markets.t2'];
+
+// Hand-written from the tables. Marty chips in tap order: memecoins (Markets, voice, three
+// triggers), solana (Markets, one trigger), nba (Life, voice, no triggers), night_owl (Time).
+const MARTY_DROP_SEQUENCE = [
+  'chip.nba.voice',
+  'chip.memecoins.voice',
+  'chip.night_owl.t1',
+  'chip.memecoins.t3',
+  'chip.memecoins.t2',
+];
+
+function lengthWarningsOf(result: CompileResult): string[] {
+  return result.warnings.filter((w) => w.startsWith('length:'));
+}
 
 function droppedIdsOf(warnings: string[]): string[] {
   return warnings
-    .map((w) => w.match(/^length: dropped (\S+) \(soul over 3600\)$/))
+    .map((w) => w.match(/^length: dropped (\S+) \(soul over \d+\)$/))
     .filter((m): m is RegExpMatchArray => m !== null)
     .map((m) => m[1]);
 }
 
-describe('Length', () => {
-  it('compile(Rook) fits under 3600 and emits no length warnings', () => {
-    const rookEntry = library.roster.find((r) => r.id === 'rook')!;
-    const build = structuredClone(rookEntry.build);
-    const result = compile(build);
+// The soul text of a set of traced lines: lines joined by newlines.
+function textLength(lines: TracedLine[]): number {
+  return lines.map((l) => l.text).join('\n').length;
+}
 
-    expect(result.length).toBeLessThanOrEqual(3600);
-    expect(result.warnings.filter((w) => w.startsWith('length:'))).toEqual([]);
-  });
+// Reference model of the S1 trim, built from the pre-length soul and the candidate
+// sequence: drop one candidate at a time, stop at the first point at or under the cap.
+interface Outcome {
+  dropped: string[];
+  remaining: TracedLine[];
+  length: number;
+  fits: boolean;
+}
+function modelOutcome(pre: CompileResult, sequence: string[], cap: number): Outcome {
+  let remaining = pre.soulLines;
+  const dropped: string[] = [];
+  for (const id of sequence) {
+    if (textLength(remaining) <= cap) break;
+    remaining = remaining.filter((l) => l.id !== id);
+    dropped.push(id);
+  }
+  const length = textLength(remaining);
+  return { dropped, remaining, length, fits: length <= cap };
+}
 
-  it('over-length build drops voice lines first, then Life/Time triggers, then Work/Markets index 2 and 1 (last-tapped first), keeps every Work/Markets first trigger, and ends at or under 3600', () => {
-    const build = overflowBuild();
+// The library text of a drop candidate (a chip voice line or a chip trigger).
+function candidateText(lib: Library, id: string): string {
+  const chipId = id.split('.')[1];
+  const chip = lib.chips.find((c) => c.id === chipId)!;
+  if (id.endsWith('.voice')) return chip.voice!;
+  return chip.triggers.find((t) => t.id === id)!.line;
+}
 
-    // Sanity: the sequence built from library data matches the hand-written table.
-    expect(expectedDropSequence(build, library)).toEqual(EXPECTED_DROP_SEQUENCE);
+// Restoring the last dropped line must put the soul back over the cap: proof that the
+// pass stopped at the first point under it. A bullet renders as "- <text>" plus one
+// joining newline.
+function expectStoppedAtFirstPointUnder(
+  result: CompileResult,
+  lib: Library,
+  droppedIds: string[],
+  cap: number,
+): void {
+  expect(droppedIds.length).toBeGreaterThan(0);
+  const lastId = droppedIds[droppedIds.length - 1];
+  const restored = result.length + ('- ' + candidateText(lib, lastId)).length + 1;
+  expect(restored, `restoring ${lastId}`).toBeGreaterThan(cap);
+}
 
-    const result = compile(build);
-    const droppedIds = droppedIdsOf(result.warnings);
-
-    expect(droppedIds.length).toBeGreaterThan(0);
-    expect(droppedIds.length).toBeLessThanOrEqual(EXPECTED_DROP_SEQUENCE.length);
-    expect(droppedIds).toEqual(EXPECTED_DROP_SEQUENCE.slice(0, droppedIds.length));
-
-    // Dropped lines are really gone from the soul.
-    const ids = result.soulLines.map((l) => l.id);
-    for (const id of droppedIds) {
-      expect(ids).not.toContain(id);
+// Ids the S1 order may never touch for this build, from library data: every Work/Markets
+// chip's first trigger.
+function workMarketsFirstTriggerIds(build: Build, lib: Library): string[] {
+  const ids: string[] = [];
+  for (const chipId of build.chips) {
+    const chip = lib.chips.find((c) => c.id === chipId)!;
+    if ((chip.group === 'Work' || chip.group === 'Markets') && chip.triggers.length > 0) {
+      ids.push(chip.triggers[0].id);
     }
+  }
+  return ids;
+}
 
-    // Every Work/Markets chip keeps its first trigger. (This build stops dropping
-    // before it reaches founder or engineering; the exhaustion test below forces
-    // the whole candidate list so these are not vacuous.)
-    for (const id of WORK_MARKETS_FIRST_TRIGGERS) {
-      expect(ids).toContain(id);
+// The length pass removed exactly the dropped ids, all of them voice or chip-trigger lines,
+// and every other kind of line, in particular the v2 additions, came through unchanged.
+function expectOnlyCandidatesDropped(pre: CompileResult, result: CompileResult, droppedIds: string[]): void {
+  const resultIds = new Set(result.soulLines.map((l) => l.id));
+  const lost = pre.soulLines.filter((l) => !resultIds.has(l.id)).map((l) => l.id);
+  expect([...lost].sort()).toEqual([...droppedIds].sort());
+
+  const kindOf = new Map(pre.soulLines.map((l) => [l.id, l.kind]));
+  for (const id of droppedIds) {
+    expect(DROPPABLE_KINDS, `kind of dropped ${id}`).toContain(kindOf.get(id));
+  }
+
+  for (const kind of NEVER_DROPPED_KINDS) {
+    const before = pre.soulLines.filter((l) => l.kind === kind).map((l) => l.id);
+    const after = result.soulLines.filter((l) => l.kind === kind).map((l) => l.id);
+    expect(after, `${kind} lines`).toEqual(before);
+  }
+}
+
+// Lines that must be in every soul, derived from the library tables and the build, not
+// from the compiler: always-on chassis (less the profile's null variants), the three
+// drives, stat lines, peeves with a line, four examples, gate soul lines, on profiles with
+// a rules section the rules block, and every Work/Markets first trigger.
+function expectProtectedLinesPresent(build: Build, lib: Library, result: CompileResult): void {
+  const profile = resolveProfile(build, lib);
+  const ids = result.soulLines.map((l) => l.id);
+  const dropped = droppedIdsOf(result.warnings);
+
+  // Chassis: every always-on line, unless this profile's variant for it is null.
+  const nulled = Object.entries(profile.chassisVariants ?? {})
+    .filter(([, variant]) => variant === null)
+    .map(([id]) => id);
+  for (const line of lib.chassis.lines) {
+    if (line.when !== undefined) continue;
+    const present = ids.some((i) => i === line.id || i.startsWith(`${line.id}@`) || i.startsWith(`${line.id}#`));
+    expect(present, `chassis ${line.id} on ${profile.id}`).toBe(!nulled.includes(line.id));
+  }
+
+  // Drives, stat lines, peeves with a line, examples.
+  expect(ids).toContain(build.heart.d1);
+  expect(ids).toContain(build.heart.d2);
+  expect(ids).toContain(expectedD3Id(build));
+  for (const stat of STAT_NAMES) {
+    expect(ids).toContain(`stat.${stat}.${build.stats[stat]}`);
+  }
+  if (build.stats.risk !== undefined) {
+    expect(ids).toContain(`stat.risk.${build.stats.risk}`);
+  }
+  for (const peeveId of build.peeves) {
+    const peeve = lib.peeves.find((p) => p.id === peeveId);
+    if (peeve?.line) {
+      expect(ids).toContain(peeveId);
     }
+  }
+  expect(result.soulLines.filter((l) => l.kind === 'example').length).toBe(4);
 
-    expect(result.length).toBeLessThanOrEqual(3600);
-    expect(result.warnings.some((w) => w.includes('nothing left to drop'))).toBe(false);
-
-    expectProtectedLinesPresent(build, library, ids, result.soulLines);
-  });
-
-  it('Work/Markets build that is still over 3600 after every candidate drops: all 14 candidates dropped in S1 order, every Work/Markets first trigger survives, last length warning is "nothing left to drop"', () => {
-    // Inflate the builder baseLine so the soul cannot get under 3600 by dropping
-    // candidates. The chips, tap order and drop candidates are unchanged.
-    const bigLib: Library = structuredClone(library);
-    const builderBase = bigLib.bases.find((b) => b.id === 'builder')!;
-    builderBase.baseLine = 'x'.repeat(4000);
-
-    const build = overflowBuild();
-    const result = compile(build, bigLib);
-    const ids = result.soulLines.map((l) => l.id);
-
-    // The full candidate list was dropped, in exactly S1 order, none skipped.
-    const droppedIds = droppedIdsOf(result.warnings);
-    expect(droppedIds).toEqual(EXPECTED_DROP_SEQUENCE);
-    expect(droppedIds).toEqual(expectedDropSequence(build, bigLib));
-    expect(droppedIds.length).toBe(14);
-    for (const id of droppedIds) {
-      expect(ids).not.toContain(id);
+  // Gate soul lines: one per effective gate whose setting has soul text.
+  const gates = effectiveGates(build, lib);
+  for (const gate of lib.gates) {
+    if (!Object.hasOwn(gates, gate.id)) continue;
+    const setting = gates[gate.id];
+    if (gate.soulLine[setting] !== null) {
+      expect(ids).toContain(`gate.${gate.id}.soul.${setting}`);
     }
+  }
 
-    // Candidates ran out and the soul is still too long: every Work/Markets
-    // chip's first trigger is still there anyway.
-    expect(result.length).toBeGreaterThan(3600);
-    for (const id of WORK_MARKETS_FIRST_TRIGGERS) {
-      expect(ids).toContain(id);
+  // The rules block, on profiles that put one in the soul: gate rules, limits, pack rules.
+  if (profile.rulesInSoul !== 'none') {
+    for (const gate of lib.gates) {
+      if (!Object.hasOwn(gates, gate.id)) continue;
+      expect(ids).toContain(`gate.${gate.id}.rules.${gates[gate.id]}`);
     }
-    for (const chipId of build.chips) {
-      const chip = bigLib.chips.find((c) => c.id === chipId)!;
-      if (chip.group === 'Work' || chip.group === 'Markets') {
-        expect(ids).toContain(chip.triggers[0].id);
+    const packs = build.packs.map((id) => lib.packs.find((p) => p.id === id)!);
+    const limitIds = new Set<string>([
+      ...packs.flatMap((p) => Object.keys(p.limitsDefault)),
+      ...Object.keys(build.limits),
+    ]);
+    for (const limitId of limitIds) {
+      expect(ids).toContain(`limit.${limitId}`);
+    }
+    for (const pack of packs) {
+      for (const rule of pack.rulesLines) {
+        expect(ids).toContain(rule.id);
       }
     }
+  }
 
-    // Warning order: 14 drop warnings, then exactly one nothing-left warning, last.
-    const lengthWarnings = result.warnings.filter((w) => w.startsWith('length:'));
-    expect(lengthWarnings.length).toBe(15);
-    expect(lengthWarnings.slice(0, 14).every((w) => /^length: dropped \S+ \(soul over 3600\)$/.test(w))).toBe(true);
-    expect(lengthWarnings[14]).toBe(
-      `length: soul is ${result.length} characters, over 3600 with nothing left to drop`
-    );
-    expect(result.warnings[result.warnings.length - 1]).toBe(lengthWarnings[14]);
+  // Work/Markets first triggers: never in a length drop, and in the soul unless the
+  // dedupe pass folded them into something else (which it reports).
+  for (const id of workMarketsFirstTriggerIds(build, lib)) {
+    expect(dropped, `length drops ${id}`).not.toContain(id);
+    const dedupedAway = result.warnings.some((w) => w.startsWith(`dedupe: dropped ${id} `));
+    expect(ids.includes(id) || dedupedAway, `first trigger ${id}`).toBe(true);
+  }
+}
 
-    expectProtectedLinesPresent(build, bigLib, ids, result.soulLines);
+// One roster starter on one soul profile, with its pre-length soul, its cap, the S1 candidate
+// sequence it can actually drop (ids present in the pre-length soul), and the modelled outcome.
+interface Combo {
+  label: string;
+  profile: SoulProfile;
+  build: Build;
+  cap: number;
+  pre: CompileResult;
+  sequence: string[];
+  model: Outcome;
+}
+
+const COMBOS: Combo[] = SOUL_PROFILES.flatMap((profile) =>
+  library.roster.map((entry): Combo => {
+    const build = rosterBuild(entry.id, profile);
+    const cap = capOf(resolveProfile(build, library), build);
+    const pre = preLength(build, profile);
+    const present = new Set(pre.soulLines.map((l) => l.id));
+    const sequence = expectedDropSequence(build, library).filter((id) => present.has(id));
+    return { label: `${entry.id} on ${profile.id}`, profile, build, cap, pre, sequence, model: modelOutcome(pre, sequence, cap) };
+  }),
+);
+
+const FITS_CLEAN = COMBOS.filter((c) => c.pre.length <= c.cap);
+const FITS_AFTER_DROPS = COMBOS.filter((c) => c.pre.length > c.cap && c.model.fits);
+const CANNOT_FIT = COMBOS.filter((c) => c.pre.length > c.cap && !c.model.fits);
+
+describe('Length', () => {
+  it('Muse, OpenClaw, Hermes and ChatGPT Dot all cap the soul at 3600 (S1)', () => {
+    for (const profile of SOUL_PROFILES) {
+      const build = rosterBuild('vera', profile);
+      expect(capOf(resolveProfile(build, library), build), profile.id).toBe(3600);
+    }
   });
 
-  it('drops stop at the first point under 3600: restoring the last dropped line would put the soul back over', () => {
-    const build = overflowBuild();
-    const result = compile(build);
-    const droppedIds = droppedIdsOf(result.warnings);
-    expect(droppedIds.length).toBeGreaterThanOrEqual(5);
-    const lastId = droppedIds[droppedIds.length - 1];
-    const chipId = lastId.split('.')[1];
-    const chip = library.chips.find((c) => c.id === chipId)!;
-    const text = lastId.endsWith('.voice') ? chip.voice! : chip.triggers.find((t) => t.id === lastId)!.line;
-    // A bullet line renders as "- <text>" and costs one joining newline.
-    expect(result.length + ('- ' + text).length + 1).toBeGreaterThan(3600);
+  it('the roster on the four soul profiles covers all three outcomes: fits as is, fits after drops, cannot fit', () => {
+    expect(FITS_CLEAN.length).toBeGreaterThan(0);
+    expect(FITS_AFTER_DROPS.length).toBeGreaterThan(0);
+    expect(CANNOT_FIT.length).toBeGreaterThan(0);
   });
 
-  it('Markets chip and a multi-trigger Life chip: full S1 order including Markets index 2 and 1 and Life highest index first; Markets first trigger survives', () => {
-    // Lead fix after two review rounds. Kids is the only Life chip with two
-    // triggers in the library and Kid Guard always absorbs them, so a second dog
-    // trigger is injected into a cloned library (test data, not library content).
-    const bigLib: Library = structuredClone(library);
-    bigLib.bases.find((b) => b.id === 'builder')!.baseLine = 'x'.repeat(4000);
-    bigLib.chips.find((c) => c.id === 'dog')!.triggers.push({ id: 'chip.dog.t2', line: 'Test trigger two for the dog chip.' });
-    const build: BuildV1 = {
-      v: 1,
-      base: 'builder',
-      chips: ['memecoins', 'dog', 'engineering'],
-      stats: { blunt: 3, warm: 2, funny: 2, chatty: 2, proactive: 2, risk: 2 },
-      peeves: [],
-      heart: { hardPart: 'calmer', d1: 'd1.calmer', d2: 'd2.blunt.3' },
-      outfit: 'captain',
-      name: 'Markets Test',
-    };
-    const result = compile(build, bigLib);
-    expect(droppedIdsOf(result.warnings)).toEqual([
-      'chip.engineering.voice',
-      'chip.dog.voice',
-      'chip.memecoins.voice',
-      'chip.dog.t2',
-      'chip.dog.t1',
-      'chip.engineering.t3',
-      'chip.engineering.t2',
-      'chip.memecoins.t3',
-      'chip.memecoins.t2',
-    ]);
+  it('on Muse the two chassis lines with a null variant (no_self_edit, rules.outrank) are absent and every other always-on chassis line is present', () => {
+    const result = compile(rosterBuild('vera', MUSE));
     const ids = result.soulLines.map((l) => l.id);
-    expect(ids).toContain('chip.memecoins.t1');
-    expect(ids).toContain('chip.engineering.t1');
+    expect(ids).not.toContain('chassis.memory.no_self_edit');
+    expect(ids).not.toContain('chassis.rules.outrank');
+    for (const line of library.chassis.lines) {
+      if (line.when !== undefined) continue;
+      if (line.id === 'chassis.memory.no_self_edit' || line.id === 'chassis.rules.outrank') continue;
+      expect(ids, line.id).toContain(line.id);
+    }
   });
 
-  describe('every roster build keeps every protected line', () => {
-    for (const entry of library.roster) {
-      it(`${entry.id}: chassis (always-on), drives, stats, peeves-with-a-line and all 4 examples survive`, () => {
-        const build = structuredClone(entry.build);
-        const result = compile(build);
-        const ids = result.soulLines.map((l) => l.id);
-        expectProtectedLinesPresent(build, library, ids, result.soulLines);
+  describe('a soul that already fits is left alone', () => {
+    for (const c of FITS_CLEAN) {
+      it(`${c.label}: no drops, no length warnings, soul equals the pre-length soul`, () => {
+        const result = compile(c.build);
+        expect(lengthWarningsOf(result)).toEqual([]);
+        expect(result.soul).toBe(c.pre.soul);
+        expect(result.length).toBeLessThanOrEqual(c.cap);
+        expectProtectedLinesPresent(c.build, library, result);
       });
     }
   });
 
-  it('forced overflow (huge chaos baseLine): soul stays over 3600 with "nothing left to drop", and every protected line still survives', () => {
-    const overflowLib: Library = structuredClone(library);
-    const chaosBase = overflowLib.bases.find((b) => b.id === 'chaos')!;
-    chaosBase.baseLine = 'x'.repeat(4000);
+  describe('a soul over the cap that can fit after drops: S1 order, stops at the first point under 3600', () => {
+    for (const c of FITS_AFTER_DROPS) {
+      it(`${c.label}: drops the S1 prefix, ends under the cap, no "nothing left" warning, protected lines intact`, () => {
+        const result = compile(c.build);
+        const droppedIds = droppedIdsOf(result.warnings);
 
-    const pipEntry = library.roster.find((r) => r.id === 'pip')!;
-    const build = structuredClone(pipEntry.build);
-    const result = compile(build, overflowLib);
+        // The pre-length soul was over, so at least one line had to go.
+        expect(c.pre.length).toBeGreaterThan(c.cap);
+        expect(droppedIds.length).toBeGreaterThan(0);
+
+        // Exactly the S1 prefix, in S1 order, and the prefix is the shortest one that fits.
+        expect(droppedIds).toEqual(c.sequence.slice(0, droppedIds.length));
+        expect(droppedIds).toEqual(c.model.dropped);
+        for (const id of c.sequence.slice(droppedIds.length)) {
+          expect(result.soulLines.map((l) => l.id), `undropped candidate ${id}`).toContain(id);
+        }
+        expectStoppedAtFirstPointUnder(result, library, droppedIds, c.cap);
+
+        // It fits, and says nothing about not fitting.
+        expect(result.length).toBeLessThanOrEqual(c.cap);
+        expect(result.soul).toBe(c.model.remaining.map((l) => l.text).join('\n'));
+        expect(result.warnings.some((w) => w.includes('nothing left to drop'))).toBe(false);
+        expect(lengthWarningsOf(result)).toEqual(droppedIds.map((id) => `length: dropped ${id} (soul over ${c.cap})`));
+
+        for (const id of droppedIds) {
+          expect(result.soulLines.map((l) => l.id)).not.toContain(id);
+        }
+        expectOnlyCandidatesDropped(c.pre, result, droppedIds);
+        expectProtectedLinesPresent(c.build, library, result);
+      });
+    }
+  });
+
+  describe('a soul that cannot fit: every candidate drops, protected lines stay, V25 warning ends the length warnings', () => {
+    for (const c of CANNOT_FIT) {
+      it(`${c.label}: all ${c.sequence.length} candidates dropped in S1 order, soul still over 3600, last length warning is "nothing left to drop"`, () => {
+        const result = compile(c.build);
+        const droppedIds = droppedIdsOf(result.warnings);
+
+        expect(c.model.length).toBeGreaterThan(c.cap); // precondition: no drop order can save this build
+        expect(droppedIds).toEqual(c.sequence);
+        for (const id of droppedIds) {
+          expect(result.soulLines.map((l) => l.id)).not.toContain(id);
+        }
+
+        expect(result.length).toBeGreaterThan(c.cap);
+        const lengthWarnings = lengthWarningsOf(result);
+        expect(lengthWarnings.length).toBe(c.sequence.length + 1);
+        expect(lengthWarnings[lengthWarnings.length - 1]).toBe(
+          `length: soul is ${result.length} characters, over ${c.cap} with nothing left to drop`,
+        );
+        expect(result.warnings.filter((w) => w.includes('nothing left to drop')).length).toBe(1);
+
+        expectOnlyCandidatesDropped(c.pre, result, droppedIds);
+        expectProtectedLinesPresent(c.build, library, result);
+      });
+    }
+  });
+
+  // ---- Named fixtures with hand-written S1 sequences --------------------------------------
+
+  describe('named builds that fit after drops (picked from the roster, proven to fit)', () => {
+    const fixtures: { starter: string; profile: SoulProfile; sequence: string[] }[] = [
+      { starter: 'dash', profile: MUSE, sequence: DASH_DROP_SEQUENCE },
+      { starter: 'rook', profile: OPENCLAW, sequence: ROOK_DROP_SEQUENCE },
+      { starter: 'rook', profile: CHATGPT_DOT, sequence: ROOK_DROP_SEQUENCE },
+    ];
+
+    for (const { starter, profile, sequence } of fixtures) {
+      it(`${starter} on ${profile.id}: over 3600 before the pass, under 3600 after dropping a prefix of the hand-written S1 order`, () => {
+        const build = rosterBuild(starter, profile);
+        const cap = capOf(resolveProfile(build, library), build);
+        const pre = preLength(build, profile);
+        const result = compile(build);
+        const droppedIds = droppedIdsOf(result.warnings);
+
+        // Prove it fits after drops: over before, and the hand-written order reaches a fit.
+        expect(pre.length).toBeGreaterThan(cap);
+        const present = new Set(pre.soulLines.map((l) => l.id));
+        const candidates = sequence.filter((id) => present.has(id));
+        const model = modelOutcome(pre, candidates, cap);
+        expect(model.fits).toBe(true);
+        expect(model.dropped.length).toBeGreaterThan(0);
+
+        // The compiler dropped exactly that prefix and nothing else.
+        expect(droppedIds).toEqual(model.dropped);
+        expect(droppedIds).toEqual(candidates.slice(0, droppedIds.length));
+        expect(result.length).toBeLessThanOrEqual(cap);
+        expect(result.length).toBe(model.length);
+        expectStoppedAtFirstPointUnder(result, library, droppedIds, cap);
+        expect(result.warnings.some((w) => w.includes('nothing left to drop'))).toBe(false);
+
+        // Work/Markets first triggers are all in this soul.
+        const ids = result.soulLines.map((l) => l.id);
+        const firstTriggers = workMarketsFirstTriggerIds(build, library);
+        expect(firstTriggers.length).toBeGreaterThan(0);
+        for (const id of firstTriggers) {
+          expect(ids).toContain(id);
+        }
+        expectOnlyCandidatesDropped(pre, result, droppedIds);
+        expectProtectedLinesPresent(build, library, result);
+      });
+    }
+
+    it('rook on chatgpt-dot sits right at the boundary: one voice line drops and the soul lands within 3600 and within one voice line of it', () => {
+      const build = rosterBuild('rook', CHATGPT_DOT);
+      const result = compile(build);
+      const droppedIds = droppedIdsOf(result.warnings);
+      expect(droppedIds).toEqual(['chip.gaming.voice']);
+      expect(result.length).toBeLessThanOrEqual(3600);
+      expect(result.length + ('- ' + library.chips.find((c) => c.id === 'gaming')!.voice!).length + 1).toBeGreaterThan(3600);
+    });
+  });
+
+  describe('named builds that cannot fit (roster builds that run over on Muse, V25)', () => {
+    const fixtures: { starter: string; sequence: string[] }[] = [
+      { starter: 'rook', sequence: ROOK_DROP_SEQUENCE },
+      { starter: 'odds', sequence: ODDS_DROP_SEQUENCE },
+      { starter: 'marty', sequence: MARTY_DROP_SEQUENCE },
+    ];
+
+    for (const { starter, sequence } of fixtures) {
+      it(`${starter} on muse: every hand-written candidate dropped in order, still over 3600, V25 warning is last, gates, rules, limits, pack rules, pack triggers and first triggers intact`, () => {
+        const build = rosterBuild(starter, MUSE);
+        const pre = preLength(build, MUSE);
+        const result = compile(build);
+
+        // Proof it cannot fit: with every candidate gone the soul is still over.
+        const present = new Set(pre.soulLines.map((l) => l.id));
+        const candidates = sequence.filter((id) => present.has(id));
+        expect(modelOutcome(pre, candidates, 3600).length).toBeGreaterThan(3600);
+
+        const droppedIds = droppedIdsOf(result.warnings);
+        expect(droppedIds).toEqual(candidates);
+        expect(result.length).toBeGreaterThan(3600);
+        const lengthWarnings = lengthWarningsOf(result);
+        expect(lengthWarnings[lengthWarnings.length - 1]).toBe(
+          `length: soul is ${result.length} characters, over 3600 with nothing left to drop`,
+        );
+
+        // The rules layer and the gates are really there for these builds (not vacuous).
+        // A limit line is only expected when a selected pack sets a limit default.
+        const packs = build.packs.map((id) => library.packs.find((p) => p.id === id)!);
+        const kinds = new Set(result.soulLines.map((l) => l.kind));
+        const expectedKinds = ['gate', 'rule', 'pack-rule', 'pack-trigger'];
+        if (packs.some((p) => Object.keys(p.limitsDefault).length > 0)) expectedKinds.push('limit');
+        for (const kind of expectedKinds) {
+          expect(kinds.has(kind as 'gate'), `soul has a ${kind} line`).toBe(true);
+        }
+        expectOnlyCandidatesDropped(pre, result, droppedIds);
+        expectProtectedLinesPresent(build, library, result);
+      });
+    }
+  });
+
+  // ---- Pack triggers are never dropped ------------------------------------------------------
+
+  describe('pack triggers are never dropped: every pack trigger line from the library is still in the soul', () => {
+    for (const c of COMBOS.filter((combo) => combo.build.packs.length > 0)) {
+      it(`${c.label}: packs ${c.build.packs.join(', ')}`, () => {
+        const result = compile(c.build);
+        const droppedIds = droppedIdsOf(result.warnings);
+        for (const packId of c.build.packs) {
+          const pack = library.packs.find((p) => p.id === packId)!;
+          for (const trigger of pack.triggers) {
+            // Never a length drop, by id.
+            expect(droppedIds).not.toContain(trigger.id);
+            // The text is in the soul: as the pack line itself, or as the identical chip line the
+            // dedupe pass kept in its place. A kept copy must not then be trimmed away.
+            // (Boolean compare so a failure names the trigger instead of printing the soul.)
+            expect(result.soul.includes(trigger.line), `${trigger.id} text is in the soul: ${trigger.line}`).toBe(true);
+          }
+        }
+      });
+    }
+  });
+
+  // ---- Constructed builds ---------------------------------------------------------------------
+
+  it('S1 order from library data matches the hand-written table for the six-chip build', () => {
+    expect(expectedDropSequence(overflowBuild(), library)).toEqual(OVERFLOW_DROP_SEQUENCE);
+  });
+
+  it('six-chip builder build on Muse cannot fit: all 14 candidates dropped in S1 order, every Work/Markets first trigger survives, V25 warning is last', () => {
+    // The builder base line is inflated so the soul stays over 3600 whatever drops.
+    const bigLib = inflatedLibrary();
+    const build = overflowBuild();
+    const pre = preLength(build, MUSE, bigLib);
+    const result = compile(build, bigLib);
+    const ids = result.soulLines.map((l) => l.id);
+
+    expect(pre.length).toBeGreaterThan(3600);
+    // Every candidate is in the pre-length soul, so the hand-written list is the whole sequence.
+    const preIds = new Set(pre.soulLines.map((l) => l.id));
+    for (const id of OVERFLOW_DROP_SEQUENCE) {
+      expect(preIds.has(id), `pre-length soul has ${id}`).toBe(true);
+    }
+
+    const droppedIds = droppedIdsOf(result.warnings);
+    expect(droppedIds).toEqual(OVERFLOW_DROP_SEQUENCE);
+    expect(droppedIds).toEqual(expectedDropSequence(build, bigLib));
+    for (const id of droppedIds) {
+      expect(ids).not.toContain(id);
+    }
 
     expect(result.length).toBeGreaterThan(3600);
-    const lastWarning = result.warnings[result.warnings.length - 1];
-    expect(lastWarning).toBe(`length: soul is ${result.length} characters, over 3600 with nothing left to drop`);
+    for (const id of ['chip.engineering.t1', 'chip.founder.t1', 'chip.sales.t1']) {
+      expect(ids).toContain(id);
+    }
+    for (const id of workMarketsFirstTriggerIds(build, bigLib)) {
+      expect(ids).toContain(id);
+    }
+
+    // Warning order: 14 drop warnings, then exactly one nothing-left warning, last overall.
+    const lengthWarnings = lengthWarningsOf(result);
+    expect(lengthWarnings.length).toBe(15);
+    expect(lengthWarnings.slice(0, 14)).toEqual(
+      OVERFLOW_DROP_SEQUENCE.map((id) => `length: dropped ${id} (soul over 3600)`),
+    );
+    expect(lengthWarnings[14]).toBe(`length: soul is ${result.length} characters, over 3600 with nothing left to drop`);
     expect(result.warnings.filter((w) => w.includes('nothing left to drop')).length).toBe(1);
 
+    expectOnlyCandidatesDropped(pre, result, droppedIds);
+    expectProtectedLinesPresent(build, bigLib, result);
+  });
+
+  it('a build with no drop candidates at all and a soul over 3600: nothing is removed and the only length warning is "nothing left to drop"', () => {
+    const bigLib = inflatedLibrary();
+    const build = migrate(
+      {
+        v: 1,
+        base: 'builder',
+        chips: [],
+        stats: { blunt: 3, warm: 2, funny: 2, chatty: 2, proactive: 2 },
+        peeves: [],
+        heart: { hardPart: 'calmer', d1: 'd1.calmer', d2: 'd2.blunt.3' },
+        outfit: 'staff_engineer',
+        name: 'No Candidates',
+      },
+      { target: 'muse' },
+    );
+    const pre = preLength(build, MUSE, bigLib);
+    const result = compile(build, bigLib);
+
+    expect(pre.length).toBeGreaterThan(3600);
+    expect(result.soul).toBe(pre.soul);
+    expect(lengthWarningsOf(result)).toEqual([
+      `length: soul is ${result.length} characters, over 3600 with nothing left to drop`,
+    ]);
+    expectProtectedLinesPresent(build, bigLib, result);
+  });
+
+  it('Markets chip and a multi-trigger Life chip: full S1 order including Markets index 2 and 1 and Life highest index first; Markets and Work first triggers survive', () => {
+    // Kids is the only Life chip with two triggers in the library and Kid Guard always absorbs
+    // them, so a second dog trigger is injected into a cloned library (test data, not library content).
+    const bigLib = inflatedLibrary();
+    bigLib.chips.find((c) => c.id === 'dog')!.triggers.push({ id: 'chip.dog.t2', line: 'Test trigger two for the dog chip.' });
+    const build = migrate(
+      {
+        v: 1,
+        base: 'builder',
+        // options (Markets) migrates to the spot pack, whose triggers differ, so its chip
+        // triggers stay length candidates (a chip trigger with a pack twin gives way to the pack copy).
+        chips: ['options', 'dog', 'engineering'],
+        stats: { blunt: 3, warm: 2, funny: 2, chatty: 2, proactive: 2, risk: 2 },
+        peeves: [],
+        heart: { hardPart: 'calmer', d1: 'd1.calmer', d2: 'd2.blunt.3' },
+        outfit: 'captain',
+        name: 'Markets Test',
+      },
+      { target: 'muse' },
+    );
+    const pre = preLength(build, MUSE, bigLib);
+    const result = compile(build, bigLib);
+    const droppedIds = droppedIdsOf(result.warnings);
+
+    // Voices (engineering, dog; options has none), Life trigger highest index first (dog t2 then t1),
+    // then Work/Markets from the last-tapped chip: engineering t3, t2, then options t2 (it has two).
+    const expected = [
+      'chip.engineering.voice',
+      'chip.dog.voice',
+      'chip.dog.t2',
+      'chip.dog.t1',
+      'chip.engineering.t3',
+      'chip.engineering.t2',
+      'chip.options.t2',
+    ];
+    expect(expectedDropSequence(build, bigLib)).toEqual(expected);
+    expect(droppedIds).toEqual(expected);
+
     const ids = result.soulLines.map((l) => l.id);
-    expectProtectedLinesPresent(build, overflowLib, ids, result.soulLines);
+    expect(ids).toContain('chip.options.t1');
+    expect(ids).toContain('chip.engineering.t1');
+    expectOnlyCandidatesDropped(pre, result, droppedIds);
+    expectProtectedLinesPresent(build, bigLib, result);
+  });
+
+  it('forced overflow (huge chaos base line) on Muse: soul stays over 3600 with "nothing left to drop", and every protected line still survives', () => {
+    const overflowLib: Library = structuredClone(library);
+    overflowLib.bases.find((b) => b.id === 'chaos')!.baseLine = 'x'.repeat(4000);
+
+    const build = rosterBuild('pip', MUSE);
+    const pre = preLength(build, MUSE, overflowLib);
+    const result = compile(build, overflowLib);
+    const droppedIds = droppedIdsOf(result.warnings);
+
+    expect(result.length).toBeGreaterThan(3600);
+    const lengthWarnings = lengthWarningsOf(result);
+    expect(lengthWarnings[lengthWarnings.length - 1]).toBe(
+      `length: soul is ${result.length} characters, over 3600 with nothing left to drop`,
+    );
+    expect(result.warnings.filter((w) => w.includes('nothing left to drop')).length).toBe(1);
+
+    // Every candidate Pip's chips can offer was dropped, in S1 order.
+    const preIds = new Set(pre.soulLines.map((l) => l.id));
+    expect(droppedIds).toEqual(expectedDropSequence(build, overflowLib).filter((id) => preIds.has(id)));
+    expectOnlyCandidatesDropped(pre, result, droppedIds);
+    expectProtectedLinesPresent(build, overflowLib, result);
   });
 });
