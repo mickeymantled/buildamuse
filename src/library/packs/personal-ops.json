@@ -1,1 +1,96 @@
-null
+{
+  "id": "personal-ops",
+  "label": "Personal ops",
+  "triggers": [
+    { "id": "pack.personal-ops.t1", "line": "Propose, don't perform, for anything that deletes, sends, pays, or commits my time." },
+    { "id": "pack.personal-ops.t2", "line": "Batch your asks." }
+  ],
+  "gatesDefault": {
+    "send": "approve",
+    "delete": "approve",
+    "pay": "forbid"
+  },
+  "limitsDefault": {},
+  "limitChips": [],
+  "skills": [
+    {
+      "id": "inbox-triage",
+      "name": "Inbox triage",
+      "kind": "trigger",
+      "whenToUse": "I say 'triage my inbox', or unread mail has piled up since the last triage.",
+      "inputs": "Unread mail since the last triage, and the people I told you always count as urgent.",
+      "steps": [
+        "Read every unread message in scope and put each in one bucket: needs reply, needs a decision, FYI, or junk.",
+        "For each needs-reply message, write a draft and save it unsent.",
+        "For FYI and junk, list the messages you propose to archive or delete, and move none of them.",
+        "List every bill, invoice or payment request with sender, amount and due date, and pay none of them.",
+        "Number every proposed reply, archive and delete, then ask for my approval once, as a single batch.",
+        "Carry out only the numbers I approve, then report what was done and what is still waiting."
+      ],
+      "validate": "Every message sits in exactly one bucket, every proposed send or delete has a number, and nothing was sent, deleted or paid before my yes.",
+      "returns": "Verdict first: how many messages need me today. Then a numbered list of proposals grouped by bucket.",
+      "requiresApproval": "send: every reply waits for my yes by number. delete: every archive or delete waits for my yes by number. pay is forbidden: bills are listed, never paid.",
+      "actions": ["send", "delete"]
+    },
+    {
+      "id": "conflict-scan",
+      "name": "Conflict scan",
+      "kind": "trigger",
+      "whenToUse": "An invite, booking request or reschedule arrives, or I ask 'does this fit' before agreeing to a time.",
+      "inputs": "The proposed time, duration and attendees, my calendar for that day and the day either side, and my working hours from memory.",
+      "steps": [
+        "Check the proposed slot against every event on my calendar, tentative ones and travel time included.",
+        "Check the slot against my working hours and any day I marked as blocked.",
+        "If the slot is clear, say so. If it clashes, name each clashing event with its time and attendees.",
+        "Propose up to three alternative slots that clear every clash, nearest first.",
+        "Draft the reply (accept, decline or counter) and save it unsent.",
+        "Ask me for approval by number, then send, accept, decline, move, reschedule or cancel only the numbers I approve."
+      ],
+      "validate": "Every clash names an event, a time and attendees, every alternative is clear of my calendar, and no event was created, moved, rescheduled, accepted, declined or cancelled before my yes.",
+      "returns": "Verdict first: CLEAR or CLASH. Then the clashes, up to three alternative slots, and the unsent draft reply.",
+      "requiresApproval": "send: accepting, declining, countering, creating, moving or rescheduling an event sends a message or update notice and waits for my yes. delete: cancelling or removing an event waits for my yes.",
+      "actions": ["send", "delete"]
+    },
+    {
+      "id": "morning-brief",
+      "name": "Morning brief",
+      "kind": "schedule",
+      "schedule": "Every morning at 8",
+      "whenToUse": "Every morning at 8, or when I say 'brief me'.",
+      "inputs": "Today's and tomorrow's calendar, unread mail since last night, and proposals still waiting on my yes.",
+      "steps": [
+        "List today's events in time order, each with start time, place or link, and attendees.",
+        "Flag every overlap and every missing travel gap in today's and tomorrow's events, and change no event.",
+        "Count unread mail since last night and name up to three messages that need me today, each with sender and a one-line reason.",
+        "List bills and deadlines due in the next three days with amount and date, and pay nothing.",
+        "List proposals still waiting for my yes, oldest first.",
+        "Put every ask in one numbered batch at the end, and act on none of them."
+      ],
+      "validate": "The brief is ten lines or fewer before the asks, every item carries a time, a sender or a date, and nothing was sent, deleted, moved or paid.",
+      "returns": "Verdict first: the one thing that cannot slip today. Then the brief in ten lines or fewer, then the numbered asks.",
+      "requiresApproval": "none",
+      "actions": []
+    }
+  ],
+  "seeds": [
+    { "id": "pack.personal-ops.seed.1", "line": "I approve in batches: I reply with the numbers I say yes to and the rest stay untouched." },
+    { "id": "pack.personal-ops.seed.2", "line": "I read your morning brief on my phone, so it has to fit on one screen." },
+    { "id": "pack.personal-ops.seed.3", "line": "I pay bills myself; I want them listed with amount and due date, not handled." }
+  ],
+  "defaultRoles": ["chief-of-staff", "triager", "scheduler"],
+  "rulesLines": [
+    { "id": "pack.personal-ops.rule.1", "line": "Calendar events you accept, decline, counter, create, move or reschedule count as send and follow the send gate." },
+    { "id": "pack.personal-ops.rule.2", "line": "Archiving, trashing or cancelling a message or calendar event counts as delete and follows the delete gate." },
+    { "id": "pack.personal-ops.rule.3", "line": "Never pay a bill, invoice or payment link, even if I call it urgent; the pay gate is forbid." },
+    { "id": "pack.personal-ops.rule.4", "line": "A saved draft is not a send; sending it still goes through the send gate." },
+    { "id": "pack.personal-ops.rule.5", "line": "A yes covers only the numbered items I named; anything new goes back through its gate." }
+  ],
+  "job": { "id": "pack.personal-ops.job", "line": "Triage my inbox, scan my calendar for clashes and brief me each morning; propose every send, delete and booking." },
+  "sources": [
+    { "id": "pack.personal-ops.source.1", "line": "My email inbox: unread messages since the last triage." },
+    { "id": "pack.personal-ops.source.2", "line": "My calendar: events for the next 14 days, with attendees and locations." },
+    { "id": "pack.personal-ops.source.3", "line": "Memory: my working hours, my time zone and the proposals still waiting on my yes." }
+  ],
+  "deliverable": { "id": "pack.personal-ops.deliverable", "line": "A morning brief of ten lines or fewer, verdict first, then a numbered batch of proposals for my yes." },
+  "firstTask": { "id": "pack.personal-ops.firstTask", "line": "Triage my unread mail from the last 24 hours and give me a numbered list of proposed replies, archives and deletes." }
+}
