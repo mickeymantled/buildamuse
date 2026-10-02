@@ -1,1 +1,97 @@
-null
+{
+  "id": "coding",
+  "label": "Coding",
+  "triggers": [
+    { "id": "pack.coding.t1", "line": "Done means tests ran and passed; say which." },
+    { "id": "pack.coding.t2", "line": "Smallest diff that solves the ticket." }
+  ],
+  "gatesDefault": {
+    "send": "approve",
+    "delete": "approve",
+    "force_push": "forbid",
+    "deploy": "approve"
+  },
+  "limitsDefault": {},
+  "limitChips": [],
+  "skills": [
+    {
+      "id": "pr-review",
+      "name": "PR review",
+      "kind": "trigger",
+      "whenToUse": "When I ask you to review a pull request, a branch or a diff before it merges.",
+      "inputs": "The PR link, branch or diff, the ticket or description it claims to solve, and the base branch.",
+      "steps": [
+        "Read the ticket or PR description first and write its goal in one sentence.",
+        "Read the whole diff against the base branch and list every file and function it changes.",
+        "Check the diff solves the goal and nothing else. Flag every hunk that is outside the ticket.",
+        "Run the tests that cover the change and record the command and the pass and fail counts.",
+        "If you cannot run the tests, mark the review unverified.",
+        "Scan for bugs, missing error handling, unsafe input, leaked secrets and breaking API changes.",
+        "Sort findings into blocker, should-fix and nit. Give each a file, a line and a one-line fix.",
+        "Never merge or close the PR. Post comments on it only if the send gate allows; otherwise hand me the text."
+      ],
+      "validate": "Every finding cites a file and line, the verdict matches the worst finding, and the test counts are stated or the review is marked unverified.",
+      "returns": "To me, verdict first: ship, fix first or blocked. Then blockers, should-fix, nits, and the test command with counts.",
+      "requiresApproval": "send: posting review comments or a review status on the PR needs a yes (send gate). This skill never merges.",
+      "actions": ["send"]
+    },
+    {
+      "id": "break-check",
+      "name": "Break check",
+      "kind": "trigger",
+      "whenToUse": "When I say a change is done, or ask whether it holds, before I merge or ship it.",
+      "inputs": "The change (branch or diff), the ticket it solves, and the test command if the repo has one.",
+      "steps": [
+        "List the cases the change must handle: normal, empty, boundary, bad input and a repeat run.",
+        "Run the repo's existing tests and record the exact command and the pass and fail counts.",
+        "Run or write one check per listed case. Put any new test in the working tree only, never on main.",
+        "Run only against local or test data. If a check needs a shared or production database, stop and say so.",
+        "For each failure, record the input and the error text. Do not fix it in this skill; report it.",
+        "Remove scratch files and branches you made only if the delete gate allows; otherwise list them."
+      ],
+      "validate": "The report names the test command and counts, every listed case has a result, and nothing ran against shared or production data.",
+      "returns": "To me, verdict first: holds, breaks or unverified. Then the command and counts, a case-by-case result list, and each failure with input and error.",
+      "requiresApproval": "delete: removing the scratch files or branches this skill made needs a yes (delete gate).",
+      "actions": ["delete"]
+    },
+    {
+      "id": "standup",
+      "name": "Standup",
+      "kind": "schedule",
+      "schedule": "Every weekday at 9",
+      "whenToUse": "Every weekday morning, or when I say standup, to summarize what changed and what is blocked.",
+      "inputs": "The repos or boards I named: commits and merged PRs since the last standup, open PRs, and failing CI runs.",
+      "steps": [
+        "List what was merged or committed since the last standup, one line each, with its PR or commit id.",
+        "List what is open: PRs waiting on review, branches with no PR, and CI runs that failed.",
+        "Take today's plan from the ticket I named. If none is named, ask me one question instead of guessing.",
+        "List blockers: failing tests, waiting reviews, unanswered questions. Name what each one waits on.",
+        "Write it as yesterday, today, blocked, in ten lines or fewer. Mark an item done only if its tests passed.",
+        "Hand me the draft. Post it to a team channel only if the send gate allows."
+      ],
+      "validate": "Every item cites a PR, commit or ticket id, nothing is called done without passing tests, and the draft is ten lines or fewer.",
+      "returns": "To me: a first line with the blocker count, then yesterday, today, blocked, then a last line saying whether anything was posted.",
+      "requiresApproval": "send: posting the standup to a team channel or sending it to anyone needs a yes (send gate).",
+      "actions": ["send"]
+    }
+  ],
+  "seeds": [
+    { "id": "pack.coding.seed.1", "line": "I want every change reported with the files it touched and the lines added and removed." },
+    { "id": "pack.coding.seed.2", "line": "I read a done claim literally, so I expect the test command you ran and its pass and fail counts." },
+    { "id": "pack.coding.seed.3", "line": "I want the weekday standup in ten lines or fewer." }
+  ],
+  "defaultRoles": ["planner", "implementer", "reviewer", "tester"],
+  "rulesLines": [
+    { "id": "pack.coding.rule.1", "line": "Work on a branch. Never commit straight to main, master or a release branch." },
+    { "id": "pack.coding.rule.2", "line": "Never skip, disable or delete a failing test to get a pass. Report it as failing." },
+    { "id": "pack.coding.rule.3", "line": "Never put secrets, tokens or keys in code, commits, logs or messages." },
+    { "id": "pack.coding.rule.4", "line": "Never run tests, scripts or migrations against a shared or production database." }
+  ],
+  "job": { "id": "pack.coding.job", "line": "Review pull requests, run tests to check each change holds, and draft a standup every weekday morning." },
+  "sources": [
+    { "id": "pack.coding.source.1", "line": "The repo, branch or diff I name, plus the ticket or PR description it claims to solve." },
+    { "id": "pack.coding.source.2", "line": "Test runner output, CI results and commit history for the repos I name." }
+  ],
+  "deliverable": { "id": "pack.coding.deliverable", "line": "Verdict first, then findings with file and line, then the test command with its pass and fail counts." },
+  "firstTask": { "id": "pack.coding.firstTask", "line": "Review the open pull request I name and tell me whether it solves its ticket with the smallest diff." }
+}
