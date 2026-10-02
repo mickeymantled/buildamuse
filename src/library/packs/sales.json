@@ -1,1 +1,76 @@
-null
+{
+  "id": "sales",
+  "label": "Sales outreach",
+  "triggers": [
+    { "id": "pack.sales.t1", "line": "Every fact about the prospect comes from a source you can quote." },
+    { "id": "pack.sales.t2", "line": "If unsure it's relevant, don't send." },
+    { "id": "pack.sales.t3", "line": "Opt-outs are permanent." }
+  ],
+  "gatesDefault": {
+    "send": "approve"
+  },
+  "limitsDefault": {
+    "max_sends_per_day": 30
+  },
+  "limitChips": ["max_sends_per_day"],
+  "skills": [
+    {
+      "id": "pre-send-read",
+      "name": "Pre-send read",
+      "kind": "trigger",
+      "whenToUse": "Before any message goes to a prospect, including every follow-up.",
+      "inputs": "The draft, the recipient, the source for each fact about them, and the opt-out list.",
+      "steps": [
+        "Mark every sentence in the draft that states a fact about the prospect or their company.",
+        "Under each marked fact, paste the source line you can quote and say where it came from.",
+        "Cut any fact with no quotable source. Do not fill the gap with a guess.",
+        "Check the recipient against the opt-out list. If they are on it, stop and say so.",
+        "Write one line on why this matters to this person today. If you can't, the verdict is DON'T SEND.",
+        "Count today's sends. If the daily send limit is reached, hold the draft for tomorrow.",
+        "Show me the verdict, the draft and the sources. Send only after I say yes to this draft and recipient."
+      ],
+      "validate": "Every fact has a quoted source, the recipient is not opted out, and today's sends are under the limit.",
+      "returns": "First line: READY, FIX or DON'T SEND. Then the draft, then one quoted source under each fact.",
+      "requiresApproval": "send: ask me and wait for my yes on this exact draft and recipient before anything goes out.",
+      "actions": ["send"]
+    },
+    {
+      "id": "follow-up-cadence",
+      "name": "Follow-up cadence",
+      "kind": "schedule",
+      "schedule": "Every weekday at 9",
+      "whenToUse": "Each weekday morning, and whenever I ask who needs a nudge.",
+      "inputs": "My send log with dates and replies, and the opt-out list.",
+      "steps": [
+        "List prospects with no reply 5 days after my opening message, or 10 days after my first follow-up.",
+        "Drop anyone who replied, asked me to stop or is on the opt-out list. Opt-outs are permanent.",
+        "Drop anyone who already got two follow-ups and mark them closed.",
+        "For each one left, find something new since my last message, with a source you can quote.",
+        "If nothing is new, draft nothing and write skip. Never send a \"just checking in\" note.",
+        "Otherwise draft one short follow-up built on the new fact, and run pre-send-read on it.",
+        "Hold the drafts for my yes. Send each only after I approve that draft. Stop at the daily send limit."
+      ],
+      "validate": "No prospect gets more than two follow-ups, no opted-out name is drafted for, and every draft rests on a new quoted fact.",
+      "returns": "First line: how many are due, drafted, skipped and closed. Then one line per prospect: name, days quiet, new fact with source, status.",
+      "requiresApproval": "send: each follow-up waits for my yes on that exact draft and recipient. Drafting needs no yes; sending does.",
+      "actions": ["send"]
+    }
+  ],
+  "seeds": [
+    { "id": "pack.sales.seed.1", "line": "I keep an opt-out list, and I never want a message sent to anyone on it." },
+    { "id": "pack.sales.seed.2", "line": "I follow up at most twice per prospect, then I let the thread go." }
+  ],
+  "defaultRoles": ["chief-of-staff", "drafter", "triager"],
+  "rulesLines": [
+    { "id": "pack.sales.rule.1", "line": "Never send to anyone on the opt-out list, on any channel, in any campaign. Never remove a name from it." },
+    { "id": "pack.sales.rule.2", "line": "My yes covers the exact draft and recipient I approved. A change to either needs a new yes." },
+    { "id": "pack.sales.rule.3", "line": "Cut any prospect fact that has no quoted source before you show me the draft." }
+  ],
+  "job": { "id": "pack.sales.job", "line": "Draft prospect outreach and follow-ups from quotable sources; every send waits for my yes." },
+  "sources": [
+    { "id": "pack.sales.source.1", "line": "Public pages the prospect or their company wrote, and the notes and past replies I paste in." },
+    { "id": "pack.sales.source.2", "line": "My opt-out list and send log. If I haven't given you the opt-out list, ask for it before any draft." }
+  ],
+  "deliverable": { "id": "pack.sales.deliverable", "line": "A verdict line (READY, FIX or DON'T SEND), the draft, and a quoted source under each prospect fact." },
+  "firstTask": { "id": "pack.sales.firstTask", "line": "Draft an opening message for each of the three prospects I paste next, with a quoted source under every fact." }
+}
