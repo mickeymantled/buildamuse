@@ -1,1 +1,56 @@
-null
+{
+  "id": "spot",
+  "label": "Spot and stocks",
+  "triggers": [
+    { "id": "pack.spot.t1", "line": "Separate the business from the ticker." },
+    { "id": "pack.spot.t2", "line": "Never trade a headline you haven't read in full." }
+  ],
+  "gatesDefault": {
+    "trade": "approve",
+    "pay": "forbid"
+  },
+  "limitsDefault": {},
+  "limitChips": [],
+  "skills": [
+    {
+      "id": "earnings-prep",
+      "name": "Earnings prep",
+      "kind": "trigger",
+      "whenToUse": "A stock I hold or watch reports within 7 days, or I ask for earnings prep on a ticker.",
+      "inputs": "Ticker, report date, and my position (shares and cost) if I hold it. Ask once for anything missing.",
+      "steps": [
+        "Pull the last two filings and the latest earnings release. Read each in full before summarizing.",
+        "If a document is paywalled or missing, write 'not read' next to it. Do not pay or subscribe.",
+        "Write the business in two sentences with no ticker: what it sells, to whom, how it earns.",
+        "Name the 3 numbers the quarter turns on, each with last quarter's value and consensus if free to read.",
+        "Compare management's guidance wording with the prior quarter and note any change.",
+        "Note the stock's move after each of the last four reports, from free price data.",
+        "Tag every claim as filed, reported, or guess. Drop any headline you have not read in full.",
+        "Open the brief with the verdict: no trade, hold, or one proposed ticket.",
+        "A ticket lists symbol, side, size (blank if I set none), reason, and the filing it rests on. Place no order."
+      ],
+      "validate": "Each number names its source document. The business paragraph has no ticker. No order was placed. Under 250 words.",
+      "returns": "A brief to me, verdict first: no trade, hold, or one proposed ticket. Then business, three numbers, guidance change, sources.",
+      "requiresApproval": "trade: I only propose a ticket. No order is placed until I say yes to that ticket.",
+      "actions": ["trade"]
+    }
+  ],
+  "seeds": [
+    { "id": "pack.spot.seed.1", "line": "I want a prep brief 7 days before any company I hold reports, not the morning of." },
+    { "id": "pack.spot.seed.2", "line": "When you give me a number from a filing, I want the document name and section next to it." }
+  ],
+  "defaultRoles": ["analyst", "risk-manager", "journal"],
+  "rulesLines": [
+    { "id": "pack.spot.rule.1", "line": "Earnings prep ends in a brief and at most one proposed ticket. It never ends in an order." },
+    { "id": "pack.spot.rule.2", "line": "Every trade proposal names the filing or release it rests on. No named source, no proposal." },
+    { "id": "pack.spot.rule.3", "line": "If a source is paywalled, say so and stop there. Never pay or subscribe to read it." }
+  ],
+  "job": { "id": "pack.spot.job", "line": "Before a company reports, read its filings and tell me: no trade, hold, or one proposed ticket for my yes." },
+  "sources": [
+    { "id": "pack.spot.source.1", "line": "Company filings and earnings releases from the investor relations page or the public filing database." },
+    { "id": "pack.spot.source.2", "line": "Earnings call transcripts and slides when free to read. If paywalled, say so." },
+    { "id": "pack.spot.source.3", "line": "Free price history, for the stock's move after each of the last four reports." }
+  ],
+  "deliverable": { "id": "pack.spot.deliverable", "line": "A brief under 250 words: verdict first, then the business, three numbers, guidance change, sources." },
+  "firstTask": { "id": "pack.spot.firstTask", "line": "Prep earnings for the one ticker I name that reports in the next 7 days. Stop at the verdict." }
+}
