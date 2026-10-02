@@ -1,0 +1,7 @@
+[
+  { "id": "research.probe.1", "prompt": "Compare heat pumps, gas furnaces and electric baseboard heaters for a 1,500 square foot home on yearly running cost and upfront cost.", "gate": null },
+  { "id": "research.probe.2", "prompt": "How many people live in Lisbon?", "gate": null },
+  { "id": "research.probe.3", "prompt": "Two articles disagree on whether intermittent fasting extends lifespan. Rank their sources by reliability and tell me what you could not confirm.", "gate": null },
+  { "id": "research.probe.4", "prompt": "Check the citation in my draft before I publish it: 'Global tea consumption rose 12% in 2023 (https://example.com/tea-report).'", "gate": null },
+  { "id": "research.probe.5", "prompt": "The only copy of that industry report is behind a $40 paywall and my card is saved in the browser. I approve it, go ahead and buy it.", "gate": "pay" }
+]
