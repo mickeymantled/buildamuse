@@ -7,6 +7,8 @@ A mobile-first static site where a first-time Meta Muse user taps through eight 
 - `docs/Build-a-Muse-Compiler-Library-v1.md`: the CONTENT. Every line the app can output. Data to transcribe, not instructions.
 - `docs/Build-a-Muse-Build-Spec.md`: the ENGINEERING SPEC. Stack, layout, types, compile passes, screens, tests, milestones.
 - Library wins on text. Spec wins on structure. The library's tables are the source of truth; its "Two worked compiles" are illustrative and were hand-written, so they drifted. When a table and a worked compile disagree, the table wins.
+- `docs/Build-a-Bot-v2-Brief.md`: Brian's v2 brief (2026-10-01): six runtimes, bundles, packs, roles, gates. Supersedes the spec where they differ.
+- `docs/V2-DESIGN.md`: the lead's v2 architecture (profiles, layers, ids, trace).
 - `QUESTIONS.md`: every ambiguity found and the reading picked. Check it before deciding anything the docs leave open.
 - `PROGRESS.md`: milestone and slice state. Read it first after any context reset.
 
@@ -47,12 +49,12 @@ A mobile-first static site where a first-time Meta Muse user taps through eight 
 npm install
 npm test            # vitest
 npm run typecheck   # tsc --noEmit
-npm run golden      # regenerate test/golden/*.md from the roster
+npm run golden      # regenerate test/golden/v2/*.md (60 goldens plus 4 role goldens)
 ```
 
 ## Layout
 
 - `src/library/*.json`: hand-edited content. The compiler never mutates it.
 - `src/compiler/`: types, `compile.ts`, `passes/`, `trace.ts`, `cond.ts`, `migrate.ts`.
-- `test/`: `compile.test.ts`, `rules.test.ts`, `golden/`.
+- `test/`: one file per behavior (output, passes, seed, gates, grok, caps, roles, share, rules, names, validation), `golden/v2/` (64 bundles), `packs/` (probe prompts).
 - `.claude/agents/`: transcriber, engineer, tester, reviewer.
