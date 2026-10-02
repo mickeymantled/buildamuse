@@ -69,6 +69,18 @@ export function dedupe(items: Item[], lib: Library, resolved: Resolved): PassRes
     return !contained;
   });
 
+  // 4b. Pack twins: a chip trigger whose text equals a pack trigger's text gives
+  // way to the pack copy, which the length pass never drops (QUESTIONS V25).
+  const packNorms = remaining
+    .filter((item) => item.kind === 'pack-trigger')
+    .map((item) => normalize(item.text));
+  remaining = remaining.filter((item) => {
+    if (item.kind !== 'chip-trigger' || isRulesSection(item)) return true;
+    const twin = packNorms.includes(normalize(item.text));
+    if (twin) warnings.push(warn(item.id, 'pack trigger carries it'));
+    return !twin;
+  });
+
   // 5. Exact repeats: among the remaining items that are not chassis, opening
   // or example, drop any item whose normalized text equals an earlier such
   // item's normalized text. Keep the first. Rules-block kinds are skipped: they

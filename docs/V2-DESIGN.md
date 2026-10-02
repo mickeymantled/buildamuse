@@ -247,7 +247,8 @@ For every pack: if it exposes `trade`, `gatesDefault.trade === 'approve'` and `g
 - Pack skills (six-field) and chip skills (v1) both feed the bundle, chips first in tap order, then packs in order. Trigger kind = skill; schedule kind = routine.
 - files profiles: each trigger skill -> `skills/<id>/SKILL.md` (pack skills via `skill.file`; chip skills render `# {name}` then `detail`). Routines -> spoken.
 - spoken profiles: `skill.sentence` (pack) or `skill.legacy` (chip); dot appends `skill.suffix`.
-- grok: every pack skill sentence states all six fields and ends with `skill.approvalSuffix` carrying the build's rules lines for the skill's `actions`; chip skills use `skill.legacy` plus `skill.approvalSuffix` with all approve/forbid rules lines.
+- grok: every pack skill sentence states all six fields and ends with `skill.approvalSuffix` carrying every approve/forbid rules line of the build plus the rules line of any auto gate the skill itself uses (Brian: rules go in "the requiresApproval field of every skill"); chip skills use `skill.legacy` plus `skill.approvalSuffix` with all approve/forbid rules lines; grok routines carry the same in their approval boundary.
+- A chip skill whose name matches a selected pack skill's name is not delivered; the pack's six-field version is.
 - knowledge/project files: `knowledge/<id>.md` / `project/<id>.md` via `knowledge.file`, plus one `skill.pointer` line in the instructions.
 - instructions: the first three skills, one line each, via `skill.inline`, inside field 2.
 - Memory: the v1 seed sentence plus each selected pack's `seeds` clauses. File profiles write `USER.md` (`memory.file.heading`, then one bullet per chip seed, pack seed, and the hard part clause; ids `chip.<id>.seed`, `pack.<id>.seed.<n>`, `heart.<hardPart>.seedClause`).

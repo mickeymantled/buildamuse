@@ -160,9 +160,11 @@ function skillSpoken(ctx: CompileContext, e: Entry): SpokenItem {
   }
 
   if (ctx.profile.id === 'grok') {
+    // Brian: grok rules go in "the requiresApproval field of every skill", so every skill
+    // carries every approve or forbid gate (plus any auto gate the pack skill itself uses).
     const rules =
       e.src === 'pack'
-        ? gateRules(ctx, (action) => (e.skill as Skill).actions.includes(action))
+        ? gateRules(ctx, (action, setting) => setting !== 'auto' || (e.skill as Skill).actions.includes(action))
         : gateRules(ctx, (_action, setting) => setting !== 'auto');
     const ruleText =
       e.src === 'pack' && rules.texts.length === 0
@@ -187,7 +189,7 @@ function routineSpoken(ctx: CompileContext, e: Entry): SpokenItem {
   if (ctx.profile.id === 'grok') {
     if (e.src === 'pack') {
       const skill = e.skill;
-      const rules = gateRules(ctx, (action) => skill.actions.includes(action));
+      const rules = gateRules(ctx, (action, setting) => setting !== 'auto' || skill.actions.includes(action));
       const requiresApproval =
         rules.texts.length === 0 ? skill.requiresApproval : rules.texts.join(' ');
       const main = filled(ctx, 'routine.sentence', { ...vars, requiresApproval });
