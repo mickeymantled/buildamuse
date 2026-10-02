@@ -1,10 +1,8 @@
 // Pass 2: resolve conditions. Evaluate every Cond in the library once against the build.
 // Produces the active set of badges, chassis variants, drive variants and example rows.
 
-import type { Build, ChipGroup, Library, Resolved, BadgeId } from '../types.js';
+import type { Build, Library, Resolved, BadgeId } from '../types.js';
 import { evalCond, evalWhen } from '../cond.js';
-
-const DOMAIN_GROUPS: ChipGroup[] = ['Work', 'Markets'];
 
 export function resolve(build: Build, lib: Library): Resolved {
   const chips = lib.chips;
@@ -35,11 +33,9 @@ export function resolve(build: Build, lib: Library): Resolved {
     throw new Error('No greeting row matches');
   }
 
-  // Domain: first Work or Markets chip in tap order with a matching row wins, else default.
+  // Domain: first chip in tap order (any group) with a matching row wins, else default.
   let domain: Library['examples']['domains'][number] | undefined;
   for (const chipId of build.chips) {
-    const chip = chips.find((c) => c.id === chipId);
-    if (!chip || !DOMAIN_GROUPS.includes(chip.group)) continue;
     const row = lib.examples.domains.find(
       (d) => d.chip === chipId && evalWhen(d.when, build, chips),
     );
