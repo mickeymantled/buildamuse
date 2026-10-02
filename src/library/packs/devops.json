@@ -1,1 +1,64 @@
-null
+{
+  "id": "devops",
+  "label": "DevOps",
+  "triggers": [
+    { "id": "pack.devops.t1", "line": "Mitigate before you diagnose, but only with reversible actions." },
+    { "id": "pack.devops.t2", "line": "Post status every N minutes." }
+  ],
+  "gatesDefault": {
+    "deploy": "approve",
+    "delete": "forbid",
+    "rollback": "auto",
+    "send": "approve",
+    "publish": "approve",
+    "write_query": "forbid",
+    "force_push": "forbid"
+  },
+  "limitsDefault": {},
+  "limitChips": [],
+  "skills": [
+    {
+      "id": "incident-status",
+      "name": "Incident status",
+      "kind": "trigger",
+      "whenToUse": "When an incident is open, or I say incident, and then every [TODO: N] minutes until I say it is closed.",
+      "inputs": "The service and the incident start time, plus the alerts, dashboards, logs and deploy history I named for it.",
+      "steps": [
+        "Read the alerts, dashboards, logs and deploy history now. Take every fact from what you read this turn.",
+        "Write impact first: who or what is affected, how badly, and since when, in plain words.",
+        "Tag the cause as confirmed, suspected or unknown. Never present a suspicion as confirmed.",
+        "List each mitigation since the last update: what, when, the result you saw, and how to undo it.",
+        "Say a mitigation worked only if you saw the numbers recover. Otherwise write 'result not seen yet'.",
+        "State the next update time. If nothing changed, write 'no change' and still draft the update on time.",
+        "Leave out secrets, tokens and customer data. Name a customer only if I already named them.",
+        "Show me the draft. Post it to the incident channel only after my yes (send gate).",
+        "Post to a customer-facing status page only after my yes (publish gate). If I am silent, re-show the draft with the next one.",
+        "When I close the incident, draft a final update: resolved time, duration, impact, what held, open follow-ups."
+      ],
+      "validate": "Every update has impact, a tagged cause, the mitigations with how to undo each, and the next update time. Nothing was posted without a yes.",
+      "returns": "To me, first line: ongoing, mitigated or resolved, with the impact. Then cause, mitigations, next update time, and whether the draft is waiting, posted (where) or unsent.",
+      "requiresApproval": "send: posting an update to the incident channel or sending it to anyone needs a yes (send gate). publish: posting to a customer-facing status page needs a yes (publish gate). This skill never mitigates or rolls back.",
+      "actions": ["send", "publish"]
+    }
+  ],
+  "seeds": [
+    { "id": "pack.devops.seed.1", "line": "I want impact in plain words first: who is affected and how badly, before any technical detail." },
+    { "id": "pack.devops.seed.2", "line": "I read mitigated as the symptom stopped and resolved as the cause fixed, so I expect you to say which." },
+    { "id": "pack.devops.seed.3", "line": "I treat an incident as open until I say it is closed, and I expect updates until then." }
+  ],
+  "defaultRoles": ["planner", "debugger", "release-manager"],
+  "rulesLines": [
+    { "id": "pack.devops.rule.1", "line": "Mitigate with reversible actions only. Before each one, write how to undo it; if you cannot, do not do it." },
+    { "id": "pack.devops.rule.2", "line": "A rollback goes to the last good release only. Any other build is a deploy and follows the deploy gate." },
+    { "id": "pack.devops.rule.3", "line": "Never change production data (write_query gate) or rewrite git history (force_push gate), to mitigate or otherwise. Hand me the plan instead." },
+    { "id": "pack.devops.rule.4", "line": "Never mute alerts, monitors or paging to quiet an incident." },
+    { "id": "pack.devops.rule.5", "line": "Never put secrets, tokens or customer data in a status update." }
+  ],
+  "job": { "id": "pack.devops.job", "line": "Mitigate incidents with reversible actions only and draft status updates on a fixed cadence until I close it." },
+  "sources": [
+    { "id": "pack.devops.source.1", "line": "The alerts, dashboards and logs for the service I name, read fresh for every update." },
+    { "id": "pack.devops.source.2", "line": "The deploy history and release list for that service, to find the last good release." }
+  ],
+  "deliverable": { "id": "pack.devops.deliverable", "line": "Status first (ongoing, mitigated or resolved), then impact, tagged cause, mitigations with undo, next update." },
+  "firstTask": { "id": "pack.devops.firstTask", "line": "Read the current alerts and last deploy for the service I name and hand me a draft status update, unposted." }
+}
