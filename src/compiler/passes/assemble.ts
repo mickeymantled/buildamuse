@@ -1,6 +1,16 @@
 // Pass: assemble resolved picks and library records into items, in fixed section order.
 
-import type { BuildCore, ChassisLine, Item, Library, Resolved, Section } from '../types.js';
+import type {
+  BuildCore,
+  ChassisLine,
+  CompileContext,
+  Item,
+  Library,
+  RenderOptions,
+  Resolved,
+  Section,
+} from '../types.js';
+import { gateSoulItems, rulesItems } from '../gates.js';
 import { exampleItems } from './examples.js';
 
 function chassisBySection(chassis: ChassisLine[], section: Section): ChassisLine[] {
@@ -231,4 +241,113 @@ export function assemble(build: BuildCore, lib: Library, resolved: Resolved): It
   }
 
   return items;
+}
+
+// Section order of the v2 soul layout. Sections a profile does not use are simply empty.
+const SOUL_ORDER: readonly Section[] = [
+  'rules-top',
+  'opening',
+  'who',
+  'want',
+  'talk',
+  'instincts',
+  'act',
+  'trading',
+  'rules',
+  'proactive',
+  'memory',
+  'examples',
+  'clash',
+  'skills',
+  'rules-bottom',
+];
+
+// The v2 soul: today's sections from the build, with chassis lines taken from ctx.chassis
+// (already variant-applied for the profile), plus profile opening lines, pack triggers,
+// gate soul lines and the rules block.
+export function assembleSoul(ctx: CompileContext): Item[] {
+  const { build, lib, profile } = ctx;
+  const base = assemble(build, lib, { ...ctx.resolved, chassis: ctx.chassis });
+  const bySection = new Map<Section, Item[]>();
+  for (const item of base) {
+    const list = bySection.get(item.section);
+    if (list) {
+      list.push(item);
+    } else {
+      bySection.set(item.section, [item]);
+    }
+  }
+
+  // opening: chassis openings (muse only), then the profile's own opening lines.
+  const opening: Item[] = [...(bySection.get('opening') ?? [])];
+  for (const line of profile.openingLines) {
+    opening.push({
+      id: line.id,
+      text: line.line,
+      kind: 'opening',
+      section: 'opening',
+      format: 'plain',
+    });
+  }
+  bySection.set(
+    'opening',
+    opening.map((item, i) => ({ ...item, blankBefore: i > 0 })),
+  );
+
+  // instincts: pack triggers go after the chip triggers, before badges.
+  const packTriggers: Item[] = ctx.packs.flatMap((pack) =>
+    pack.triggers.map(
+      (trigger): Item => ({
+        id: trigger.id,
+        text: trigger.line,
+        kind: 'pack-trigger',
+        section: 'instincts',
+        format: 'bullet',
+      }),
+    ),
+  );
+  const instincts = bySection.get('instincts') ?? [];
+  let afterChips = instincts.findIndex((item) => item.kind !== 'chip-trigger');
+  if (afterChips === -1) afterChips = instincts.length;
+  bySection.set('instincts', [
+    ...instincts.slice(0, afterChips),
+    ...packTriggers,
+    ...instincts.slice(afterChips),
+  ]);
+
+  // act: gate soul lines go right after the approval line, else at the start.
+  const act = bySection.get('act') ?? [];
+  const approval = act.findIndex((item) => item.id.startsWith('chassis.act.approval'));
+  bySection.set('act', [
+    ...act.slice(0, approval + 1),
+    ...gateSoulItems(ctx.gates, lib),
+    ...act.slice(approval + 1),
+  ]);
+
+  // rules: one block in a section, or the same block at top and bottom.
+  if (profile.rulesInSoul === 'section') {
+    bySection.set('rules', rulesItems(build, ctx.gates, ctx.limits, lib, 'rules'));
+  } else if (profile.rulesInSoul === 'top-and-bottom') {
+    bySection.set('rules-top', rulesItems(build, ctx.gates, ctx.limits, lib, 'rules-top'));
+    bySection.set('rules-bottom', rulesItems(build, ctx.gates, ctx.limits, lib, 'rules-bottom'));
+  }
+
+  return SOUL_ORDER.flatMap((section) => bySection.get(section) ?? []);
+}
+
+// Order and heading overrides for rendering assembleSoul output.
+export function soulRenderOptions(ctx: CompileContext): RenderOptions {
+  const headings: NonNullable<RenderOptions['headings']> = { skills: null };
+  const templates: [Section, string][] = [
+    ['rules', 'rules.heading'],
+    ['rules-top', 'rules.top'],
+    ['rules-bottom', 'rules.bottom'],
+  ];
+  for (const [section, key] of templates) {
+    if (Object.hasOwn(ctx.profile.templates, key)) {
+      const template = ctx.profile.templates[key];
+      headings[section] = { id: template.id, text: template.line };
+    }
+  }
+  return { order: SOUL_ORDER, headings };
 }

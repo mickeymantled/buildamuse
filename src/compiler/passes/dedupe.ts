@@ -5,6 +5,15 @@
 import type { Item, Library, Resolved, PassResult } from '../types.js';
 import { normalize } from './normalize.js';
 
+// The rules block can repeat by design (top-and-bottom layout), so it is outside the dedupe rules.
+function isRulesSection(item: Item): boolean {
+  return item.section === 'rules' || item.section === 'rules-top' || item.section === 'rules-bottom';
+}
+
+function isRulesKind(item: Item): boolean {
+  return item.kind === 'rule' || item.kind === 'limit' || item.kind === 'pack-rule';
+}
+
 function warn(id: string, reason: string): string {
   return `dedupe: dropped ${id} (${reason})`;
 }
@@ -17,7 +26,7 @@ export function dedupe(items: Item[], lib: Library, resolved: Resolved): PassRes
   // normalized text equals a chassis line's normalized text.
   const chassisNorms = lib.chassis.lines.map((line) => normalize(line.line));
   remaining = remaining.filter((item) => {
-    if (item.kind === 'chassis' || item.kind === 'opening') return true;
+    if (item.kind === 'chassis' || item.kind === 'opening' || isRulesSection(item)) return true;
     const matches = chassisNorms.includes(normalize(item.text));
     if (matches) warnings.push(warn(item.id, 'restates chassis line'));
     return !matches;
@@ -26,7 +35,7 @@ export function dedupe(items: Item[], lib: Library, resolved: Resolved): PassRes
   // 2. Peeves covered: drop peeve items whose peeve record dedupes with a
   // badge that is already emitted.
   remaining = remaining.filter((item) => {
-    if (item.kind !== 'peeve') return true;
+    if (item.kind !== 'peeve' || isRulesSection(item)) return true;
     const peeve = lib.peeves.find((p) => p.id === item.id);
     const covered = peeve?.dedupesWith?.some((id) => resolved.badges.includes(id)) ?? false;
     if (covered) warnings.push(warn(item.id, 'peeve covered by badge'));
@@ -39,7 +48,7 @@ export function dedupe(items: Item[], lib: Library, resolved: Resolved): PassRes
     .filter((item) => item.kind === 'chip-trigger')
     .map((item) => normalize(item.text));
   remaining = remaining.filter((item) => {
-    if (item.kind !== 'badge') return true;
+    if (item.kind !== 'badge' || isRulesSection(item)) return true;
     const matches = triggerNorms.includes(normalize(item.text));
     if (matches) warnings.push(warn(item.id, 'badge equals chip trigger'));
     return !matches;
@@ -53,6 +62,7 @@ export function dedupe(items: Item[], lib: Library, resolved: Resolved): PassRes
     .map((item) => normalize(item.text));
   remaining = remaining.filter((item) => {
     if (item.kind !== 'chip-trigger' && item.kind !== 'hardpart-extra') return true;
+    if (isRulesSection(item)) return true;
     const norm = normalize(item.text);
     const contained = badgeNorms.some((badgeNorm) => badgeNorm.includes(norm));
     if (contained) warnings.push(warn(item.id, 'contained in badge'));
@@ -61,10 +71,16 @@ export function dedupe(items: Item[], lib: Library, resolved: Resolved): PassRes
 
   // 5. Exact repeats: among the remaining items that are not chassis, opening
   // or example, drop any item whose normalized text equals an earlier such
-  // item's normalized text. Keep the first.
+  // item's normalized text. Keep the first. Rules-block kinds are skipped: they
+  // are neither dropped nor used as anchors.
   const seen = new Set<string>();
   remaining = remaining.filter((item) => {
-    if (item.kind === 'chassis' || item.kind === 'opening' || item.kind === 'example') {
+    if (
+      item.kind === 'chassis' ||
+      item.kind === 'opening' ||
+      item.kind === 'example' ||
+      isRulesKind(item)
+    ) {
       return true;
     }
     const norm = normalize(item.text);
