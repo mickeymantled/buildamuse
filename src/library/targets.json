@@ -1,1 +1,1025 @@
-{"targets": [], "profiles": []}
+{
+  "targets": [
+    {
+      "id": "muse",
+      "label": "Meta Muse",
+      "promise": {
+        "id": "target.muse.promise",
+        "line": "[TODO: promise line]"
+      }
+    },
+    {
+      "id": "openclaw",
+      "label": "OpenClaw",
+      "promise": {
+        "id": "target.openclaw.promise",
+        "line": "[TODO: promise line]"
+      }
+    },
+    {
+      "id": "hermes",
+      "label": "Hermes Agent",
+      "promise": {
+        "id": "target.hermes.promise",
+        "line": "[TODO: promise line]"
+      }
+    },
+    {
+      "id": "grok",
+      "label": "Grok Bot",
+      "promise": {
+        "id": "target.grok.promise",
+        "line": "[TODO: promise line]"
+      }
+    },
+    {
+      "id": "chatgpt",
+      "label": "ChatGPT",
+      "promise": {
+        "id": "target.chatgpt.promise",
+        "line": "[TODO: promise line]"
+      },
+      "modes": [
+        {
+          "id": "dot",
+          "label": "Dot",
+          "note": {
+            "id": "target.chatgpt.mode.dot",
+            "line": "Recommended; Pro or Business Premium"
+          }
+        },
+        {
+          "id": "gpt",
+          "label": "Custom GPT",
+          "note": {
+            "id": "target.chatgpt.mode.gpt",
+            "line": "Custom GPT"
+          }
+        },
+        {
+          "id": "instructions",
+          "label": "Custom instructions",
+          "note": {
+            "id": "target.chatgpt.mode.instructions",
+            "line": "Free (1,500 chars) or Paid (5,000)"
+          }
+        },
+        {
+          "id": "project",
+          "label": "Project",
+          "note": {
+            "id": "target.chatgpt.mode.project",
+            "line": "Project > Instructions plus files"
+          }
+        }
+      ]
+    }
+  ],
+  "profiles": [
+    {
+      "id": "muse",
+      "target": "muse",
+      "label": "Meta Muse",
+      "docUrl": "https://www.meta.com/help/artificial-intelligence/2225571704857152/",
+      "docReadDate": "2026-10-01",
+      "layout": "soul",
+      "personalityPath": "Identity > Soul",
+      "personalityDelivery": "paste",
+      "openingLines": [],
+      "chassisForm": "full",
+      "chassisVariants": {
+        "chassis.memory.no_self_edit": null,
+        "chassis.rules.outrank": null
+      },
+      "rulesDelivery": "inline",
+      "rulesInSoul": "section",
+      "skillsDelivery": "spoken",
+      "memoryDelivery": "spoken",
+      "routinesDelivery": "spoken",
+      "installSteps": [
+        {
+          "id": "profile.muse.step.1",
+          "line": "Paste this over the file in Identity › Soul."
+        },
+        {
+          "id": "profile.muse.step.2",
+          "line": "Say this to your Muse in chat."
+        },
+        {
+          "id": "profile.muse.step.3",
+          "line": "One at a time. It should confirm each. If it doesn't, say it again in a fresh chat."
+        },
+        {
+          "id": "profile.muse.step.4",
+          "line": "Then say hi."
+        }
+      ],
+      "reloadNote": null,
+      "verify": [
+        {
+          "id": "profile.muse.verify.1",
+          "line": "verify: Meta has not published the default Soul.md text; these opening lines come from the Build-a-Bot brief."
+        },
+        {
+          "id": "profile.muse.verify.2",
+          "line": "verify: Muse skills are built in (Meta help, How Muse works with skills). A skill sentence you say becomes a standing instruction or a reminder, not an installed skill."
+        }
+      ],
+      "supportsRoles": false,
+      "roleFallback": "none",
+      "lengthCap": 3600,
+      "templates": {
+        "memory.sentence": {
+          "id": "profile.muse.memory.sentence",
+          "line": "{seed}"
+        },
+        "skill.legacy": {
+          "id": "profile.muse.skill.legacy",
+          "line": "Set up {sentence}."
+        },
+        "routine.legacy": {
+          "id": "profile.muse.routine.legacy",
+          "line": "{schedule}, {sentence}."
+        },
+        "skill.sentence": {
+          "id": "profile.muse.skill.sentence",
+          "line": "Set up a skill called {name}.\nUse it when: {whenToUse}\nSteps:\n{steps}\nNeeds my approval first: {requiresApproval}"
+        },
+        "routine.sentence": {
+          "id": "profile.muse.routine.sentence",
+          "line": "{schedule}, run {name}.\nSteps:\n{steps}\nNeeds my approval first: {requiresApproval}\nA scheduled run uses the same approval cards as any other run."
+        },
+        "rules.heading": {
+          "id": "profile.muse.rules.heading",
+          "line": "## Hard rules"
+        },
+        "fallback.none": {
+          "id": "profile.muse.fallback.none",
+          "line": "Muse runs one agent. Your role set was not compiled, so this build is a single Muse."
+        }
+      }
+    },
+    {
+      "id": "openclaw",
+      "target": "openclaw",
+      "label": "OpenClaw",
+      "docUrl": "https://docs.openclaw.ai/concepts/agent-workspace",
+      "docReadDate": "2026-10-01",
+      "layout": "soul",
+      "personalityPath": "~/.openclaw/workspace/SOUL.md",
+      "personalityDelivery": "file",
+      "openingLines": [
+        {
+          "id": "profile.openclaw.opening.1",
+          "line": "# SOUL.md - Who You Are"
+        },
+        {
+          "id": "profile.openclaw.opening.2",
+          "line": "_You're not a chatbot. You're becoming someone._"
+        }
+      ],
+      "chassisForm": "full",
+      "chassisVariants": {
+        "chassis.opening.1": null,
+        "chassis.opening.2": null,
+        "chassis.memory.refine": null
+      },
+      "rulesDelivery": "AGENTS.md",
+      "rulesInSoul": "none",
+      "skillsDelivery": "files",
+      "memoryDelivery": "file",
+      "routinesDelivery": "spoken",
+      "installSteps": [
+        {
+          "id": "profile.openclaw.step.1",
+          "line": "Save SOUL.md at ~/.openclaw/workspace/SOUL.md."
+        },
+        {
+          "id": "profile.openclaw.step.2",
+          "line": "Save AGENTS.md and USER.md beside it, in the same folder."
+        },
+        {
+          "id": "profile.openclaw.step.3",
+          "line": "Save each skill file at the path shown on it (skills/<id>/SKILL.md)."
+        },
+        {
+          "id": "profile.openclaw.step.4",
+          "line": "If you added roles, each role compiles to its own agent workspace. Save its files as listed."
+        },
+        {
+          "id": "profile.openclaw.step.5",
+          "line": "Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether OpenClaw keeps routines in files or in chat."
+        }
+      ],
+      "reloadNote": null,
+      "verify": [
+        {
+          "id": "profile.openclaw.verify.1",
+          "line": "verify: OpenClaw keeps automations in its own database. Set routines up by chat or with the openclaw CLI, not as files."
+        },
+        {
+          "id": "profile.openclaw.verify.2",
+          "line": "verify: whether edits to SOUL.md and AGENTS.md apply on the next turn or only in a new session."
+        },
+        {
+          "id": "profile.openclaw.verify.3",
+          "line": "verify: OpenClaw's USER.md has its own format (one Always, Never or Prefer directive per entry, 4,000 characters); durable facts may belong in MEMORY.md."
+        }
+      ],
+      "supportsRoles": true,
+      "roleFallback": "workspaces",
+      "lengthCap": 3600,
+      "templates": {
+        "memory.sentence": {
+          "id": "profile.openclaw.memory.sentence",
+          "line": "{seed}"
+        },
+        "skill.legacy": {
+          "id": "profile.openclaw.skill.legacy",
+          "line": "Set up {sentence}."
+        },
+        "routine.legacy": {
+          "id": "profile.openclaw.routine.legacy",
+          "line": "{schedule}, {sentence}."
+        },
+        "agents.heading": {
+          "id": "profile.openclaw.agents.heading",
+          "line": "# Rules for every agent"
+        },
+        "agents.intro": {
+          "id": "profile.openclaw.agents.intro",
+          "line": "These rules load for every agent and sub-agent and outrank SOUL.md."
+        },
+        "skill.file": {
+          "id": "profile.openclaw.skill.file",
+          "line": "# {name}\n\n## When to use\n{whenToUse}\n\n## Inputs\n{inputs}\n\n## Steps\n{steps}\n\n## Validate\n{validate}\n\n## Returns\n{returns}\n\n## Requires approval\n{requiresApproval}"
+        },
+        "memory.file.heading": {
+          "id": "profile.openclaw.memory.file.heading",
+          "line": "# About me"
+        },
+        "routine.sentence": {
+          "id": "profile.openclaw.routine.sentence",
+          "line": "{schedule}, run {name}.\nSteps:\n{steps}\nNeeds my approval first: {requiresApproval}\nA scheduled run follows the rules in AGENTS.md like any other run."
+        }
+      }
+    },
+    {
+      "id": "hermes",
+      "target": "hermes",
+      "label": "Hermes Agent",
+      "docUrl": "https://hermes-agent.nousresearch.com/docs/user-guide/features/personality",
+      "docReadDate": "2026-10-01",
+      "layout": "soul",
+      "personalityPath": "~/.hermes/SOUL.md",
+      "personalityDelivery": "file",
+      "openingLines": [],
+      "chassisForm": "full",
+      "chassisVariants": {
+        "chassis.opening.1": null,
+        "chassis.opening.2": null,
+        "chassis.memory.refine": null
+      },
+      "rulesDelivery": "AGENTS.md",
+      "rulesInSoul": "section",
+      "skillsDelivery": "files",
+      "memoryDelivery": "file",
+      "routinesDelivery": "spoken",
+      "installSteps": [
+        {
+          "id": "profile.hermes.step.1",
+          "line": "Save SOUL.md at ~/.hermes/SOUL.md."
+        },
+        {
+          "id": "profile.hermes.step.2",
+          "line": "Save USER.md at ~/.hermes/memories/USER.md, and AGENTS.md in the folder you run Hermes from."
+        },
+        {
+          "id": "profile.hermes.step.3",
+          "line": "Save each skill file at the path shown on it (skills/<id>/SKILL.md)."
+        },
+        {
+          "id": "profile.hermes.step.4",
+          "line": "If you added roles, each role compiles to its own Hermes profile. Save its files as listed."
+        },
+        {
+          "id": "profile.hermes.step.5",
+          "line": "Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether Hermes keeps routines in files or in chat."
+        },
+        {
+          "id": "profile.hermes.step.6",
+          "line": "restart or new session; don't test with hermes -z"
+        }
+      ],
+      "reloadNote": {
+        "id": "profile.hermes.reload",
+        "line": "Restart Hermes or start a new session to load changes. Don't test with hermes -z."
+      },
+      "verify": [
+        {
+          "id": "profile.hermes.verify.1",
+          "line": "verify: Hermes loads AGENTS.md from the folder it runs in, not from ~/.hermes or a profile folder."
+        },
+        {
+          "id": "profile.hermes.verify.2",
+          "line": "verify: hermes -z runs the same agent; --ignore-rules and --safe-mode are the modes that skip SOUL.md."
+        },
+        {
+          "id": "profile.hermes.verify.3",
+          "line": "verify: whether a delegated agent loads its role profile's SOUL.md."
+        }
+      ],
+      "supportsRoles": true,
+      "roleFallback": "profiles",
+      "lengthCap": 3600,
+      "templates": {
+        "memory.sentence": {
+          "id": "profile.hermes.memory.sentence",
+          "line": "{seed}"
+        },
+        "skill.legacy": {
+          "id": "profile.hermes.skill.legacy",
+          "line": "Set up {sentence}."
+        },
+        "routine.legacy": {
+          "id": "profile.hermes.routine.legacy",
+          "line": "{schedule}, {sentence}."
+        },
+        "agents.heading": {
+          "id": "profile.hermes.agents.heading",
+          "line": "# Rules for every agent"
+        },
+        "agents.intro": {
+          "id": "profile.hermes.agents.intro",
+          "line": "These rules load for every agent and sub-agent and outrank SOUL.md."
+        },
+        "rules.heading": {
+          "id": "profile.hermes.rules.heading",
+          "line": "## Hard rules (same as AGENTS.md)"
+        },
+        "skill.file": {
+          "id": "profile.hermes.skill.file",
+          "line": "# {name}\n\n## When to use\n{whenToUse}\n\n## Inputs\n{inputs}\n\n## Steps\n{steps}\n\n## Validate\n{validate}\n\n## Returns\n{returns}\n\n## Requires approval\n{requiresApproval}"
+        },
+        "memory.file.heading": {
+          "id": "profile.hermes.memory.file.heading",
+          "line": "# About me"
+        },
+        "routine.sentence": {
+          "id": "profile.hermes.routine.sentence",
+          "line": "{schedule}, run {name}.\nSteps:\n{steps}\nNeeds my approval first: {requiresApproval}\nA scheduled run follows the rules in AGENTS.md like any other run."
+        }
+      }
+    },
+    {
+      "id": "grok",
+      "target": "grok",
+      "label": "Grok Bot",
+      "docUrl": "https://docs.x.ai/grok-bot/bots",
+      "docReadDate": "2026-10-01",
+      "layout": "grok",
+      "personalityPath": "Edit Profile > Description",
+      "personalityDelivery": "paste",
+      "openingLines": [],
+      "chassisForm": "short",
+      "chassisVariants": {
+        "chassis.opening.1": null,
+        "chassis.opening.2": null,
+        "chassis.memory.refine": null,
+        "chassis.memory.no_self_edit": null,
+        "chassis.rules.outrank": null,
+        "chassis.memory.judge": "This description is how you judge. Memory is what you know. Never put a fact here."
+      },
+      "chassisShortVariants": {
+        "chassis.memory.judge": "This description is judgment, memory is facts. No facts here."
+      },
+      "rulesDelivery": "description",
+      "rulesInSoul": "none",
+      "skillsDelivery": "spoken",
+      "memoryDelivery": "spoken",
+      "routinesDelivery": "spoken",
+      "installSteps": [
+        {
+          "id": "profile.grok.step.1",
+          "line": "New > Create new Bot, name it."
+        },
+        {
+          "id": "profile.grok.step.2",
+          "line": "Edit Profile: paste Description, set label to the build name."
+        },
+        {
+          "id": "profile.grok.step.3",
+          "line": "Say the memory sentence."
+        },
+        {
+          "id": "profile.grok.step.4",
+          "line": "Say each skill sentence."
+        },
+        {
+          "id": "profile.grok.step.5",
+          "line": "Say each routine sentence; Test run before enabling; don't enable until two runs look right."
+        },
+        {
+          "id": "profile.grok.step.6",
+          "line": "Connect only the plugins the skills name; plugins are account-wide."
+        },
+        {
+          "id": "profile.grok.step.7",
+          "line": "Optional: Share > Create template for an x.ai link; remove anything private first."
+        }
+      ],
+      "reloadNote": {
+        "id": "profile.grok.reload",
+        "line": "Profile changes apply to new messages. verify: whether a running routine picks up a profile edit."
+      },
+      "verify": [
+        {
+          "id": "profile.grok.verify.1",
+          "line": "verify: xAI's docs do not state a 2,000-character description limit."
+        },
+        {
+          "id": "profile.grok.verify.2",
+          "line": "verify: group chats hold 2 to 6 Bots and the Bots decide who answers; the coordinator is a convention, not a setting."
+        }
+      ],
+      "supportsRoles": true,
+      "roleFallback": "team",
+      "lengthCap": 2000,
+      "templates": {
+        "memory.sentence": {
+          "id": "profile.grok.memory.sentence",
+          "line": "{seed}"
+        },
+        "skill.legacy": {
+          "id": "profile.grok.skill.legacy",
+          "line": "Set up {sentence}."
+        },
+        "routine.legacy": {
+          "id": "profile.grok.routine.legacy",
+          "line": "{schedule}, {sentence}."
+        },
+        "grok.nameLine": {
+          "id": "profile.grok.grok.nameLine",
+          "line": "{name}. {job}"
+        },
+        "grok.job.trader": {
+          "id": "profile.grok.grok.job.trader",
+          "line": "You watch my positions and watchlists, run every setup against my rules, and propose trades for me to approve."
+        },
+        "grok.job.builder": {
+          "id": "profile.grok.grok.job.builder",
+          "line": "You help me build and ship: break work into small steps, check what I write, and report what's blocked."
+        },
+        "grok.job.professional": {
+          "id": "profile.grok.grok.job.professional",
+          "line": "You keep my workday moving: sort what lands, prep what's next, and draft what I'll send in my voice."
+        },
+        "grok.job.parent": {
+          "id": "profile.grok.grok.job.parent",
+          "line": "You keep the family calendar straight: flag clashes and due dates every day and draft the replies."
+        },
+        "grok.job.student": {
+          "id": "profile.grok.grok.job.student",
+          "line": "You keep my school load in order: track due dates, break assignments into steps, and quiz me before tests."
+        },
+        "grok.job.creator": {
+          "id": "profile.grok.grok.job.creator",
+          "line": "You turn my ideas into drafts and a posting plan for me to review."
+        },
+        "grok.job.operator": {
+          "id": "profile.grok.grok.job.operator",
+          "line": "You run my business back office: track orders, customers and cash, flag what's overdue, and draft every reply."
+        },
+        "grok.job.chaos": {
+          "id": "profile.grok.grok.job.chaos",
+          "line": "You sort my mess: list what's open, rank it by what hurts most if ignored, and hand me the next one thing."
+        },
+        "grok.sources": {
+          "id": "profile.grok.grok.sources",
+          "line": "Use what I tell you, the plugins I've connected, and pages you can link. Name the source of every fact."
+        },
+        "grok.deliverable": {
+          "id": "profile.grok.grok.deliverable",
+          "line": "Report to me. Verdict first, in one line. Then three lines: what you found, what you're unsure of, the decision I owe you."
+        },
+        "grok.firstTask": {
+          "id": "profile.grok.grok.firstTask",
+          "line": "Your first task: say which sources and plugins you can reach, then do one small piece of your job and show me the result."
+        },
+        "grok.noData": {
+          "id": "profile.grok.grok.noData",
+          "line": "If a source is missing or empty, say which one in your first line. Don't fill the gap with a guess. Give what you can confirm and ask me for the rest."
+        },
+        "grok.autonomy": {
+          "id": "profile.grok.grok.autonomy",
+          "line": "Autonomy is L1, draft: you propose and draft, I approve. Never raise your own level."
+        },
+        "grok.routineDiscipline": {
+          "id": "profile.grok.grok.routineDiscipline",
+          "line": "Before you save a routine, read back its owning Bot, schedule and time zone, input source, expected result, approval boundary and missing-source behavior. Test run it first, and don't enable it until two runs look right."
+        },
+        "grok.h.want": {
+          "id": "profile.grok.grok.h.want",
+          "line": "## What you want"
+        },
+        "grok.h.work": {
+          "id": "profile.grok.grok.h.work",
+          "line": "## How you work"
+        },
+        "grok.h.sources": {
+          "id": "profile.grok.grok.h.sources",
+          "line": "## Sources"
+        },
+        "grok.h.never": {
+          "id": "profile.grok.grok.h.never",
+          "line": "## Never"
+        },
+        "grok.h.missing": {
+          "id": "profile.grok.grok.h.missing",
+          "line": "## When data is missing"
+        },
+        "grok.h.return": {
+          "id": "profile.grok.grok.h.return",
+          "line": "## What you return"
+        },
+        "grok.h.sounds": {
+          "id": "profile.grok.grok.h.sounds",
+          "line": "## How this sounds"
+        },
+        "skill.sentence": {
+          "id": "profile.grok.skill.sentence",
+          "line": "Create a skill called {name}.\nWhen to use: {whenToUse}\nInputs and access: {inputs}\nSequence:\n{steps}\nValidate: {validate}\nReturn: {returns}\nWhat requires approval: {requiresApproval}"
+        },
+        "skill.approvalSuffix": {
+          "id": "profile.grok.skill.approvalSuffix",
+          "line": "Also put these hard rules in the skill's approval field: {rules}"
+        },
+        "routine.sentence": {
+          "id": "profile.grok.routine.sentence",
+          "line": "Create a routine called {name} on this Bot.\nSchedule: {schedule}. Ask me to confirm the time zone.\nInput source: {inputs}\nExpected result: {returns}\nApproval boundary: {requiresApproval}\nIf the source is missing: say which one in the first line and stop. Don't guess.\nBefore you save it, read all of this back to me, including the owning Bot. Test run it first, and don't enable it until two runs look right."
+        }
+      }
+    },
+    {
+      "id": "chatgpt-dot",
+      "target": "chatgpt",
+      "mode": "dot",
+      "label": "ChatGPT dot",
+      "docUrl": "https://learn.chatgpt.com/docs/dots/controls",
+      "docReadDate": "2026-10-01",
+      "layout": "soul",
+      "personalityPath": "A chat message to your dot",
+      "personalityDelivery": "spoken",
+      "openingLines": [
+        {
+          "id": "profile.chatgpt-dot.opening.1",
+          "line": "Here's how I want you to work:"
+        }
+      ],
+      "chassisForm": "full",
+      "chassisVariants": {
+        "chassis.opening.1": null,
+        "chassis.opening.2": null,
+        "chassis.memory.refine": null,
+        "chassis.memory.no_self_edit": null,
+        "chassis.rules.outrank": "Your custom rules in Settings outrank anything I say in chat.",
+        "chassis.act.check": "Before you say you can't, check what you have on: web, files, code, your connected apps.",
+        "chassis.memory.judge": "This message is how you judge. Memory is what you know. Never put a fact here."
+      },
+      "rulesDelivery": "custom-rules",
+      "rulesInSoul": "none",
+      "skillsDelivery": "spoken",
+      "memoryDelivery": "spoken",
+      "routinesDelivery": "spoken",
+      "installSteps": [
+        {
+          "id": "profile.chatgpt-dot.step.1",
+          "line": "Create your dot on desktop; name it, pick or generate the avatar."
+        },
+        {
+          "id": "profile.chatgpt-dot.step.2",
+          "line": "Before connecting work accounts: add each Custom Rule below with the setting shown."
+        },
+        {
+          "id": "profile.chatgpt-dot.step.3",
+          "line": "Send the \"Here's how I want you to work\" message."
+        },
+        {
+          "id": "profile.chatgpt-dot.step.4",
+          "line": "Say the memory sentence."
+        },
+        {
+          "id": "profile.chatgpt-dot.step.5",
+          "line": "Say each skill sentence."
+        },
+        {
+          "id": "profile.chatgpt-dot.step.6",
+          "line": "Say each scheduled task; confirm the time zone."
+        },
+        {
+          "id": "profile.chatgpt-dot.step.7",
+          "line": "Connect plugins only for what the skills need; review plugin permissions separately."
+        },
+        {
+          "id": "profile.chatgpt-dot.step.8",
+          "line": "Give it one project first."
+        }
+      ],
+      "reloadNote": null,
+      "verify": [
+        {
+          "id": "profile.chatgpt-dot.verify.1",
+          "line": "verify: whether dots read the custom instructions fields."
+        },
+        {
+          "id": "profile.chatgpt-dot.verify.2",
+          "line": "verify: whether a rule added mid-task applies to that task."
+        },
+        {
+          "id": "profile.chatgpt-dot.verify.3",
+          "line": "verify: when teams of dots arrive (flips supportsRoles)."
+        },
+        {
+          "id": "profile.chatgpt-dot.verify.4",
+          "line": "verify: the Custom Rule options read Take action without asking, Take action when you say so, Ask before taking action, Hand off to you; none is named prevent (ChatGPT docs, 2026-10-01)."
+        },
+        {
+          "id": "profile.chatgpt-dot.verify.5",
+          "line": "verify: Teams access for dots is an invite-only alpha, and dots can't call you at launch."
+        }
+      ],
+      "supportsRoles": false,
+      "roleFallback": "single-dot-note",
+      "lengthCap": 3600,
+      "customRuleSettings": {
+        "auto": "Take action without asking",
+        "approve": "Ask before taking action",
+        "forbid": "Hand off to you"
+      },
+      "templates": {
+        "memory.sentence": {
+          "id": "profile.chatgpt-dot.memory.sentence",
+          "line": "{seed}"
+        },
+        "skill.legacy": {
+          "id": "profile.chatgpt-dot.skill.legacy",
+          "line": "Set up {sentence}."
+        },
+        "routine.legacy": {
+          "id": "profile.chatgpt-dot.routine.legacy",
+          "line": "{schedule}, {sentence}."
+        },
+        "personality.opener": {
+          "id": "profile.chatgpt-dot.personality.opener",
+          "line": "Here's how I want you to work:"
+        },
+        "skill.sentence": {
+          "id": "profile.chatgpt-dot.skill.sentence",
+          "line": "Set up a skill called {name}.\nUse it when: {whenToUse}\nSteps:\n{steps}\nNeeds my approval first: {requiresApproval}"
+        },
+        "skill.suffix": {
+          "id": "profile.chatgpt-dot.skill.suffix",
+          "line": "Save this as how you do {task} and tell me when you've got it."
+        },
+        "routine.sentence": {
+          "id": "profile.chatgpt-dot.routine.sentence",
+          "line": "{schedule}, run {name}.\nSteps:\n{steps}\nNeeds my approval first: {requiresApproval}\nA scheduled task follows my Custom Rules like any other run. If it can't ask me, it stops and tells me instead."
+        },
+        "fallback.roles": {
+          "id": "profile.chatgpt-dot.fallback.roles",
+          "line": "Dots run one agent at launch, so your role set is not split into separate agents. Your roles are: {roles}. Tell your dot which role to take for each task."
+        }
+      }
+    },
+    {
+      "id": "chatgpt-gpt",
+      "target": "chatgpt",
+      "mode": "gpt",
+      "label": "Custom GPT",
+      "docUrl": "https://help.openai.com/en/articles/8554397",
+      "docReadDate": "2026-10-01",
+      "layout": "soul",
+      "personalityPath": "Configure > Instructions",
+      "personalityDelivery": "paste",
+      "openingLines": [],
+      "chassisForm": "full",
+      "chassisVariants": {
+        "chassis.opening.1": null,
+        "chassis.opening.2": null,
+        "chassis.memory.refine": null,
+        "chassis.memory.no_self_edit": null,
+        "chassis.rules.outrank": null,
+        "chassis.act.check": "Before you say you can't, check what you have on: web, files, code, your connected apps.",
+        "chassis.memory.judge": "These instructions are how you judge. Memory is what you know. Never put a fact here."
+      },
+      "rulesDelivery": "inline",
+      "rulesInSoul": "top-and-bottom",
+      "skillsDelivery": "knowledge",
+      "memoryDelivery": "spoken",
+      "routinesDelivery": "spoken",
+      "installSteps": [
+        {
+          "id": "profile.chatgpt-gpt.step.1",
+          "line": "In ChatGPT, create a new GPT and open Configure."
+        },
+        {
+          "id": "profile.chatgpt-gpt.step.2",
+          "line": "Set the Name. Paste the description into Description."
+        },
+        {
+          "id": "profile.chatgpt-gpt.step.3",
+          "line": "Paste your personality into Instructions. The hard limit is 8,000 characters."
+        },
+        {
+          "id": "profile.chatgpt-gpt.step.4",
+          "line": "Add the four conversation starters."
+        },
+        {
+          "id": "profile.chatgpt-gpt.step.5",
+          "line": "Upload each skill file under Knowledge."
+        },
+        {
+          "id": "profile.chatgpt-gpt.step.6",
+          "line": "Turn on only the Capabilities your skills need."
+        },
+        {
+          "id": "profile.chatgpt-gpt.step.7",
+          "line": "Add Actions only if a skill needs them. Mark every write action consequential (see the Actions note)."
+        },
+        {
+          "id": "profile.chatgpt-gpt.step.8",
+          "line": "Say the memory sentence in a chat with your GPT."
+        },
+        {
+          "id": "profile.chatgpt-gpt.step.9",
+          "line": "Say each routine sentence. verify: whether your plan includes Tasks."
+        },
+        {
+          "id": "profile.chatgpt-gpt.step.10",
+          "line": "Choose who can use it: only you, anyone with the link, or the GPT Store. Check that nothing private is in it first."
+        }
+      ],
+      "reloadNote": null,
+      "verify": [
+        {
+          "id": "profile.chatgpt-gpt.verify.1",
+          "line": "verify: custom GPTs retire on Dec 11, 2026, and new GPT creation is off on personal plans (OpenAI help, 2026-10-01)."
+        },
+        {
+          "id": "profile.chatgpt-gpt.verify.2",
+          "line": "verify: the 8,000-character Instructions limit and 300-character Description limit are community-reported, not in OpenAI's docs."
+        },
+        {
+          "id": "profile.chatgpt-gpt.verify.3",
+          "line": "verify: scheduled tasks by plan (Free: 3 active, at most once a day)."
+        }
+      ],
+      "supportsRoles": false,
+      "roleFallback": "separate-bundles",
+      "lengthCap": 8000,
+      "templates": {
+        "memory.sentence": {
+          "id": "profile.chatgpt-gpt.memory.sentence",
+          "line": "{seed}"
+        },
+        "skill.legacy": {
+          "id": "profile.chatgpt-gpt.skill.legacy",
+          "line": "Set up {sentence}."
+        },
+        "routine.legacy": {
+          "id": "profile.chatgpt-gpt.routine.legacy",
+          "line": "{schedule}, {sentence}."
+        },
+        "rules.top": {
+          "id": "profile.chatgpt-gpt.rules.top",
+          "line": "## Hard rules (read first)"
+        },
+        "rules.bottom": {
+          "id": "profile.chatgpt-gpt.rules.bottom",
+          "line": "## Hard rules (repeated)"
+        },
+        "skill.pointer": {
+          "id": "profile.chatgpt-gpt.skill.pointer",
+          "line": "Skill file {file}: follow its steps and its approval rules when this applies: {whenToUse}"
+        },
+        "knowledge.file": {
+          "id": "profile.chatgpt-gpt.knowledge.file",
+          "line": "# {name}\n\n## When to use\n{whenToUse}\n\n## Inputs\n{inputs}\n\n## Steps\n{steps}\n\n## Validate\n{validate}\n\n## Returns\n{returns}\n\n## Requires approval\n{requiresApproval}"
+        },
+        "description": {
+          "id": "profile.chatgpt-gpt.description",
+          "line": "{name} ({buildName}). {baseLine} Proposes first. Waits for a yes on anything that spends, sends or can't be undone."
+        },
+        "routine.sentence": {
+          "id": "profile.chatgpt-gpt.routine.sentence",
+          "line": "Set up a task: {schedule}, run {name}.\nSteps:\n{steps}\nNeeds my approval first: {requiresApproval}\nIf the task can't ask me, it stops and tells me instead."
+        },
+        "fallback.roles": {
+          "id": "profile.chatgpt-gpt.fallback.roles",
+          "line": "Custom GPTs don't work as a team. Each role ({roles}) is a separate GPT bundle. Hand-offs between them are manual: you copy one GPT's report and paste it into the next. Nothing passes between them on its own."
+        },
+        "actions.consequential": {
+          "id": "profile.chatgpt-gpt.actions.consequential",
+          "line": "If you add Actions, mark every action that writes, sends or deletes as consequential by setting x-openai-isConsequential: true in its schema. verify: the exact flag name before you rely on it."
+        }
+      }
+    },
+    {
+      "id": "chatgpt-instructions",
+      "target": "chatgpt",
+      "mode": "instructions",
+      "label": "Custom instructions",
+      "docUrl": "https://help.openai.com/en/articles/8096356-chatgpt-custom-instructions",
+      "docReadDate": "2026-10-01",
+      "layout": "instructions",
+      "personalityPath": "Settings > Personalization > Custom instructions",
+      "personalityDelivery": "paste",
+      "openingLines": [],
+      "chassisForm": "full",
+      "chassisVariants": {
+        "chassis.opening.1": null,
+        "chassis.opening.2": null,
+        "chassis.memory.refine": null,
+        "chassis.memory.no_self_edit": null,
+        "chassis.rules.outrank": null,
+        "chassis.act.check": "Before you say you can't, check what you have on: web, files, code, your connected apps.",
+        "chassis.memory.judge": "These custom instructions are how you judge. Memory is what you know. Never put a fact here."
+      },
+      "chassisShortVariants": {
+        "chassis.act.check": "Before \"I can't,\" check: web, files, code, connected apps.",
+        "chassis.memory.judge": "These instructions are judgment, memory is facts. No facts here."
+      },
+      "rulesDelivery": "inline",
+      "rulesInSoul": "top-and-bottom",
+      "skillsDelivery": "inline",
+      "memoryDelivery": "inline",
+      "routinesDelivery": "none",
+      "installSteps": [
+        {
+          "id": "profile.chatgpt-instructions.step.1",
+          "line": "Open Settings > Personalization > Custom instructions."
+        },
+        {
+          "id": "profile.chatgpt-instructions.step.2",
+          "line": "Paste the memory block into the first field."
+        },
+        {
+          "id": "profile.chatgpt-instructions.step.3",
+          "line": "Paste your personality into the second field."
+        },
+        {
+          "id": "profile.chatgpt-instructions.step.4",
+          "line": "Check the limit: 1,500 characters on Free, 5,000 on Paid."
+        },
+        {
+          "id": "profile.chatgpt-instructions.step.5",
+          "line": "Save."
+        }
+      ],
+      "reloadNote": null,
+      "verify": [
+        {
+          "id": "profile.chatgpt-instructions.verify.1",
+          "line": "verify: whether custom instructions show one field or two on your plan."
+        }
+      ],
+      "supportsRoles": false,
+      "roleFallback": "none",
+      "lengthCap": {
+        "free": 1500,
+        "paid": 5000
+      },
+      "templates": {
+        "memory.sentence": {
+          "id": "profile.chatgpt-instructions.memory.sentence",
+          "line": "{seed}"
+        },
+        "skill.legacy": {
+          "id": "profile.chatgpt-instructions.skill.legacy",
+          "line": "Set up {sentence}."
+        },
+        "routine.legacy": {
+          "id": "profile.chatgpt-instructions.routine.legacy",
+          "line": "{schedule}, {sentence}."
+        },
+        "rules.top": {
+          "id": "profile.chatgpt-instructions.rules.top",
+          "line": "## Hard rules"
+        },
+        "rules.bottom": {
+          "id": "profile.chatgpt-instructions.rules.bottom",
+          "line": "## Hard rules (repeat)"
+        },
+        "skill.inline": {
+          "id": "profile.chatgpt-instructions.skill.inline",
+          "line": "{name}: {sentence}"
+        },
+        "memory.block": {
+          "id": "profile.chatgpt-instructions.memory.block",
+          "line": "{seed}"
+        },
+        "fallback.none": {
+          "id": "profile.chatgpt-instructions.fallback.none",
+          "line": "Custom instructions can't run a team. Your role set was not compiled, so this build is one assistant."
+        }
+      }
+    },
+    {
+      "id": "chatgpt-project",
+      "target": "chatgpt",
+      "mode": "project",
+      "label": "Project",
+      "docUrl": "https://help.openai.com/en/articles/10169521-projects-in-chatgpt",
+      "docReadDate": "2026-10-01",
+      "layout": "soul",
+      "personalityPath": "Project > Instructions",
+      "personalityDelivery": "paste",
+      "openingLines": [],
+      "chassisForm": "full",
+      "chassisVariants": {
+        "chassis.opening.1": null,
+        "chassis.opening.2": null,
+        "chassis.memory.refine": null,
+        "chassis.memory.no_self_edit": null,
+        "chassis.rules.outrank": null,
+        "chassis.act.check": "Before you say you can't, check what you have on: web, files, code, your connected apps.",
+        "chassis.memory.judge": "These instructions are how you judge. Memory is what you know. Never put a fact here."
+      },
+      "rulesDelivery": "inline",
+      "rulesInSoul": "top-and-bottom",
+      "skillsDelivery": "files",
+      "memoryDelivery": "spoken",
+      "routinesDelivery": "spoken",
+      "installSteps": [
+        {
+          "id": "profile.chatgpt-project.step.1",
+          "line": "Create a Project and name it."
+        },
+        {
+          "id": "profile.chatgpt-project.step.2",
+          "line": "Open the Project's Instructions and paste your personality. Treat 8,000 characters as the limit."
+        },
+        {
+          "id": "profile.chatgpt-project.step.3",
+          "line": "Upload each skill file to the Project's files."
+        },
+        {
+          "id": "profile.chatgpt-project.step.4",
+          "line": "Say the memory sentence in a chat inside the Project."
+        },
+        {
+          "id": "profile.chatgpt-project.step.5",
+          "line": "Say each routine sentence in a chat inside the Project. verify: whether your plan includes Tasks."
+        }
+      ],
+      "reloadNote": null,
+      "verify": [
+        {
+          "id": "profile.chatgpt-project.verify.1",
+          "line": "verify: the Project instructions limit (8,000 assumed, per the brief)."
+        }
+      ],
+      "supportsRoles": false,
+      "roleFallback": "separate-bundles",
+      "lengthCap": 8000,
+      "templates": {
+        "memory.sentence": {
+          "id": "profile.chatgpt-project.memory.sentence",
+          "line": "{seed}"
+        },
+        "skill.legacy": {
+          "id": "profile.chatgpt-project.skill.legacy",
+          "line": "Set up {sentence}."
+        },
+        "routine.legacy": {
+          "id": "profile.chatgpt-project.routine.legacy",
+          "line": "{schedule}, {sentence}."
+        },
+        "rules.top": {
+          "id": "profile.chatgpt-project.rules.top",
+          "line": "## Hard rules (read first)"
+        },
+        "rules.bottom": {
+          "id": "profile.chatgpt-project.rules.bottom",
+          "line": "## Hard rules (repeated)"
+        },
+        "skill.pointer": {
+          "id": "profile.chatgpt-project.skill.pointer",
+          "line": "Project file {file}: follow its steps and its approval rules when this applies: {whenToUse}"
+        },
+        "knowledge.file": {
+          "id": "profile.chatgpt-project.knowledge.file",
+          "line": "# {name}\n\n## When to use\n{whenToUse}\n\n## Inputs\n{inputs}\n\n## Steps\n{steps}\n\n## Validate\n{validate}\n\n## Returns\n{returns}\n\n## Requires approval\n{requiresApproval}"
+        },
+        "routine.sentence": {
+          "id": "profile.chatgpt-project.routine.sentence",
+          "line": "Set up a task: {schedule}, run {name}.\nSteps:\n{steps}\nNeeds my approval first: {requiresApproval}\nIf the task can't ask me, it stops and tells me instead."
+        },
+        "fallback.roles": {
+          "id": "profile.chatgpt-project.fallback.roles",
+          "line": "Projects don't work as a team. Each role ({roles}) is a separate Project. Hand-offs between them are manual: you copy one Project's report and paste it into the next. Nothing passes between them on its own."
+        }
+      }
+    }
+  ]
+}
