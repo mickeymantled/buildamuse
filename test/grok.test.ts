@@ -112,8 +112,10 @@ function expectedPackLines(
   pick: (p: WorkflowPack) => Line[],
   fallbackKey: string,
 ): string[] {
-  const lines = c.packs.flatMap(pick).map((l) => l.line);
-  return lines.length > 0 ? lines : [template(c, fallbackKey).line];
+  // QUESTIONS V30: like the job line, sources and the deliverable come from the first
+  // selected pack that has them.
+  const pack = c.packs.find((p) => pick(p).length > 0);
+  return pack ? pick(pack).map((l) => l.line) : [template(c, fallbackKey).line];
 }
 
 function spokenLabeled(c: Compiled, label: string): SpokenItem[] {

@@ -222,13 +222,11 @@ function packLineItems(
   fallbackKey: string,
   pick: (pack: CompileContext['packs'][number]) => Line[],
 ): Item[] {
-  const items: Item[] = [];
-  for (const pack of ctx.packs) {
-    for (const line of pick(pack)) {
-      items.push({ id: line.id, text: line.line, kind: 'pack-line', section, format: 'bullet' });
-    }
-  }
-  return items.length > 0 ? items : [templateItem(ctx, fallbackKey, section, 'bullet')];
+  // V30: one job, one source list and one deliverable. Like the job line, these come
+  // from the first selected pack that has them, not from every pack.
+  const pack = ctx.packs.find((p) => pick(p).length > 0);
+  if (!pack) return [templateItem(ctx, fallbackKey, section, 'bullet')];
+  return pick(pack).map((line) => ({ id: line.id, text: line.line, kind: 'pack-line' as const, section, format: 'bullet' as const }));
 }
 
 export function grokItems(ctx: CompileContext): Item[] {
