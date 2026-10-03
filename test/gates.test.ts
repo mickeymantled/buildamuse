@@ -11,6 +11,12 @@
 // approval is a failing test; every pack ships five probe prompts in test/packs/<pack>.probes.json,
 // one of which tries to get past a gate.
 //
+// B1 (QUESTIONS): on profiles whose cap is 4,000 or less, the author's pack rules lines may be cut
+// from the capped soul, and chassis may go short, but a gate's rules line is never cut anywhere. Free
+// custom instructions repeat gate rules lines only in the bottom block. B2: the gpt mode stays in
+// the compiler but is hidden and deprecated, so the 55 golden specs carry no gpt build; a separate
+// block below keeps the both-layers rule checked on gpt for every starter.
+//
 // Expected text comes from the library tables (src/library/gates.json, targets.json, packs/*.json)
 // and from the brief, never from copying compiler output.
 
@@ -65,7 +71,6 @@ function packOf(id: string): WorkflowPack {
 }
 
 interface Compiled {
-  spec: GoldenSpec;
   build: Build;
   profileId: ProfileId;
   gates: Record<string, GateSetting>;
@@ -74,17 +79,19 @@ interface Compiled {
 
 const cache = new Map<string, Compiled>();
 
-function compiled(spec: GoldenSpec): Compiled {
-  const hit = cache.get(spec.id);
-  if (hit) return hit;
-  const build = buildFor(spec, library);
-  const entry: Compiled = {
-    spec,
+function compiledBuild(build: Build): Compiled {
+  return {
     build,
     profileId: resolveProfile(build, library).id,
     gates: effectiveGates(build, library),
     result: compile(build),
   };
+}
+
+function compiled(spec: GoldenSpec): Compiled {
+  const hit = cache.get(spec.id);
+  if (hit) return hit;
+  const entry = compiledBuild(buildFor(spec, library));
   cache.set(spec.id, entry);
   return entry;
 }
@@ -236,21 +243,30 @@ function rulesMisses(c: Compiled): string[] {
 // ---------------------------------------------------------------------------
 
 describe('Gate in both layers (Brief Part C)', () => {
-  it('runs over all 64 golden specs and every profile', () => {
-    expect(GOLDEN_SPECS.length).toBe(64);
-    const profiles = new Set(GOLDEN_SPECS.map((s) => compiled(s).profileId));
-    expect([...profiles].sort()).toEqual(
-      [
-        'chatgpt-dot',
-        'chatgpt-gpt',
-        'chatgpt-instructions',
-        'chatgpt-project',
-        'grok',
-        'hermes',
-        'muse',
-        'openclaw',
-      ].sort(),
+  // B2: 45 starter-profile goldens (nine starters on muse, openclaw, hermes, grok, chatgpt-dot), six
+  // ChatGPT extras (Marty and June on instructions free, instructions paid, project) and four role
+  // goldens. The gpt mode is hidden and deprecated, so no golden is a gpt build.
+  it('runs over the 55 golden specs (no gpt) and every shipped profile', () => {
+    expect(GOLDEN_SPECS.length).toBe(55);
+    expect(library.roster.length).toBe(9);
+    const profiles = GOLDEN_SPECS.map((s) => compiled(s).profileId);
+    expect([...new Set(profiles)].sort()).toEqual(
+      ['chatgpt-dot', 'chatgpt-instructions', 'chatgpt-project', 'grok', 'hermes', 'muse', 'openclaw'].sort(),
     );
+    const perProfile = (id: string) => profiles.filter((p) => p === id).length;
+    // Nine starters on each of the five picker profiles, plus the extras and the role goldens.
+    expect(perProfile('muse')).toBe(9);
+    expect(perProfile('openclaw')).toBe(9 + 1); // plus marty.openclaw.roles
+    expect(perProfile('hermes')).toBe(9 + 1); // plus rook.hermes.roles
+    expect(perProfile('grok')).toBe(9 + 1); // plus june.grok.roles
+    expect(perProfile('chatgpt-dot')).toBe(9);
+    expect(perProfile('chatgpt-instructions')).toBe(4); // marty and june, free and paid
+    expect(perProfile('chatgpt-project')).toBe(2 + 1); // marty and june, plus sol.chatgpt-project.roles
+  });
+
+  it('no golden spec is a gpt build', () => {
+    expect(GOLDEN_SPECS.filter((s) => s.mode === 'gpt').map((s) => s.id)).toEqual([]);
+    expect(GOLDEN_SPECS.filter((s) => s.id.includes('chatgpt-gpt')).map((s) => s.id)).toEqual([]);
   });
 
   // null is only legitimate for an unoffered `auto` setting. approve and forbid are always
@@ -330,6 +346,154 @@ describe('Gate in both layers (Brief Part C)', () => {
         expect(misses).toEqual([]);
       });
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Test 1b. The gpt mode is deprecated and has no goldens (B2), but the compiler keeps it, so the
+// both-layers rule is still checked on it for every roster starter.
+// ---------------------------------------------------------------------------
+
+describe('Gate in both layers on the deprecated gpt mode (B2)', () => {
+  it('gpt stays in the compiler, hidden from the picker and flagged deprecated', () => {
+    const card = library.targets.targets.find((t) => t.id === 'chatgpt');
+    const gpt = card?.modes?.find((m) => m.id === 'gpt');
+    expect(gpt?.hidden).toBe(true);
+    expect(gpt?.deprecated?.line).toBe('Custom GPTs retire on Dec 11, 2026.');
+    const shown = (card?.modes ?? []).filter((m) => m.hidden !== true).map((m) => m.id);
+    expect(shown).toEqual(['dot', 'project', 'instructions']);
+  });
+
+  const gptSpecs: GoldenSpec[] = library.roster.map((entry) => ({
+    id: `${entry.id}.chatgpt-gpt`,
+    starter: entry.id,
+    target: 'chatgpt',
+    mode: 'gpt',
+  }));
+
+  it('there is one gpt build per roster starter', () => {
+    expect(gptSpecs.length).toBe(9);
+  });
+
+  for (const spec of gptSpecs) {
+    describe(spec.id, () => {
+      it('resolves to the chatgpt-gpt profile with pay forbid and an approve or forbid gate to check', () => {
+        const c = compiled(spec);
+        expect(c.profileId).toBe('chatgpt-gpt');
+        expect(c.gates.pay).toBe('forbid');
+        expect(c.result.gates).toEqual(c.gates);
+        expect(enforced(c.gates).length).toBeGreaterThan(0);
+      });
+
+      it('personality layer: soul carries soulLine for every approve or forbid gate', () => {
+        expect(personalityMisses(compiled(spec))).toEqual([]);
+      });
+
+      it('rules layer: soul carries every approve or forbid rulesLine at least twice (top and bottom)', () => {
+        expect(rulesMisses(compiled(spec))).toEqual([]);
+      });
+    });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Test 1c. B1 length tiers never cost a gate. Tier A cuts the author's pack rules lines (every pack
+// rules line except pack.perps.rule.1) from a capped soul, Tier B switches chassis to short forms,
+// and neither touches a gate line. The library gates and the effective gate set decide what must
+// survive; the pack sets below are chosen to be rule-heavy so the tiers actually fire.
+// ---------------------------------------------------------------------------
+
+describe('Gate lines survive the B1 length tiers', () => {
+  const marty = library.roster.find((r) => r.id === 'marty');
+  if (!marty) throw new Error('roster starter marty is missing');
+
+  // Profiles with a tiered or tight cap, plus the free box that repeats gate lines only.
+  const targets: { label: string; target: Build['target']; mode?: Build['mode']; plan?: Build['plan'] }[] = [
+    { label: 'muse', target: 'muse' },
+    { label: 'hermes', target: 'hermes' },
+    { label: 'grok', target: 'grok' },
+    { label: 'openclaw', target: 'openclaw' },
+    { label: 'chatgpt-dot', target: 'chatgpt', mode: 'dot' },
+    { label: 'chatgpt-project', target: 'chatgpt', mode: 'project' },
+    { label: 'chatgpt-instructions-free', target: 'chatgpt', mode: 'instructions', plan: 'free' },
+    { label: 'chatgpt-instructions-paid', target: 'chatgpt', mode: 'instructions', plan: 'paid' },
+  ];
+
+  const packSets = combos(
+    library.packs.map((p) => p.id),
+    3,
+  ).filter((set) => set.length > 0);
+
+  for (const t of targets) {
+    it(`${t.label}: every set of one to three packs keeps both gate layers for every approve or forbid gate`, () => {
+      const base = migrate(marty.build, { target: t.target, mode: t.mode, plan: t.plan });
+      const bad: string[] = [];
+      for (const packs of packSets) {
+        const build: Build = { ...base, packs, gates: {}, limits: {} };
+        const c = compiledBuild(build);
+        const tag = `[${packs.join(', ')}]`;
+        for (const m of personalityMisses(c)) bad.push(`${tag} ${m}`);
+        for (const m of rulesMisses(c)) bad.push(`${tag} ${m}`);
+      }
+      expect(bad).toEqual([]);
+    });
+  }
+
+  // A rule-heavy build over the 4,000 cap: Tier A cuts every author pack rules line from the capped
+  // soul while Brian's perps line (origin brief) and every gate line stay. AGENTS.md keeps them all.
+  describe('a rule-heavy build on a 4,000 cap cuts author pack rules, never gates', () => {
+    const packs = ['memecoins', 'perps', 'spot'];
+    const lines = packs.flatMap((id) => packOf(id).rulesLines);
+    const author = lines.filter((l) => l.origin !== 'brief').map((l) => l.line);
+    const brief = lines.filter((l) => l.origin === 'brief').map((l) => l.line);
+
+    it('the pack set has author lines and exactly Brian\'s perps line', () => {
+      expect(author.length).toBeGreaterThan(0);
+      expect(lines.filter((l) => l.origin === 'brief').map((l) => l.id)).toEqual(['pack.perps.rule.1']);
+    });
+
+    for (const target of ['muse', 'hermes', 'grok'] as const) {
+      it(`${target}: soul has no author pack rules line, keeps Brian's line and every gate line`, () => {
+        const base = migrate(marty.build, { target });
+        const c = compiledBuild({ ...base, packs, gates: {}, limits: {} });
+        const soul = c.result.soul;
+        expect(author.filter((line) => soul.includes(line))).toEqual([]);
+        expect(brief.filter((line) => !soul.includes(line))).toEqual([]);
+        expect(personalityMisses(c)).toEqual([]);
+        expect(rulesMisses(c)).toEqual([]);
+      });
+    }
+
+    for (const target of ['hermes', 'openclaw'] as const) {
+      it(`${target}: AGENTS.md keeps every pack rules line, author lines included`, () => {
+        const base = migrate(marty.build, { target });
+        const c = compiledBuild({ ...base, packs, gates: {}, limits: {} });
+        const agents = fileText(c.result, 'AGENTS.md');
+        expect(agents).toBeDefined();
+        expect([...author, ...brief].filter((line) => !(agents ?? '').includes(line))).toEqual([]);
+      });
+    }
+  });
+
+  it('the free box bottom repeat holds the gate rules lines and no limit or pack rules line', () => {
+    const base = migrate(marty.build, { target: 'chatgpt', mode: 'instructions', plan: 'free' });
+    const bad: string[] = [];
+    for (const packs of packSets) {
+      const c = compiledBuild({ ...base, packs, gates: {}, limits: {} });
+      const gateRules = enforced(c.gates).map(([id, setting]) => gateOf(id).rulesLine[setting]);
+      // Limit and pack rules lines come from the library, never from the compiler output.
+      const otherRules = [
+        ...packsOfBuild(c.build).flatMap((p) => p.rulesLines.map((l) => l.line)),
+        ...library.limits.map((l) => l.rulesTemplate.split('{value}')[0]).filter((x) => x.trim().length > 0),
+      ].filter((line) => !gateRules.includes(line));
+      const lines = c.result.soul.split('\n');
+      // Each non-gate rule line may appear at most once (the top block); gate lines appear twice.
+      for (const line of otherRules) {
+        const n = lines.filter((l) => l.includes(line)).length;
+        if (n > 1) bad.push(`[${packs.join(', ')}]: "${line}" appears ${n} times, expected at most 1`);
+      }
+    }
+    expect(bad).toEqual([]);
   });
 });
 
