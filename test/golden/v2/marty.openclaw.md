@@ -175,20 +175,6 @@ These rules load for every agent and sub-agent and outrank SOUL.md.
 - Never ask for a seed phrase or private key, and never sign anything from a link, DM or airdrop.
 ```
 
-### USER.md (Memory, file)
-
-```md
-# About me
-
-- I trade memecoins.
-- I'm mostly on Solana.
-- I follow the NBA.
-- I'm up late.
-- My size and loss caps are percentages of the bankroll I name, not of what the wallet holds.
-- I treat any token that reaches me by DM, airdrop or reply as bait until I check it myself.
-- The hard part right now is I forget things.
-```
-
 ### skills/wallet_glance/SKILL.md (Skill: Wallet glance, file)
 
 ```md
@@ -289,6 +275,12 @@ trade: ask at the trade gate before any sell, swap or close. Without a yes, prop
 
 ## Spoken
 
+### Memory sentence
+
+```text
+Remember that I trade memecoins, I'm mostly on Solana, I follow the NBA, I'm up late, my size and loss caps are percentages of the bankroll I name, not of what the wallet holds, I treat any token that reaches me by DM, airdrop or reply as bait until I check it myself. The hard part right now is I forget things. Ask me about my positions when you need it.
+```
+
 ### Routine: Narrative watch
 
 ```text
@@ -306,16 +298,16 @@ A scheduled run follows the rules in AGENTS.md like any other run.
 ## Install steps
 
 1. Save SOUL.md at ~/.openclaw/workspace/SOUL.md.
-2. Save AGENTS.md and USER.md beside it, in the same folder.
+2. Save AGENTS.md beside it, in the same folder.
 3. Save each skill file at the path shown on it (skills/<id>/SKILL.md).
 4. If you added roles, each role compiles to its own agent workspace. Save its files as listed.
-5. Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether OpenClaw keeps routines in files or in chat.
+5. Say the memory sentence.
+6. Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether OpenClaw keeps routines in files or in chat.
 
 ## Notes
 
 - verify: OpenClaw keeps automations in its own database. Set routines up by chat or with the openclaw CLI, not as files.
 - verify: whether edits to SOUL.md and AGENTS.md apply on the next turn or only in a new session.
-- verify: OpenClaw's USER.md has its own format (one Always, Never or Prefer directive per entry, 4,000 characters); durable facts may belong in MEMORY.md.
 
 ## Gates
 

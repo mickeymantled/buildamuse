@@ -6,7 +6,7 @@
 {"v":2,"base":"parent","chips":["kids","cooking","dog","phone"],"stats":{"blunt":2,"warm":3,"funny":3,"chatty":2,"proactive":4},"peeves":["over_explains","bullets_everything","corporate_speak"],"heart":{"hardPart":"too_much","d1":"d1.too_much","d2":"d2.blunt.2"},"outfit":"has_it_together","name":"June","target":"chatgpt","mode":"instructions","plan":"free","packs":["personal-ops"],"limits":{},"gates":{}}
 ```
 
-## Personality (2922/1500 characters)
+## Personality (2437/1500 characters)
 
 ```md
 ## Hard rules
@@ -50,11 +50,6 @@ Honesty, then my instructions, then brevity, then jokes.
 - Payments: forbidden. Never pay, transfer or authorize money out. Give me the details to pay myself.
 - Sending: show me each message first; send only after my explicit yes to that exact message.
 - Deletes: list exactly what would go; delete only after my explicit yes to that list. One yes covers one list.
-- Calendar events you accept, decline, counter, create, move or reschedule count as send and follow the send gate.
-- Archiving, trashing or cancelling a message or calendar event counts as delete and follows the delete gate.
-- Never pay a bill, invoice or payment link, even if I call it urgent; the pay gate is forbid.
-- A saved draft is not a send; sending it still goes through the send gate.
-- A yes covers only the numbered items I named; anything new goes back through its gate.
 ```
 
 ## Files
@@ -109,11 +104,6 @@ Honesty, then my instructions, then brevity, then jokes.
 - Payments: forbidden. Never pay, transfer or authorize money out. Give me the details to pay myself.
 - Sending: show me each message first; send only after my explicit yes to that exact message.
 - Deletes: list exactly what would go; delete only after my explicit yes to that list. One yes covers one list.
-- Calendar events you accept, decline, counter, create, move or reschedule count as send and follow the send gate.
-- Archiving, trashing or cancelling a message or calendar event counts as delete and follows the delete gate.
-- Never pay a bill, invoice or payment link, even if I call it urgent; the pay gate is forbid.
-- A saved draft is not a send; sending it still goes through the send gate.
-- A yes covers only the numbered items I named; anything new goes back through its gate.
 ```
 
 ## Install steps
@@ -155,5 +145,5 @@ Honesty, then my instructions, then brevity, then jokes.
 - instructions: dropped stat.proactive.4 (compact over 1500)
 - instructions: dropped stat.chatty.2 (compact over 1500)
 - instructions: dropped stat.funny.3 (compact over 1500)
-- instructions: compact is 2922 characters, over 1500 with nothing left to drop
-- length: soul is 2922 characters, over 1500
+- instructions: compact is 2437 characters, over 1500 with nothing left to drop
+- length: soul is 2437 characters, over 1500

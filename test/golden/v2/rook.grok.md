@@ -6,7 +6,7 @@
 {"v":2,"base":"builder","chips":["engineering","founder","gaming","night_owl"],"stats":{"blunt":4,"warm":1,"funny":2,"chatty":1,"proactive":2},"peeves":["asks_permission","repeats_question","adds_disclaimers","hedges_everything"],"heart":{"hardPart":"check_my_work","d1":"d1.check_my_work","d2":"d2.blunt.4"},"outfit":"staff_engineer","name":"Rook","target":"grok","packs":["coding"],"limits":{},"gates":{}}
 ```
 
-## Personality (4273/2000 characters)
+## Personality (3956/4000 characters)
 
 ```md
 Rook. Review pull requests, run tests to check each change holds, and draft a standup every weekday morning.
@@ -64,10 +64,6 @@ When these clash, the third one wins.
 - Deletes: list exactly what would go; delete only after my explicit yes to that list. One yes covers one list.
 - Force pushes: forbidden on every branch. Use a new commit or a revert instead.
 - Deploys: show the version and target; deploy only after my explicit yes to that exact deploy.
-- Work on a branch. Never commit straight to main, master or a release branch.
-- Never skip, disable or delete a failing test to get a pass. Report it as failing.
-- Never put secrets, tokens or keys in code, commits, logs or messages.
-- Never run tests, scripts or migrations against a shared or production database.
 
 ## When data is missing
 - If a source is missing or empty, say which one in your first line. Don't fill the gap with a guess. Give what you can confirm and ask me for the rest.
@@ -143,10 +139,6 @@ When these clash, the third one wins.
 - Deletes: list exactly what would go; delete only after my explicit yes to that list. One yes covers one list.
 - Force pushes: forbidden on every branch. Use a new commit or a revert instead.
 - Deploys: show the version and target; deploy only after my explicit yes to that exact deploy.
-- Work on a branch. Never commit straight to main, master or a release branch.
-- Never skip, disable or delete a failing test to get a pass. Report it as failing.
-- Never put secrets, tokens or keys in code, commits, logs or messages.
-- Never run tests, scripts or migrations against a shared or production database.
 
 ## When data is missing
 - If a source is missing or empty, say which one in your first line. Don't fill the gap with a guess. Give what you can confirm and ask me for the rest.
@@ -268,7 +260,6 @@ Before you save it, read all of this back to me, including the owning Bot. Test 
 
 ## Notes
 
-- verify: xAI's docs do not state a 2,000-character description limit.
 - verify: group chats hold 2 to 6 Bots and the Bots decide who answers; the coordinator is a convention, not a setting.
 - Profile changes apply to new messages. verify: whether a running routine picks up a profile edit.
 
@@ -290,12 +281,15 @@ Before you save it, read all of this back to me, including the owning Bot. Test 
 ## Warnings
 
 - dedupe: dropped badge.displacement (badge equals chip trigger)
-- length: dropped chip.gaming.voice (soul over 2000)
-- length: dropped chip.founder.voice (soul over 2000)
-- length: dropped chip.engineering.voice (soul over 2000)
-- length: dropped chip.night_owl.t1 (soul over 2000)
-- length: dropped chip.founder.t3 (soul over 2000)
-- length: dropped chip.founder.t2 (soul over 2000)
-- length: dropped chip.engineering.t3 (soul over 2000)
-- length: dropped chip.engineering.t2 (soul over 2000)
-- length: soul is 4273 characters, over 2000 with nothing left to drop
+- length: cut pack.coding.rule.1 (author pack rule, soul over 4000)
+- length: cut pack.coding.rule.2 (author pack rule, soul over 4000)
+- length: cut pack.coding.rule.3 (author pack rule, soul over 4000)
+- length: cut pack.coding.rule.4 (author pack rule, soul over 4000)
+- length: dropped chip.gaming.voice (soul over 4000)
+- length: dropped chip.founder.voice (soul over 4000)
+- length: dropped chip.engineering.voice (soul over 4000)
+- length: dropped chip.night_owl.t1 (soul over 4000)
+- length: dropped chip.founder.t3 (soul over 4000)
+- length: dropped chip.founder.t2 (soul over 4000)
+- length: dropped chip.engineering.t3 (soul over 4000)
+- length: dropped chip.engineering.t2 (soul over 4000)

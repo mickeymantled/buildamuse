@@ -177,22 +177,6 @@ These rules load for every agent and sub-agent and outrank SOUL.md.
 - If a source is paywalled, say so and stop there. Never pay or subscribe to read it.
 ```
 
-### USER.md (Memory, file)
-
-```md
-# About me
-
-- I trade prediction markets.
-- I invest in stocks.
-- I'm up early.
-- I trade binary prediction markets, where a YES share pays 1 dollar, so 40 cents means 40 percent.
-- I judge every market by its resolution rules text, not by its title.
-- I want every market logged with my stated probability, the price and the final outcome.
-- I want a prep brief 7 days before any company I hold reports, not the morning of.
-- When you give me a number from a filing, I want the document name and section next to it.
-- The hard part right now is I need to talk things through.
-```
-
 ### skills/resolution-read/SKILL.md (Skill: Resolution read, file)
 
 ```md
@@ -287,6 +271,12 @@ trade: I only propose a ticket. No order is placed until I say yes to that ticke
 
 ## Spoken
 
+### Memory sentence
+
+```text
+Remember that I trade prediction markets, I invest in stocks, I'm up early, I trade binary prediction markets, where a YES share pays 1 dollar, so 40 cents means 40 percent, I judge every market by its resolution rules text, not by its title, I want every market logged with my stated probability, the price and the final outcome, I want a prep brief 7 days before any company I hold reports, not the morning of, when you give me a number from a filing, I want the document name and section next to it. The hard part right now is I need to talk things through.
+```
+
 ### Routine: Edge scan
 
 ```text
@@ -311,16 +301,16 @@ A scheduled run follows the rules in AGENTS.md like any other run.
 ## Install steps
 
 1. Save SOUL.md at ~/.openclaw/workspace/SOUL.md.
-2. Save AGENTS.md and USER.md beside it, in the same folder.
+2. Save AGENTS.md beside it, in the same folder.
 3. Save each skill file at the path shown on it (skills/<id>/SKILL.md).
 4. If you added roles, each role compiles to its own agent workspace. Save its files as listed.
-5. Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether OpenClaw keeps routines in files or in chat.
+5. Say the memory sentence.
+6. Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether OpenClaw keeps routines in files or in chat.
 
 ## Notes
 
 - verify: OpenClaw keeps automations in its own database. Set routines up by chat or with the openclaw CLI, not as files.
 - verify: whether edits to SOUL.md and AGENTS.md apply on the next turn or only in a new session.
-- verify: OpenClaw's USER.md has its own format (one Always, Never or Prefer directive per entry, 4,000 characters); durable facts may belong in MEMORY.md.
 
 ## Gates
 

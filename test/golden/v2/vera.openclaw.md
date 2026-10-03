@@ -146,16 +146,6 @@ These rules load for every agent and sub-agent and outrank SOUL.md.
 - Payments: forbidden. Never pay, transfer or authorize money out. Give me the details to pay myself.
 ```
 
-### USER.md (Memory, file)
-
-```md
-# About me
-
-- I'm a lawyer.
-- My days are meetings.
-- The hard part right now is I need my work checked.
-```
-
 ### skills/second_look/SKILL.md (Skill: Second look, file)
 
 ```md
@@ -180,19 +170,27 @@ any date in a message or file gets logged with the rule it comes from; weekly, w
 when I name a matter, the last three things that happened on it
 ```
 
+## Spoken
+
+### Memory sentence
+
+```text
+Remember that I'm a lawyer, my days are meetings. The hard part right now is I need my work checked. Ask me about my matters when you need it.
+```
+
 ## Install steps
 
 1. Save SOUL.md at ~/.openclaw/workspace/SOUL.md.
-2. Save AGENTS.md and USER.md beside it, in the same folder.
+2. Save AGENTS.md beside it, in the same folder.
 3. Save each skill file at the path shown on it (skills/<id>/SKILL.md).
 4. If you added roles, each role compiles to its own agent workspace. Save its files as listed.
-5. Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether OpenClaw keeps routines in files or in chat.
+5. Say the memory sentence.
+6. Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether OpenClaw keeps routines in files or in chat.
 
 ## Notes
 
 - verify: OpenClaw keeps automations in its own database. Set routines up by chat or with the openclaw CLI, not as files.
 - verify: whether edits to SOUL.md and AGENTS.md apply on the next turn or only in a new session.
-- verify: OpenClaw's USER.md has its own format (one Always, Never or Prefer directive per entry, 4,000 characters); durable facts may belong in MEMORY.md.
 
 ## Gates
 

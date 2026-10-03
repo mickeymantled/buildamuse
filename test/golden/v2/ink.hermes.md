@@ -6,7 +6,7 @@
 {"v":2,"base":"creator","chips":["creative","music"],"stats":{"blunt":2,"warm":3,"funny":4,"chatty":2,"proactive":2},"peeves":[],"heart":{"hardPart":"need_a_push","d1":"d1.need_a_push","d2":"d2.blunt.2"},"outfit":"cofounder","name":"Ink","target":"hermes","packs":[],"limits":{},"gates":{}}
 ```
 
-## Personality (3044/3600 characters)
+## Personality (3044/4000 characters)
 
 ```md
 ## Who you are
@@ -183,14 +183,13 @@ when I say "bank this," log it with the date; when I say "what's in the bank," r
 3. Save each skill file at the path shown on it (skills/<id>/SKILL.md).
 4. If you added roles, each role compiles to its own Hermes profile. Save its files as listed.
 5. Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether Hermes keeps routines in files or in chat.
-6. restart or new session; don't test with hermes -z
+6. Restart or start a new session. When testing, avoid --ignore-rules and --safe-mode; they skip SOUL.md.
 
 ## Notes
 
 - verify: Hermes loads AGENTS.md from the folder it runs in, not from ~/.hermes or a profile folder.
-- verify: hermes -z runs the same agent; --ignore-rules and --safe-mode are the modes that skip SOUL.md.
 - verify: whether a delegated agent loads its role profile's SOUL.md.
-- Restart Hermes or start a new session to load changes. Don't test with hermes -z.
+- Restart Hermes or start a new session to load changes. When testing, avoid --ignore-rules and --safe-mode.
 
 ## Gates
 

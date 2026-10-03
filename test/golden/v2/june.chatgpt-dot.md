@@ -235,8 +235,8 @@ A scheduled task follows my Custom Rules like any other run. If it can't ask me,
 - verify: whether dots read the custom instructions fields.
 - verify: whether a rule added mid-task applies to that task.
 - verify: when teams of dots arrive (flips supportsRoles).
-- verify: the Custom Rule options read Take action without asking, Take action when you say so, Ask before taking action, Hand off to you; none is named prevent (ChatGPT docs, 2026-10-01).
 - verify: Teams access for dots is an invite-only alpha, and dots can't call you at launch.
+- ChatGPT has no block setting; Hand off means it stops and gives the step to you.
 
 ## Gates
 
