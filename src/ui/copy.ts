@@ -128,6 +128,12 @@ export const copy = {
     required: 'Pick one to continue.',
   },
 
+  // World screen. Chip labels come from the library; group headings are copy.groups.
+  world: {
+    pickUpTo: (max: number) => `Pick up to ${max}`,
+    counterLabel: (n: number, max: number) => `${n} of ${max} chosen`,
+  },
+
   heart: {
     question: 'What is the hard part for you?',
     d1: 'It wants this first',
