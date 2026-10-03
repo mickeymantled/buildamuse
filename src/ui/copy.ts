@@ -180,6 +180,26 @@ export const copy = {
   // Certificate is M4. "Make this for <other target> instead" is verbatim from Part E.
   makeFor: (targetLabel: string) => `Make this for ${targetLabel} instead`,
 
+  // M3 placeholder headings for the plain-text bundle on the certificate screen. M4 replaces them.
+  certificate: {
+    name: 'Name',
+    soul: 'Personality',
+    seed: 'Memory sentence',
+    skills: 'Skills',
+    rules: 'Custom rules',
+    description: 'Description',
+    starters: 'Conversation starters',
+    steps: 'Install steps',
+    notes: 'Notes',
+    warnings: 'Warnings',
+  },
+
+  // Stub screens until their slice lands. The marker is deliberately visible.
+  todo: (slice: string) => `[TODO: slice ${slice}]`,
+  stub: {
+    fill: 'Use a placeholder for now',
+  },
+
   preview: {
     open: 'Preview',
     close: 'Close',
