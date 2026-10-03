@@ -116,13 +116,18 @@ export function validateCore(build: BuildCore & { v?: unknown }, lib: Library): 
     fail('outfit is not a known outfit id');
   }
 
-  // 12. name is a string whose trimmed length is 1..24.
+  // 12. name is a string whose trimmed length is 1..24, with no control characters or em dash.
   if (typeof build.name !== 'string') {
     fail('name must be a string');
   }
   const trimmedLength = build.name.trim().length;
   if (trimmedLength < 1 || trimmedLength > 24) {
     fail('name trimmed length must be 1..24');
+  }
+  // Any control character (C0, DEL, C1 including NEL) or line or paragraph separator, or an em
+  // dash, in a name reaches the output. cleanName turns all of these into a space or a hyphen.
+  if (/[\p{Cc}\u2028\u2029\u2014]/u.test(build.name)) {
+    fail('name must not contain control characters or an em dash');
   }
 }
 

@@ -16,6 +16,10 @@ export interface Toggle3Props {
   locked?: boolean;
   /** Why it is locked. Shown with a lock icon and read as the group's description. */
   lockedMessage?: string;
+  /** Options that cannot be picked (aria-disabled, skipped by the arrow keys). The current value still shows. */
+  disabledOptions?: GateSetting[];
+  /** Why those options are off. Shown as a caption and read as the group's description. */
+  disabledHint?: string;
   className?: string;
 }
 
@@ -30,26 +34,41 @@ export function Toggle3({
   labels,
   locked = false,
   lockedMessage,
+  disabledOptions,
+  disabledHint,
   className,
 }: Toggle3Props) {
   const uid = useId();
   const labelId = `${uid}-l`;
   const lockId = `${uid}-k`;
+  const hintId = `${uid}-h`;
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
 
+  const isOff = (option: GateSetting) => disabledOptions?.includes(option) ?? false;
+  const showLock = locked && !!lockedMessage;
+  const showHint = !!disabledHint && !!disabledOptions && disabledOptions.length > 0;
+  const describedBy = [showLock ? lockId : null, showHint ? hintId : null].filter(Boolean).join(' ');
+
   function select(next: GateSetting, focus: boolean) {
-    if (locked) return;
+    if (locked || isOff(next)) return;
     if (focus) refs.current[ORDER.indexOf(next)]?.focus();
     if (next !== value) onChange(next);
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     const at = ORDER.indexOf(value);
+    // Walk from `from` in `dir` to the first option that is on; stay put when there is none.
+    const walk = (from: number, dir: 1 | -1): number => {
+      for (let i = from; i >= 0 && i < ORDER.length; i += dir) {
+        if (!isOff(ORDER[i])) return i;
+      }
+      return at;
+    };
     let to: number;
-    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') to = Math.min(ORDER.length - 1, at + 1);
-    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') to = Math.max(0, at - 1);
-    else if (e.key === 'Home') to = 0;
-    else if (e.key === 'End') to = ORDER.length - 1;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') to = walk(at + 1, 1);
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') to = walk(at - 1, -1);
+    else if (e.key === 'Home') to = walk(0, 1);
+    else if (e.key === 'End') to = walk(ORDER.length - 1, -1);
     else return;
     e.preventDefault();
     select(ORDER[to], true);
@@ -71,12 +90,13 @@ export function Toggle3({
       <div
         role="radiogroup"
         aria-labelledby={labelId}
-        aria-describedby={locked && lockedMessage ? lockId : undefined}
+        aria-describedby={describedBy || undefined}
         onKeyDown={onKeyDown}
         className="grid grid-cols-3 gap-1 rounded-xl border border-[color:var(--border)] bg-[color:var(--bg)] p-1"
       >
         {ORDER.map((option, i) => {
           const on = option === value;
+          const off = isOff(option);
           return (
             <button
               key={option}
@@ -86,7 +106,7 @@ export function Toggle3({
               type="button"
               role="radio"
               aria-checked={on}
-              aria-disabled={locked || undefined}
+              aria-disabled={locked || off || undefined}
               tabIndex={on ? 0 : -1}
               onClick={() => select(option, false)}
               className={cx(
@@ -95,8 +115,8 @@ export function Toggle3({
                 on
                   ? `${option === 'forbid' ? 'bg-[color:var(--danger)]' : 'bg-[color:var(--accent)]'} ${ON_FILL}`
                   : 'text-[color:var(--text)]',
-                locked && 'cursor-not-allowed',
-                locked && !on && 'opacity-50',
+                (locked || off) && 'cursor-not-allowed',
+                (locked || off) && !on && 'opacity-50',
               )}
             >
               {on && locked && <LockIcon className="h-3.5 w-3.5 shrink-0" />}
@@ -105,10 +125,15 @@ export function Toggle3({
           );
         })}
       </div>
-      {locked && lockedMessage && (
+      {showLock && (
         <p id={lockId} className="flex items-start gap-1.5 text-sm text-[color:var(--muted)]">
           <LockIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <span>{lockedMessage}</span>
+        </p>
+      )}
+      {showHint && (
+        <p id={hintId} className="text-sm text-[color:var(--muted)]">
+          {disabledHint}
         </p>
       )}
     </div>

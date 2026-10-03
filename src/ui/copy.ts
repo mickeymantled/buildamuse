@@ -209,6 +209,7 @@ export const copy = {
     } satisfies Record<GateSetting, string>,
     locked: 'Locked',
     payLocked: 'Payments are always off.',
+    autoNotOffered: "Auto isn't offered for this one; it asks first.",
     none: 'Nothing to approve for your picks.',
     switchToPaid: 'Switch to Paid',
   },

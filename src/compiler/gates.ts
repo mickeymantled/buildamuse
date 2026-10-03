@@ -48,6 +48,14 @@ function inOrder<T>(map: Map<string, T>, registry: string[]): Record<string, T> 
   return out;
 }
 
+// Auto is offered only where the library gives it soul text. A null auto line means the library
+// treats auto as approve: publish, delete, write_query and force_push, and pay (forced to forbid).
+// An action the library does not know is not offered either.
+export function autoOffered(action: ActionId, lib: Library): boolean {
+  const gate = lib.gates.find((g) => g.id === action);
+  return gate !== undefined && gate.soulLine.auto !== null;
+}
+
 export function effectiveGates(build: Build, lib: Library): Record<ActionId, GateSetting> {
   const gates = new Map<ActionId, GateSetting>([['pay', 'forbid']]);
   for (const pack of selectedPacks(build, lib)) {
@@ -62,6 +70,12 @@ export function effectiveGates(build: Build, lib: Library): Record<ActionId, Gat
     }
   }
   gates.set('pay', 'forbid');
+  // Clamp last, so neither a pack default nor an override can reach auto where it is not offered.
+  for (const [action, setting] of gates) {
+    if (setting === 'auto' && !autoOffered(action, lib)) {
+      gates.set(action, 'approve');
+    }
+  }
   return inOrder(
     gates,
     lib.gates.map((g) => g.id),

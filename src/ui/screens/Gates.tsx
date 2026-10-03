@@ -1,4 +1,5 @@
 import { useShallow } from 'zustand/react/shallow';
+import { autoOffered } from '../../compiler/gates.js';
 import library from '../../library/index.js';
 import { FOCUS, ON_FILL, cx } from '../components/cx';
 import { Toggle3 } from '../components/Toggle3';
@@ -70,6 +71,8 @@ export function Gates() {
           if (!gate) return null;
           const locked = id === 'pay';
           const value = values[id] ?? 'forbid';
+          // Pay stays locked; the other gates with no auto line show Auto off and say why.
+          const noAuto = !locked && !autoOffered(id, library);
           return (
             <Toggle3
               key={id}
@@ -80,6 +83,8 @@ export function Gates() {
               labels={labels}
               locked={locked}
               lockedMessage={locked ? copy.gates.payLocked : undefined}
+              disabledOptions={noAuto ? ['auto'] : undefined}
+              disabledHint={noAuto ? copy.gates.autoNotOffered : undefined}
             />
           );
         })}
