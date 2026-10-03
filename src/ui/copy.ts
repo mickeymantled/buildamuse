@@ -154,6 +154,13 @@ export const copy = {
     count: (n: number, max: number) => `${n}/${max}`,
   },
 
+  // Limits screen. Labels, units and venue notes come from the library.
+  limits: {
+    none: 'Nothing to set for your picks.',
+    lower: (label: string) => `Lower ${label}`,
+    raise: (label: string) => `Raise ${label}`,
+  },
+
   gates: {
     // Plain labels for the three settings, and one line each saying what it means.
     settings: {
