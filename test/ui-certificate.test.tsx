@@ -140,8 +140,28 @@ function copyTextOf(block: HTMLElement): string {
   return pre ? textOf(pre) : textOf(block.querySelector('p') as HTMLElement);
 }
 
-const copyButtonIn = (block: HTMLElement) =>
-  within(block).getByRole('button', { name: copy.certificate.copyButton.label });
+// A copy button is named "Copy <block title>" (brief item 3), and its visible text stays "Copy". A copy
+// block is named from its h2 or h3. A custom rule card has no heading, so it is named from the library
+// label of the gate its rule is for, which the caller passes as `title`.
+function copyNameOf(block: HTMLElement, title?: string): string {
+  const heading = block.querySelector('h2, h3');
+  const named = title ?? (heading ? textOf(heading) : undefined);
+  if (named === undefined) throw new Error('test setup: a custom rule card needs the label of its gate');
+  return copy.certificateUi.copyBlock(named);
+}
+
+const copyButtonsIn = (block: HTMLElement, title?: string) =>
+  within(block).getAllByRole('button', { name: copyNameOf(block, title) });
+
+const copyButtonIn = (block: HTMLElement, title?: string) =>
+  within(block).getByRole('button', { name: copyNameOf(block, title) });
+
+// After a tap the button keeps its name. The new state is its visible text and the polite status line
+// beside it, so both are read.
+function expectCopyState(block: HTMLElement, button: HTMLElement, text: string): void {
+  expect(textOf(button).trim()).toBe(text);
+  expect(textOf(within(block).getByRole('status'))).toBe(text);
+}
 
 // Taps every Show more until none is left.
 function expandAll(): void {
@@ -426,8 +446,9 @@ describe('Muse June', () => {
 
     const expected: string[] = [];
     for (const block of blocks) {
-      const buttons = within(block).getAllByRole('button', { name: copy.certificate.copyButton.label });
+      const buttons = copyButtonsIn(block);
       expect(buttons, textOf(block.querySelector('h2, h3') as Element)).toHaveLength(1);
+      expect(textOf(buttons[0]).trim()).toBe(copy.certificate.copyButton.label);
       expected.push(copyTextOf(block));
       await user.click(buttons[0]);
     }
@@ -444,8 +465,12 @@ describe('Muse June', () => {
     const user = userEvent.setup();
     open(build);
     const [first] = blocksIn(main());
-    await user.click(copyButtonIn(first));
-    expect(within(first).getByRole('button', { name: copy.certificate.copyButton.copied })).toBeTruthy();
+    const button = copyButtonIn(first);
+    expect(textOf(button).trim()).toBe(copy.certificate.copyButton.label);
+    await user.click(button);
+    // The name does not change; the confirmation is the visible text and the status line.
+    expect(copyButtonIn(first)).toBe(button);
+    expectCopyState(first, button, copy.certificate.copyButton.copied);
   });
 
   it('lists the five trimmed pack rules under Left out, with the library text', () => {
@@ -457,10 +482,13 @@ describe('Muse June', () => {
     expect(rules).toHaveLength(5);
     const shownTexts = blocksIn(group).map(copyTextOf);
     expect(shownTexts).toEqual(rules);
-    // Each is titled by its pack.
-    for (const block of blocksIn(group)) {
-      expect(textOf(block.querySelector('h3') as Element)).toBe(packOf('personal-ops').label);
-    }
+    // Each is titled "<pack label>, rule n", numbered from 1 in the order shown (F3a), so every title
+    // on the list is different.
+    const label = packOf('personal-ops').label;
+    const titles = blocksIn(group).map((block) => textOf(block.querySelector('h3') as Element));
+    expect(titles).toEqual(rules.map((_, i) => copy.certificate.blockTitles.packRule(label, i + 1)));
+    expect(titles.every((t) => new RegExp(`^${label}, rule [1-9][0-9]*$`).test(t))).toBe(true);
+    expect(new Set(titles).size).toBe(titles.length);
   });
 
   it('says in the summary how many rules were left out, naming the pack (W25)', () => {
@@ -547,8 +575,11 @@ describe('Dot Marty', () => {
     open(build);
     const step2 = stepWith(dot.installSteps[1].line);
     const cards = blocksIn(step2);
-    for (const card of cards) await user.click(copyButtonIn(card));
-    expect(rig.copied).toEqual(expectedRules(packGates).map((r) => r.action));
+    const rules = expectedRules(packGates);
+    expect(cards).toHaveLength(rules.length);
+    // A rule card's copy button is named from its gate label, not from its action text.
+    for (const [i, card] of cards.entries()) await user.click(copyButtonIn(card, gateOf(rules[i].gate).label));
+    expect(rig.copied).toEqual(rules.map((r) => r.action));
   });
 
   it('shows the dot note with the table, once, and not as a separate Notes list', () => {
@@ -634,7 +665,7 @@ describe('OpenClaw Marty', () => {
       // The path sits in the same block as its file text.
       const block = pathEl.closest('[role="group"]') as HTMLElement;
       expect(block.querySelector('pre'), path).not.toBeNull();
-      expect(within(block).getByRole('button', { name: copy.certificate.copyButton.label })).toBeTruthy();
+      expect(copyButtonIn(block)).toBeTruthy();
     }
     // Schedule skills are routines, so they are not files.
     for (const s of packOf('memecoins').skills.filter((x) => x.kind === 'schedule')) {
@@ -1466,8 +1497,9 @@ describe('when both copy paths fail', () => {
     rig.exec.mockImplementation(() => false);
     open(golden('june.muse'));
     const block = screen.getByRole('group', { name: copy.certificate.soul });
-    fireEvent.click(copyButtonIn(block));
-    expect(within(block).getByRole('button', { name: copy.certificate.copyButton.failed })).toBeTruthy();
+    const button = copyButtonIn(block);
+    fireEvent.click(button);
+    expectCopyState(block, button, copy.certificate.copyButton.failed);
     expect(window.getSelection()?.toString()).toBe(textOf(block.querySelector('pre') as Element));
   });
 
@@ -1475,8 +1507,9 @@ describe('when both copy paths fail', () => {
     rig.exec.mockImplementation(() => false);
     open(golden('marty.chatgpt-dot'));
     const [card] = blocksIn(stepWith(profileById('chatgpt-dot').installSteps[1].line));
-    fireEvent.click(copyButtonIn(card));
-    expect(within(card).getByRole('button', { name: copy.certificate.copyButton.failed })).toBeTruthy();
+    const button = copyButtonIn(card, gateOf('trade').label);
+    fireEvent.click(button);
+    expectCopyState(card, button, copy.certificate.copyButton.failed);
     expect(window.getSelection()?.toString()).toBe(gateOf('trade').customRuleText);
   });
 
@@ -1600,6 +1633,27 @@ describe('every golden build and a gpt variant of each starter', () => {
   ];
   const packRuleLines = new Set(library.packs.flatMap((p) => p.rulesLines.map((l) => l.line)));
 
+  // F3a: a ChatGPT dot (rulesDelivery custom-rules) carries only gates, so its Left out holds the
+  // build's limit lines too. Derived from the library tables: each pack's limitsDefault merged by the
+  // limit's `stricter` direction, the build's own limits on top, filled into the limit's rulesTemplate.
+  const limitLinesOf = (build: Build): string[] => {
+    const values = new Map<string, number>();
+    for (const id of build.packs) {
+      for (const [limit, value] of Object.entries(packOf(id).limitsDefault)) {
+        const current = values.get(limit);
+        const stricter = library.limits.find((l) => l.id === limit)?.stricter;
+        if (current === undefined) values.set(limit, value);
+        else values.set(limit, stricter === 'higher' ? Math.max(current, value) : Math.min(current, value));
+      }
+    }
+    for (const [limit, value] of Object.entries(build.limits)) values.set(limit, value);
+    return library.limits
+      .filter((l) => values.has(l.id))
+      .map((l) => l.rulesTemplate.replaceAll('{value}', String(values.get(l.id))));
+  };
+  const packRulesOf = (build: Build): string[] =>
+    build.packs.flatMap((id) => packOf(id).rulesLines.map((l) => l.line));
+
   it('covers 55 golden builds and nine gpt variants', () => {
     expect(GOLDEN_SPECS).toHaveLength(55);
     expect(CASES).toHaveLength(64);
@@ -1630,9 +1684,16 @@ describe('every golden build and a gpt variant of each starter', () => {
     for (const text of new Set(expected)) {
       expect(count(pres, text), `"${text.slice(0, 50)}" shows as many times as it is made`).toBe(count(expected, text));
     }
-    // Anything else on the page is a cut pack rule under Left out, with the library's text.
+    // Anything else on the page is under Left out, with the library's text: a cut pack rule, and on a
+    // dot also the build's limit lines (F3a).
     const extras = pres.filter((t) => !expected.includes(t));
-    for (const text of extras) expect(packRuleLines.has(text), `extra block "${text.slice(0, 50)}"`).toBe(true);
+    const isDot = build.target === 'chatgpt' && build.mode === 'dot';
+    const allowed = new Set<string>(isDot ? [...packRuleLines, ...limitLinesOf(build)] : packRuleLines);
+    for (const text of extras) expect(allowed.has(text), `extra block "${text.slice(0, 50)}"`).toBe(true);
+    if (isDot) {
+      // A dot lists every limit line and every pack rules line once, and nothing else.
+      expect([...extras].sort()).toEqual([...limitLinesOf(build), ...packRulesOf(build)].sort());
+    }
 
     // Every custom rule is a card with its action once.
     const cards = blocksIn(main()).filter((b) => !b.querySelector('pre'));
@@ -1643,12 +1704,18 @@ describe('every golden build and a gpt variant of each starter', () => {
     expect(blocks.length).toBe(pres.length + cards.length);
     rig.copied.length = 0;
     const shownTexts: string[] = [];
+    // The cards come in the order of the compile's rules, so each is named from the next rule's gate label.
+    const gateLabels = result.customRules.map((r) => gateOf(r.gate).label);
+    let cardIndex = 0;
     for (const block of blocks) {
-      const buttons = within(block).getAllByRole('button', { name: copy.certificate.copyButton.label });
+      const isCard = block.querySelector('pre') === null;
+      const buttons = copyButtonsIn(block, isCard ? gateLabels[cardIndex++] : undefined);
       expect(buttons).toHaveLength(1);
+      expect(textOf(buttons[0]).trim()).toBe(copy.certificate.copyButton.label);
       shownTexts.push(copyTextOf(block));
       fireEvent.click(buttons[0]);
     }
+    expect(cardIndex, 'every custom rule card was named from a gate label').toBe(gateLabels.length);
     expect(rig.copied).toEqual(shownTexts);
 
     // Headings never skip a level: h1, then h2, then h3 under an h2.

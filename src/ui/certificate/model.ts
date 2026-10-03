@@ -19,6 +19,7 @@ import type {
   Trimmed,
 } from '../../compiler/types.js';
 import { artifactKindOf } from '../../compiler/types.js';
+import { rulesItems } from '../../compiler/gates.js';
 import library from '../../library/index.js';
 import type { Drop, DropField } from '../../share/encode.js';
 import { zipFilename } from '../../share/zip.js';
@@ -98,13 +99,15 @@ export interface CertModel {
   summary: CertSummaryItem[];
   steps: CertStep[]; // closers last with n null
   extra: CertGroup[]; // artifacts no step shows
-  leftOut?: CertGroup; // trimmed pack rule lines, on muse and grok
+  leftOut?: CertGroup; // pack rule lines cut to fit (muse, grok), or limits and pack rules a dot cannot carry
+  leftOutHint?: string; // the line under the Left out heading; present with leftOut
   notes: BundleNote[]; // non-verify notes
   stillChecking: BundleNote[]; // verify notes without the "verify: " prefix
   docs: { label: string; url: string; date: string };
   skipped: string[];
   details: string[];
-  meter: { length: number; cap: number; label: string };
+  // `near` is true within NEAR_CAP of the cap and not over it; `hint` is then the shorten caption.
+  meter: { length: number; cap: number; label: string; near: boolean; hint?: string };
   zip?: { filename: string; files: { path: string; content: string }[] };
 }
 
@@ -115,10 +118,13 @@ const SHOW_FIRST = 3;
 // is harmless: the summary then shows the retirement line alone and the record stays where it is.
 const DOT_NOTE_ID = 'profile.chatgpt-dot.note.1';
 const GPT_CREATION_NOTE_ID = 'profile.chatgpt-gpt.note.1';
-// Profiles where a cut pack rule can leave the bundle entirely, so the user can add it back by hand.
+// Profiles where a rule can leave the bundle entirely, so the user can add it back by hand.
 // On Hermes the cut is from SOUL.md only and AGENTS.md still carries the rule, so a rule is listed
-// only when no rules file carries it either.
-const LEFT_OUT_PROFILES: readonly ProfileId[] = ['muse', 'grok'];
+// only when no rules file carries it either. A dot (rulesDelivery custom-rules) carries only gates,
+// so there every limit line and every pack rules line is left out.
+const LEFT_OUT_PROFILES: readonly ProfileId[] = ['muse', 'grok', 'chatgpt-dot'];
+// The meter turns "near" this many characters under the cap (library doc: amber at 3,200 of 3,600).
+export const NEAR_CAP = 400;
 const STAT_IDS: readonly StatId[] = ['blunt', 'warm', 'funny', 'chatty', 'proactive', 'risk'];
 
 function sameList(a: readonly string[], b: readonly string[]): boolean {
@@ -446,7 +452,8 @@ function trimmedSummary(
   return out;
 }
 
-// The cut pack rules no rules file carries, as blocks the user can add back by hand.
+// The cut pack rules no rules file carries, as blocks the user can add back by hand. Each is titled
+// "<pack label>, rule n", numbered within its pack in the order shown.
 function leftOutGroup(
   trimmed: readonly Trimmed[],
   carriers: ReadonlyMap<string, string[]>,
@@ -455,20 +462,69 @@ function leftOutGroup(
   const lines = trimmed.filter((t) => t.kind === 'pack-rule' && !carriers.has(t.id));
   if (lines.length === 0) return undefined;
   const key = 'left-out';
+  const counts = new Map<string, number>();
   return {
     key,
     heading: copy.certificate.groups.leftOut,
-    blocks: lines.map(
-      (t, i): CertBlock => ({
+    blocks: lines.map((t, i): CertBlock => {
+      const label = t.pack !== undefined ? lib.packs.find((p) => p.id === t.pack)?.label : undefined;
+      let title = t.id;
+      if (label !== undefined) {
+        const n = (counts.get(label) ?? 0) + 1;
+        counts.set(label, n);
+        title = copy.certificate.blockTitles.packRule(label, n);
+      }
+      return {
         key: `${key}-b${i}`,
         kind: 'rules',
-        title: (t.pack !== undefined ? lib.packs.find((p) => p.id === t.pack)?.label : undefined) ?? t.id,
+        title,
         text: t.text,
         ids: [t.id],
         ...(t.path !== undefined ? { path: t.path } : {}),
-      }),
-    ),
+      };
+    }),
   };
+}
+
+// What a custom-rules profile (the ChatGPT dot) cannot carry: the build's limit lines, then every pack
+// rules line. The text comes from rulesItems, the builder the other profiles use, so it is identical.
+interface DotLeftOut {
+  group?: CertGroup;
+  limits: number;
+  rules: number;
+}
+
+function dotLeftOut(build: Build, result: CompileResult, lib: Library): DotLeftOut {
+  const items = rulesItems(build, result.gates, result.limits, lib, 'rules');
+  const packOf = new Map<string, string>(); // rule id to its pack label
+  for (const id of build.packs) {
+    const pack = lib.packs.find((p) => p.id === id);
+    if (pack === undefined) continue;
+    for (const rule of pack.rulesLines) if (!packOf.has(rule.id)) packOf.set(rule.id, pack.label);
+  }
+  const counts = new Map<string, number>();
+  const key = 'left-out';
+  const blocks: CertBlock[] = [];
+  let limits = 0;
+  let rules = 0;
+  for (const item of items) {
+    let title: string;
+    if (item.kind === 'limit') {
+      limits += 1;
+      title = lib.limits.find((l) => `limit.${l.id}` === item.id)?.label ?? item.id;
+    } else if (item.kind === 'pack-rule') {
+      rules += 1;
+      const label = packOf.get(item.id);
+      const n = (counts.get(label ?? '') ?? 0) + 1;
+      counts.set(label ?? '', n);
+      title = label !== undefined ? copy.certificate.blockTitles.packRule(label, n) : item.id;
+    } else {
+      continue;
+    }
+    blocks.push({ key: `${key}-b${blocks.length}`, kind: 'rules', title, text: item.text, ids: [item.id] });
+  }
+  if (blocks.length === 0) return { limits, rules };
+  return { group: { key, heading: copy.certificate.groups.leftOut, blocks }, limits, rules };
 }
 
 export function certificateModel(input: CertInput, lib: Library = library): CertModel {
@@ -576,6 +632,24 @@ export function certificateModel(input: CertInput, lib: Library = library): Cert
       items: result.undelivered.map((u) => u.name),
     });
   }
+  const dot = profile.rulesDelivery === 'custom-rules' ? dotLeftOut(build, result, lib) : undefined;
+  if (dot !== undefined && dot.limits + dot.rules > 0) {
+    summary.push({
+      key: 'summary-undelivered-dot',
+      kind: 'undelivered',
+      text: c.summary.undeliveredDot(target, dot.limits, dot.rules),
+    });
+  }
+  // A dot enforces an auto gate as "Take action without asking", and its limits never reach it, so the
+  // two facts are tied together in one line (final safety review advisory; QUESTIONS W40).
+  if (dot !== undefined && dot.limits > 0 && autoLabels.length > 0) {
+    summary.push({
+      key: 'summary-dot-auto',
+      kind: 'auto',
+      text: c.summary.dotAutoNoLimits(autoLabels.length),
+      items: autoLabels,
+    });
+  }
   if (deprecatedMode !== undefined) {
     summary.push({
       key: 'summary-deprecated',
@@ -604,9 +678,12 @@ export function certificateModel(input: CertInput, lib: Library = library): Cert
     .map((f) => ({ path: f.path, content: f.content }));
   const tagline =
     input.starterId === undefined ? undefined : lib.roster.find((r) => r.id === input.starterId)?.tagline;
-  const leftOut = LEFT_OUT_PROFILES.includes(profile.id)
-    ? leftOutGroup(result.trimmed, rulesCarriers(result.files), lib)
-    : undefined;
+  const leftOut = !LEFT_OUT_PROFILES.includes(profile.id)
+    ? undefined
+    : dot !== undefined
+      ? dot.group
+      : leftOutGroup(result.trimmed, rulesCarriers(result.files), lib);
+  const near = result.length > cap - NEAR_CAP && result.length <= cap;
 
   return {
     header: {
@@ -622,7 +699,9 @@ export function certificateModel(input: CertInput, lib: Library = library): Cert
     summary,
     steps,
     extra,
-    ...(leftOut !== undefined ? { leftOut } : {}),
+    ...(leftOut !== undefined
+      ? { leftOut, leftOutHint: dot !== undefined ? c.sections.leftOutDotHint : c.sections.leftOutHint }
+      : {}),
     notes,
     // The creation-off record is in the summary, so the verify list does not repeat it.
     stillChecking: result.noteItems
@@ -631,7 +710,13 @@ export function certificateModel(input: CertInput, lib: Library = library): Cert
     docs: { label: profile.label, url: result.docUrl, date: result.docReadDate },
     skipped,
     details: [...result.warnings, ...input.decodeWarnings],
-    meter: { length: result.length, cap, label: copy.preview.length(result.length, cap) },
+    meter: {
+      length: result.length,
+      cap,
+      label: copy.preview.length(result.length, cap),
+      near,
+      ...(near ? { hint: c.meter.hint } : {}),
+    },
     ...(zipFiles.length > 0
       ? { zip: { filename: zipFilename(build.name, profile.id), files: zipFiles } }
       : {}),

@@ -1,4 +1,5 @@
-import { Actions } from '../certificate/Actions';
+import { useEffect, useRef, useState } from 'react';
+import { Actions, CopyLinkRow } from '../certificate/Actions';
 import { Group } from '../certificate/Block';
 import type { MineSlot } from '../certificate/Block';
 import { Header } from '../certificate/Header';
@@ -23,6 +24,16 @@ export function Certificate() {
   const back = useBuilder((s) => s.back);
   const setPlan = useBuilder((s) => s.setPlan);
   const setMineOn = useBuilder((s) => s.setMineOn);
+  const root = useRef<HTMLDivElement>(null);
+  const [paidTaps, setPaidTaps] = useState(0);
+
+  // The Switch to Paid button is gone once it is tapped, so focus goes to the heading. The page stays
+  // where it is; the summary's live region says what changed.
+  useEffect(() => {
+    if (paidTaps === 0) return;
+    const scope: ParentNode = root.current?.closest('main') ?? document;
+    scope.querySelector<HTMLElement>('h1')?.focus({ preventScroll: true });
+  }, [paidTaps]);
 
   // A link certificate has nothing behind it, so Back is hidden there.
   const backButton = showBack ? { label: copy.buttons.back, onClick: back } : undefined;
@@ -46,9 +57,18 @@ export function Certificate() {
 
   return (
     <Screen title={copy.certificate.title(model.header.name)} back={backButton}>
-      <div className="flex flex-col gap-8">
-        <Header header={model.header} />
-        <Summary items={model.summary} onSwitchToPaid={() => setPlan('paid')} />
+      <div ref={root} className="flex flex-col gap-8">
+        <div className="flex flex-col gap-4">
+          <Header header={model.header} />
+          <CopyLinkRow />
+        </div>
+        <Summary
+          items={model.summary}
+          onSwitchToPaid={() => {
+            setPlan('paid');
+            setPaidTaps((n) => n + 1);
+          }}
+        />
         <Steps steps={model.steps} mineSlot={mineSlot} />
         {hasMine && anchor === undefined && mineNode}
         {model.extra.length > 0 && (
@@ -60,7 +80,7 @@ export function Certificate() {
           </section>
         )}
         {model.leftOut !== undefined && (
-          <Group group={model.leftOut} hint={copy.certificate.sections.leftOutHint} />
+          <Group group={model.leftOut} hint={model.leftOutHint ?? copy.certificate.sections.leftOutHint} />
         )}
         <Notes notes={model.notes} />
         <StillChecking items={model.stillChecking} docs={model.docs} />
@@ -73,6 +93,8 @@ export function Certificate() {
             cap={model.meter.cap}
             valueLabel={model.meter.label}
             overLabel={copy.preview.over(model.meter.length - model.meter.cap)}
+            near={model.meter.near}
+            hint={model.meter.hint}
           />
           <Actions />
         </div>

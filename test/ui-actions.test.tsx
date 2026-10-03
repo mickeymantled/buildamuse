@@ -163,11 +163,21 @@ const stepList = () => screen.getByRole('list', { name: copy.certificate.steps }
 const stepTexts = (): string[] =>
   Array.from(stepList().children).map((li) => li.querySelector('p')?.textContent ?? '');
 
-// The button reads "Copy link", or "Link copied" for two seconds after a copy.
-const copyLinkButton = () =>
-  screen.getByRole('button', {
+// Copy link shows twice (brief item 5): once in the row under the header and once in the footer with the
+// other actions. Each reads "Copy link", or "Link copied" for two seconds after its own tap. The two are in
+// document order, so the header's is first and the footer's is last. Every use of the helper below checks
+// that there are exactly two.
+const copyLinkButtons = (): HTMLElement[] => {
+  const found = screen.getAllByRole('button', {
     name: (name) => name === copy.actions.copyLink || name === copy.actions.linkCopied,
   });
+  expect(found, 'Copy link shows twice: under the header and in the footer').toHaveLength(2);
+  return found;
+};
+// The footer's Copy link, which is what this file's tests are about. The header's has its own tests in
+// test/ui-certificate-review.test.tsx.
+const copyLinkButton = () => copyLinkButtons()[1] as HTMLElement;
+const headerCopyLinkButton = () => copyLinkButtons()[0] as HTMLElement;
 const shareButton = () => screen.getByRole('button', { name: copy.actions.share });
 const zipButton = () => screen.getByRole('button', { name: copy.actions.downloadZip });
 const remixButton = () => screen.getByRole('button', { name: copy.buttons.remix });
@@ -402,6 +412,20 @@ describe('Copy link', () => {
     expect(copyLinkButton().tagName).toBe('BUTTON');
   });
 
+  it('shows twice, and the one this file tests is in the footer with the other actions', () => {
+    stubShare();
+    open(golden('marty.openclaw'));
+    const [header, footer] = copyLinkButtons();
+    expect(header).not.toBe(footer);
+    // The footer's button shares its block with Remix; the header's does not.
+    const block = footer.closest('div')?.parentElement as HTMLElement;
+    expect(block.contains(remixButton())).toBe(true);
+    expect(block.contains(zipButton())).toBe(true);
+    expect(block.contains(header)).toBe(false);
+    // The header's comes first in the page.
+    expect(header.compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('copies a link inside the tap that decodes to the same build the store holds', async () => {
     const user = userEvent.setup();
     open(golden('june.openclaw'));
@@ -446,21 +470,28 @@ describe('Copy link', () => {
     open(golden('june.muse'));
     // Fake timers go on after the app is open, so only the revert timer is under test control.
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
-    fireEvent.click(copyLinkButton());
-    expect(screen.getByRole('button', { name: copy.actions.linkCopied })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: copy.actions.copyLink })).toBeNull();
+    const header = headerCopyLinkButton();
+    const footer = copyLinkButton();
+    fireEvent.click(footer);
+    // Only the tapped button confirms. The other one keeps its label.
+    const copied = screen.getAllByRole('button', { name: copy.actions.linkCopied });
+    expect(copied).toHaveLength(1);
+    expect(copied[0]).toBe(footer);
+    const idle = screen.getAllByRole('button', { name: copy.actions.copyLink });
+    expect(idle).toHaveLength(1);
+    expect(idle[0]).toBe(header);
 
     // Still confirming just before two seconds.
     act(() => {
       vi.advanceTimersByTime(1999);
     });
-    expect(screen.getByRole('button', { name: copy.actions.linkCopied })).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: copy.actions.linkCopied })).toEqual([footer]);
 
-    // Back to the label at two seconds.
+    // Back to the label at two seconds, so both buttons read Copy link again.
     act(() => {
       vi.advanceTimersByTime(1);
     });
-    expect(screen.getByRole('button', { name: copy.actions.copyLink })).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: copy.actions.copyLink })).toHaveLength(2);
     expect(screen.queryByRole('button', { name: copy.actions.linkCopied })).toBeNull();
   });
 

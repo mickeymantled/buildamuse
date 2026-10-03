@@ -57,6 +57,13 @@ export const certificateCopy = {
     sections: {
       extra: 'Also included',
       leftOutHint: 'These rules did not fit. Add them by hand if you want them.',
+      // A dot's Custom rules hold only the approvals, so its limits and pack rules are left out.
+      leftOutDotHint: "A dot's Custom rules hold only your approvals. Add these by hand if you want them.",
+    },
+
+    // The length meter's caption when the personality is close to the limit (library doc: "drop a chip to shorten").
+    meter: {
+      hint: 'drop a chip to shorten',
     },
 
     // The lines the user is not sure about yet, then where they were read.
@@ -104,6 +111,19 @@ export const certificateCopy = {
       droppedDriveReset: 'What it wants first was reset to match the hard part.',
       droppedNameCleaned: 'The name was tidied up.',
       undelivered: (target: string) => `Not included on ${target}:`,
+      // The dot carries only approvals as rules. `limits` and `rules` are counts; either may be 0.
+      // A dot with an auto gate and limits that cannot reach it (QUESTIONS W40).
+      dotAutoNoLimits: (n: number) =>
+        n === 1
+          ? 'This one runs on auto, and your dot has no limits to check it against. Set it to Ask before taking action, or add your limits by hand first:'
+          : 'These run on auto, and your dot has no limits to check them against. Set them to Ask before taking action, or add your limits by hand first:',
+      undeliveredDot: (target: string, limits: number, rules: number) => {
+        const what = [
+          ...(limits > 0 ? ['your limits'] : []),
+          ...(rules > 0 ? [`${rules} pack ${plural(rules, 'rule', 'rules')}`] : []),
+        ].join(' and ');
+        return `Not included on ${target}: ${what}. Add ${limits > 0 || rules !== 1 ? 'them' : 'it'} to your dot by hand.`;
+      },
     },
 
     // Group headings and block titles. Titles of files and spoken items come from the bundle.
@@ -118,6 +138,8 @@ export const certificateCopy = {
       label: 'Label',
       description: 'Description',
       starter: (n: number) => `Starter ${n}`,
+      // A left out pack rule: its pack, then its number within that pack.
+      packRule: (pack: string, n: number) => `${pack}, rule ${n}`,
       mine: 'Mine',
     },
 

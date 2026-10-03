@@ -7,6 +7,7 @@ import { Pill } from '../components/Pill';
 import { cx } from '../components/cx';
 import { ChevronIcon } from '../components/icons';
 import { certificateResult } from '../certificate/input.js';
+import { NEAR_CAP } from '../certificate/model.js';
 import { copy } from '../copy.js';
 import { capOf, isCompileError, useBuilder } from '../store.js';
 
@@ -85,19 +86,23 @@ export function PreviewStrip() {
 
   const len = result.length;
   const over = len > cap;
+  // Near the cap the bar goes amber and says how to shorten (library rule; same margin as the certificate).
+  const near = !over && len > cap - NEAR_CAP;
   const lengthText = copy.preview.length(len, cap);
   const overText = over ? copy.preview.over(len - cap) : undefined;
   const badgeName = lastBadge === null ? undefined : (BADGE_NAMES.get(lastBadge) ?? lastBadge);
 
   const bar = (
     <span className="@container flex items-center gap-2">
-      <span className="sr-only">{overText ? `${lengthText}. ${overText}` : lengthText}</span>
+      <span className="sr-only">
+        {overText ? `${lengthText}. ${overText}` : near ? `${lengthText}. ${copy.certificate.meter.hint}` : lengthText}
+      </span>
       <span
         aria-hidden="true"
         className={cx('min-w-[4rem] flex-1', METER_ROW, over && OVER_NARROW)}
         style={overText ? { minWidth: `${overText.length + 3}ch` } : undefined}
       >
-        <Meter label={lengthText} value={len} cap={cap} overLabel={overText} />
+        <Meter label={lengthText} value={len} cap={cap} overLabel={overText} near={near} />
       </span>
       {badgeName !== undefined && (
         <Pill className="min-w-0 max-w-[40%]">

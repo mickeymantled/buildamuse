@@ -163,6 +163,68 @@ function countIn(m: CertModel, needle: string): number {
 const gateLabel = (id: string): string => library.gates.find((g) => g.id === id)?.label ?? `?${id}`;
 const packLabel = (id: string): string => library.packs.find((p) => p.id === id)?.label ?? `?${id}`;
 
+// F3a: a Left out block for a cut pack rule is titled "<pack label>, rule n", where the pack is the one
+// whose rulesLines hold the rule id and n counts that pack's blocks in the order shown, from 1.
+// Returns one title per id, in order. An id no pack holds gets its own id back.
+function packRuleTitles(ruleIds: readonly string[]): string[] {
+  const counts = new Map<string, number>();
+  return ruleIds.map((id) => {
+    const pack = library.packs.find((p) => p.rulesLines.some((l) => l.id === id));
+    if (pack === undefined) return id;
+    const n = (counts.get(pack.id) ?? 0) + 1;
+    counts.set(pack.id, n);
+    return `${pack.label}, rule ${n}`;
+  });
+}
+
+interface LeftOutLine {
+  id: string; // limit.<id> or the pack rule id
+  title: string;
+  text: string;
+}
+
+// F3a: a profile whose rulesDelivery is custom-rules (the ChatGPT dot) carries only gates, so every
+// limit line and every pack rules line of the build is left out. Derived from the library tables:
+// limit lines are the packs' limitsDefault merged by each limit's `stricter` direction with the build's
+// own limits on top, in the library's limit order, filled into the limit's rulesTemplate and titled with
+// its label. Pack rule lines are each pack's rulesLines in build pack order.
+function dotLeftOutLines(build: Build): LeftOutLine[] {
+  const values = new Map<string, number>();
+  for (const packId of build.packs) {
+    const pack = library.packs.find((p) => p.id === packId);
+    for (const [id, value] of Object.entries(pack?.limitsDefault ?? {})) {
+      const current = values.get(id);
+      const stricter = library.limits.find((l) => l.id === id)?.stricter;
+      if (current === undefined) values.set(id, value);
+      else values.set(id, stricter === 'higher' ? Math.max(current, value) : Math.min(current, value));
+    }
+  }
+  for (const [id, value] of Object.entries(build.limits)) values.set(id, value);
+  const limits: LeftOutLine[] = library.limits
+    .filter((l) => values.has(l.id))
+    .map((l) => ({
+      id: `limit.${l.id}`,
+      title: l.label,
+      text: l.rulesTemplate.replaceAll('{value}', String(values.get(l.id))),
+    }));
+  const ruleIds = build.packs.flatMap(
+    (id) => library.packs.find((p) => p.id === id)?.rulesLines.map((l) => l.id) ?? [],
+  );
+  const titles = packRuleTitles(ruleIds);
+  const rules: LeftOutLine[] = ruleIds.map((id, i) => ({
+    id,
+    title: titles[i] ?? id,
+    text: library.packs.flatMap((p) => p.rulesLines).find((l) => l.id === id)?.line ?? '',
+  }));
+  return [...limits, ...rules];
+}
+
+const isCustomRules = (c: Case): boolean => c.profile.rulesDelivery === 'custom-rules';
+
+// How many "Not included on ChatGPT: your limits and N pack rules" lines a case shows: one when the
+// profile is custom-rules and the build has any limit or pack rules line, else none.
+const dotSummaryCount = (c: Case): number => (isCustomRules(c) && dotLeftOutLines(c.build).length > 0 ? 1 : 0);
+
 // ---------------------------------------------------------------------------
 // The case list itself
 // ---------------------------------------------------------------------------
@@ -403,7 +465,12 @@ for (const c of CASES) {
       expect(summaryOf(m, 'steer').length).toBe(over && free ? 1 : 0);
       expect(summaryOf(m, 'trimmed').length > 0).toBe(c.result.trimmed.length > 0);
       expect(summaryOf(m, 'dropped')).toEqual([]);
-      expect(summaryOf(m, 'undelivered').length).toBe(c.result.undelivered.length > 0 ? 1 : 0);
+      // One line for what the profile could not deliver (result.undelivered), plus, on the dot, one
+      // for the limit and pack rules lines it cannot carry (F3a, the summary-undelivered-dot item).
+      expect(summaryOf(m, 'undelivered').length).toBe(
+        (c.result.undelivered.length > 0 ? 1 : 0) + dotSummaryCount(c),
+      );
+      expect(m.summary.some((s) => s.key === 'summary-undelivered-dot')).toBe(dotSummaryCount(c) === 1);
       expect(summaryOf(m, 'deprecated').length).toBe(c.build.mode === 'gpt' ? 1 : 0);
       const ranks = summaryKinds(m).map((k) => SUMMARY_ORDER.indexOf(k));
       expect([...ranks].sort((a, b) => a - b)).toEqual(ranks);
@@ -456,7 +523,22 @@ for (const c of CASES) {
       expect(m.header.name).toBe(build.name);
     });
 
-    it('shows the left out list only on Muse and Grok, one block per cut pack rule', () => {
+    it('shows the left out list on Muse and Grok (one block per cut pack rule) and on the dot (its limits and pack rules)', () => {
+      if (isCustomRules(c)) {
+        // A dot carries only gates, so Left out holds every limit line and pack rules line of the build.
+        const want = dotLeftOutLines(c.build);
+        if (want.length === 0) {
+          expect(c.model.leftOut).toBeUndefined();
+          expect(c.model.leftOutHint).toBeUndefined();
+          return;
+        }
+        expect(c.model.leftOut?.heading).toBe('Left out');
+        const blocks = c.model.leftOut?.blocks ?? [];
+        expect(blocks.map((b) => b.text).sort()).toEqual(want.map((l) => l.text).sort());
+        expect(blocks.map((b) => b.title).sort()).toEqual(want.map((l) => l.title).sort());
+        expect(blocks.map((b) => b.ids[0]).sort()).toEqual(want.map((l) => l.id).sort());
+        return;
+      }
       const cuts = c.result.trimmed.filter((t) => t.kind === 'pack-rule');
       const wants = (c.profile.id === 'muse' || c.profile.id === 'grok') && cuts.length > 0;
       if (!wants) {
@@ -464,11 +546,15 @@ for (const c of CASES) {
         return;
       }
       expect(c.model.leftOut?.heading).toBe('Left out');
-      expect(c.model.leftOut?.blocks.map((b) => b.text)).toEqual(cuts.map((t) => t.text));
-      for (const b of c.model.leftOut?.blocks ?? []) {
-        const pack = library.packs.find((p) => p.label === b.title);
+      const blocks = c.model.leftOut?.blocks ?? [];
+      expect(blocks.map((b) => b.text)).toEqual(cuts.map((t) => t.text));
+      // Titled "<pack label>, rule n", never the bare pack label.
+      expect(blocks.map((b) => b.title)).toEqual(packRuleTitles(cuts.map((t) => t.id)));
+      for (const b of blocks) {
+        const pack = library.packs.find((p) => p.rulesLines.some((l) => l.id === b.ids[0]));
         expect(pack, b.title).toBeDefined();
         expect(pack?.rulesLines.find((l) => l.id === b.ids[0])?.line, b.ids[0]).toBe(b.text);
+        expect(b.title.startsWith(`${pack?.label}, rule `), b.title).toBe(true);
       }
     });
 
@@ -780,11 +866,13 @@ describe('summary: trimmed', () => {
     const pack = library.packs.find((p) => p.id === 'personal-ops');
     const cuts = c.result.trimmed.filter((t) => t.kind === 'pack-rule');
     expect(c.model.leftOut?.blocks.length).toBe(cuts.length);
-    for (const b of c.model.leftOut?.blocks ?? []) {
+    (c.model.leftOut?.blocks ?? []).forEach((b, i) => {
       expect(b.kind).toBe('rules');
-      expect(b.title).toBe(pack?.label);
+      // F3a: "<pack label>, rule n". Every cut here is a personal-ops rule (the text check below), so
+      // n is the block's place, counted from 1.
+      expect(b.title).toBe(`${pack?.label}, rule ${i + 1}`);
       expect(b.text).toBe(pack?.rulesLines.find((l) => l.id === b.ids[0])?.line);
-    }
+    });
   });
 
   const rule = (n: number, extra: Partial<Trimmed> = {}): Trimmed => {
@@ -869,19 +957,35 @@ describe('summary: trimmed', () => {
     expect(m.leftOut).toBeUndefined();
   });
 
-  it('lists left out blocks only for Muse and Grok, never for Hermes, OpenClaw or ChatGPT', () => {
+  it('lists left out blocks from the cut rules only for Muse and Grok, never for Hermes, OpenClaw or a ChatGPT project', () => {
     const cut = [rule(0), rule(1)];
     for (const id of ['june.muse', 'june.grok']) {
       const m = modelWithResult(caseOf(id), { trimmed: cut });
       expect(m.leftOut?.blocks.map((b) => b.text), id).toEqual(cut.map((t) => t.text));
       expect(m.leftOut?.heading).toBe('Left out');
     }
-    for (const id of ['june.hermes', 'june.openclaw', 'june.chatgpt-dot', 'june.chatgpt-project']) {
+    for (const id of ['june.hermes', 'june.openclaw', 'june.chatgpt-project']) {
       const m = modelWithResult(caseOf(id), { trimmed: cut });
       expect(m.leftOut, id).toBeUndefined();
       // The summary line still says so.
       expect(summaryOf(m, 'trimmed').length, id).toBe(1);
     }
+  });
+
+  it('on the dot, Left out is the build\'s own pack rules from the library, whatever result.trimmed says', () => {
+    // F3a: a dot's Left out comes from the build (limits and every pack rules line), not from the cut list.
+    const c = caseOf('june.chatgpt-dot');
+    const m = modelWithResult(c, { trimmed: [rule(0), rule(1)] });
+    const personalOps = library.packs.find((p) => p.id === 'personal-ops');
+    expect(c.build.packs).toEqual(['personal-ops']);
+    expect(personalOps?.rulesLines.length).toBeGreaterThan(2);
+    expect(m.leftOut?.heading).toBe('Left out');
+    expect(m.leftOut?.blocks.map((b) => b.text)).toEqual(personalOps?.rulesLines.map((l) => l.line));
+    expect(m.leftOut?.blocks.map((b) => b.title)).toEqual(
+      (personalOps?.rulesLines ?? []).map((_, i) => `Personal ops, rule ${i + 1}`),
+    );
+    // The synthetic cut still produces its trimmed summary line.
+    expect(summaryOf(m, 'trimmed').length).toBe(1);
   });
 
   it('carries the role file path on a left out block for a role-only cut', () => {
@@ -1717,7 +1821,10 @@ describe('fuzz: random packs, gates and roles', () => {
       for (const n of c.model.stillChecking) expect(n.text, label).not.toMatch(/^\s*verify:/i);
       const auto = library.gates.filter((g) => r.gates[g.id] === 'auto').map((g) => g.label);
       expect(summaryOf(c.model, 'auto')[0]?.items ?? [], label).toEqual(auto);
-      expect(summaryOf(c.model, 'undelivered').length, label).toBe(r.undelivered.length > 0 ? 1 : 0);
+      expect(summaryOf(c.model, 'undelivered').length, label).toBe(
+        (r.undelivered.length > 0 ? 1 : 0) + dotSummaryCount(c),
+      );
+      if (isCustomRules(c)) expect(c.model.leftOut !== undefined, label).toBe(dotLeftOutLines(build).length > 0);
       expect(c.model.zip !== undefined, label).toBe(r.files.some((f) => f.delivery === 'file'));
       expect(JSON.stringify(certificateModel(c.input)), label).toBe(JSON.stringify(c.model));
     }

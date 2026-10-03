@@ -1,5 +1,6 @@
 import type { BundleNote } from '../../compiler/types.js';
 import { FOCUS, cx } from '../components/cx';
+import { ChevronIcon } from '../components/icons';
 import { copy } from '../copy.js';
 import type { CertModel } from './model.js';
 
@@ -69,18 +70,22 @@ export function Skipped({ lines }: { lines: readonly string[] }) {
   );
 }
 
-// The raw compiler warnings behind a disclosure, for anyone who wants them.
+// The raw compiler warnings behind a disclosure, for anyone who wants them. The chevron is only a
+// cue: the details element already says open or closed.
 export function Details({ lines }: { lines: readonly string[] }) {
   if (lines.length === 0) return null;
   return (
-    <details className="rounded-xl border border-border bg-surface">
+    <details className="group rounded-xl border border-border bg-surface">
       <summary
         className={cx(
-          'flex min-h-[44px] cursor-pointer items-center rounded-xl px-3 text-sm font-medium text-text',
+          'flex min-h-[44px] cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-3 text-sm font-medium text-text [&::-webkit-details-marker]:hidden',
           FOCUS,
         )}
       >
-        {copy.certificate.details.summary}
+        <span>{copy.certificate.details.summary}</span>
+        <span aria-hidden="true" className="flex shrink-0 text-muted">
+          <ChevronIcon dir="down" className="motion-safe:transition-transform group-open:rotate-180" />
+        </span>
       </summary>
       <ul role="list" className="flex list-none flex-col gap-2 p-3 pt-0">
         {lines.map((line, i) => (

@@ -1,14 +1,17 @@
 import { useId, useRef } from 'react';
 import type { CustomRule } from '../../compiler/types.js';
-import { CopyButton } from '../components/CopyButton';
+import library from '../../library/index.js';
 import { copy } from '../copy.js';
+import { NamedCopy } from './Block';
 import type { CertCustomRules } from './model.js';
 
-// One rule as a card: the action text with its copy button, and the setting to choose under it.
+// One rule as a card: the action text with its copy button, and the setting to choose under it. The
+// button is named from the rule's gate label, because the action text is too long to name it.
 function RuleCard({ rule }: { rule: CustomRule }) {
   const actionId = useId();
   const actionRef = useRef<HTMLParagraphElement>(null);
   const c = copy.certificate;
+  const gateLabel = library.gates.find((g) => g.id === rule.gate)?.label ?? rule.gate;
   return (
     <div
       role="group"
@@ -22,13 +25,13 @@ function RuleCard({ rule }: { rule: CustomRule }) {
       >
         {rule.action}
       </p>
-      <CopyButton
+      <NamedCopy
+        name={copy.certificateUi.copyBlock(gateLabel)}
         text={rule.action}
         label={c.copyButton.label}
         copiedLabel={c.copyButton.copied}
         failedLabel={c.copyButton.failed}
         selectRef={actionRef}
-        className="shrink-0"
       />
       <p className="col-span-2 min-w-0 text-sm leading-5 text-text [overflow-wrap:anywhere]">
         <span className="text-muted">{c.customRules.setting}</span> <span className="font-medium">{rule.setting}</span>
