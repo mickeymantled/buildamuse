@@ -179,3 +179,13 @@ Options for Brian (any mix): (a) raise or drop the 2,000 grok cap (xAI documents
 **B9. Author content (V22).** Approved provisionally; Brian reads gates.json first during M3. Nothing blocked.
 
 **B10. V23 and V26.** Lead recommendations stand.
+
+## M3 UI lead calls (docs/UI-PLAN.md)
+
+**U1. Risk joining a full stat budget.** The first Markets chip adds risk at 2 (library: "Risk ... defaults to 2"). If that passes the cap of 14, risk starts at 1, and if still over, the highest of funny, chatty and proactive drops by 1 (never blunt or warm below 1).
+
+**U2. Preview before a base is chosen.** The preview strip needs a whole build; until the user picks a base it uses chaos defaults. The strip only shows from the world station on, after base, so this is a fallback.
+
+**U3. Defaults for skipped or not-yet-reached choices.** Heart: hard part calmer (no forced badge) with its d1, d2 from blunt. Outfit: has_it_together. Name: a copy default until the name station. S9: a skipped station keeps these defaults and is listed as skipped.
+
+**U4. "Muse" in UI copy.** Part E says UI copy says "your bot's personality". The spec's floor line ("every Muse comes with a little honesty and a little care already in.") becomes "every bot comes with ..." in the UI. Library text is unchanged.
