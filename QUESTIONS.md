@@ -355,3 +355,11 @@ Marked "for Brian" where the call changes product behavior or bends a rule; the 
 - **Hermes duplicate (d1):** step.6 folds into the reload note, which gains "; they skip SOUL.md", and step.6 is removed.
 - **Muse wording (d2):** the Muse note reads "Meta has not published the default Soul text (Meta help, 2026-10-01); these opening lines come from Build-a-Bot."
 - **For Brian:** every wording above, especially the three caveats and the two notes reworded for users.
+
+**W33. Role fallback note becomes the role step (lead fix after the wave 2 safety review).** On Grok, Project and GPT, role descriptions and instructions carry their own gate blocks, but no install step showed them; only a note said what to do. When role files ship and no step shows roles, the role fallback note (same library id and text) becomes the last non-closer step, and leaves Notes. A missing template's [TODO] placeholder stays a note. Safety PASS on the full wave 2 golden set afterwards.
+
+**W34. Trimmed pack rules: where they went.** On Hermes, the author pack rules cut from SOUL.md to fit are still in AGENTS.md, so the certificate says "To fit Hermes, 5 rules from Personal ops are in AGENTS.md, not in SOUL.md." On Muse and Grok they leave the bundle, so it says "... were left out." and lists the lines under Left out. This is a reading of W25 for Brian.
+
+**W35. Roles and packs in the store.** settle() drops roles only when a change takes away the packs their role set fitted. Roles that a link carried without fitting packs stay. The compiler accepts them; the Sol project roles golden is one. Before this fix, any edit after opening such a link silently dropped the team.
+
+**W36. Remix from the certificate and the Mine trace.** The certificate's Remix sets from 'link-remix', so Back on base returns to the remix screen. It also clears any old paste. The W28 trace carve-out applies only to the main personality artifact (a file, the soul or Dot's spoken personality). A user.mine id anywhere else still fails the trace.

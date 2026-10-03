@@ -197,11 +197,11 @@ Done when: the criteria in docs/M4-PLAN.md section 11 (lead-written; B14 gives n
 | 4.7a | url helpers | 1 | engineer, tester | src/share/url.ts | done (d202628) |
 | 4.8 | zip writer | 1 | engineer, tester | src/share/zip.ts | done (52d235f) |
 | 4.15 | CopyButton copies inside the tap | 1 | engineer, tester | CopyButton.tsx | done (7cba1f7) |
-| 4.4 | step tags, rulesPath, golden Steps section, goldens + safety | 2 | engineer, tester, safety | profiles.json, tools/golden.ts, goldens | |
-| 4.7b | store loadBuild, switchTarget, remix side screen, links hook, LinkError | 2 | engineer, tester | store, flow, App, copy/links, ui-store tests | |
-| 4.9 | Mine diff module | 2 | engineer, tester | src/share/mine.ts | |
-| 4.10 | shell and lazy loading, check:bundle | 2 | engineer, tester | main, Shell, TargetPicker, Target, vite.config, tools/check-bundle | |
-| 4.11 | certificate model (pure) | 2 | engineer, tester | src/ui/certificate/model.ts | |
+| 4.4 | step tags, rulesPath, golden Steps section, goldens + safety | 2 | engineer, tester, safety | profiles.json, tools/golden.ts, goldens | done (W33 role step, safety PASS) |
+| 4.7b | store loadBuild, switchTarget, remix side screen, links hook, LinkError | 2 | engineer, tester | store, flow, App, copy/links, ui-store tests | done (W35, W36) |
+| 4.9 | Mine diff module | 2 | engineer, tester | src/share/mine.ts | done (W36 carve-out) |
+| 4.10 | shell and lazy loading, check:bundle | 2 | engineer, tester | main, Shell, TargetPicker, Target, vite.config, tools/check-bundle | done (check:bundle green) |
+| 4.11 | certificate model (pure) | 2 | engineer, tester | src/ui/certificate/model.ts | done (W34) |
 | 4.5b | verify transcription (+ SKILL.md template), goldens, safety all sets, guard test | 3 | author, safety, transcriber, reviewer | profiles.json, goldens | |
 | 4.12 | certificate UI | 3 | engineer, tester | Certificate, certificate/*, Radar, copy/certificate | |
 | 4.14 | remix screen and Mine switch | 3 | engineer, tester | Remix, copy/remix | |
@@ -212,3 +212,4 @@ Done when: the criteria in docs/M4-PLAN.md section 11 (lead-written; B14 gives n
 | 4.19 | multi-lens review, browser, iOS Simulator | 5 | lead (+ Sonnet reviewers) | | |
 | 4.20 | M4 report + first three M5 slices | 5 | lead | | |
 - M4 wave 1 (2026-10-03, 42 Sonnet agents): all seven code slices passed review. 4.6 failed round 3 only on scope (the tester edited share.test.ts and ui-flow.test.tsx beyond its list, and the plan forced both edits), so the lead read the diffs and ratified them. Lead fix: setName no longer splits a surrogate pair. The lead read every diff. Suite: 24 files, 10,146 passed, 2 expected fail (V25). The research found OpenClaw skips skills without frontmatter; the lead confirmed it in the loader source (W31).
+- M4 wave 2 (2026-10-03, 29 Sonnet agents plus a 3-agent gate): 4.4, 4.7b and 4.10 passed review. 4.9 and 4.11 failed round 3 on real bugs, which the lead fixed: the Grok label was not counted as copyable, and a copy function took an array and broke the copy walker. Lead added tests for the kept-rules wording. Safety on 4.4 flagged role gate blocks with no install step on Grok and Project. The lead promoted the role fallback note to a step (W33); a tester updated the pinned tests, and safety re-ran: PASS on the full golden diff. More lead fixes: settle kept dropping a link's roles (W35); certificate Remix Back and the paste reset (W36); the Mine trace carve-out wired and narrowed (W36). Suite: 31 files, 12,795 passed, 3 expected fail (V25 x2, the Back button on a link certificate, which 4.12 wires).
