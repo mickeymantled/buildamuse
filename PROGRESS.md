@@ -114,6 +114,45 @@ Loop per slice: plan, dispatch, verify (npm test, typecheck), review (reviewer f
 
 Waiting on Brian: V25 caps (blocking), V14 dot forbid label, V15 custom GPT retirement, V16 to V19 doc findings, V21 extra gates, V22 author content approval, S6 taglines, V13 promise lines. M3 does not start without a go.
 
+## M2 closeout (Brian's decisions 2026-10-02, QUESTIONS B1 to B10)
+
+| # | Slice | Agent | Source | Done when | Status |
+| --- | --- | --- | --- | --- | --- |
+| C1 | roster taglines | transcriber | B3 | nine taglines verbatim | |
+| C2 | packs: content voice anchor, devops interval (trigger and skill N), perps rules line origin brief | transcriber | B5, B1 | text verbatim, origin flag | |
+| C3 | muse standing-instruction templates ("From now on, ...") | author, safety | B8 | safety PASS | |
+| C4 | targets.json: promises, mode order and gpt hidden + deprecated, caps 4,000 (muse, hermes, grok), grok cap verify removed, dot hand-off note, openclaw spoken memory, hermes test note, muse skill label and templates | transcriber | B1, B2, B4, B6, B8 | reviewer PASS | |
+| C5 | length tiers on caps 4,000 or less: cut author pack rules, then short chassis, then S1 | engineer | B1 | reviewer PASS | |
+| C6 | free instructions bottom block gate lines only; profile notes, deprecated mode, skill label in bundle and trace | engineer | B1, B2, B6, B8 | reviewer PASS | |
+| C7 | golden specs without gpt (M3.1) | engineer | B2 | reviewer PASS | |
+| C8 | goldens regenerated, tests updated, safety on every set | tester, safety | all | npm test green, safety PASS | |
+
+## M3: UI
+
+Done when (Part F): stations 0 through 7 as specced plus pack, limits, gates and roles screens; store; preview strip; floors and caps enforced. Mobile first (390px), tap-only, light and dark, 44px touch targets, no em dashes, UI copy says "your bot's personality" except where a target uses SOUL.md.
+
+| # | Slice | Agent | Source | Done when | Status |
+| --- | --- | --- | --- | --- | --- |
+| 3.1 | hide gpt mode, remove its goldens | (C4, C7, C8) | B2 | goldens without gpt | |
+| 3.2 | Tailwind, Zustand store (build v2, station, from flag, retarget, memoized compile), UI copy file | engineer | spec Screens: State; Part E | store unit tests pass | |
+| 3.3 | shared components: Card, Chip, ChipGrid, Slider, Stepper, Toggle3, Pill, ProgressDots, BottomSheet | engineer | spec Screens: Layout | reviewer PASS | |
+| 3.4 | station 0 target picker + App router shell | engineer | Part E | five cards, chatgpt radios, plan tap | |
+| 3.5 | roster screen (compiled against the chosen target) | engineer | spec Roster + Part E | nine cards, Use and Remix | |
+| 3.6 | station 1 base | engineer | spec Screens | defaults set, chip order | |
+| 3.7 | station 2 world (chip grid n/6) | engineer | spec Screens | cap 6, dimming | |
+| 3.8 | pack screen | engineer | Part E | preselected from chips, max 3 | |
+| 3.9 | limits screen | engineer | Part E | steppers, venue notes | |
+| 3.10 | gates screen | engineer | Part E, B1 | three-state, pay locked, copy per target, Paid steer | |
+| 3.11 | station 3 stats | engineer | spec Screens, library Stats | n/14, floors, samples, risk with Markets, badges | |
+| 3.12 | station 4 peeves | engineer | spec Screens | n/5, built-in checkmarks | |
+| 3.13 | station 5 heart | engineer | spec Screens | d1 alternate, d2, d3 locked | |
+| 3.14 | station 6 outfit | engineer | spec Screens | twelve cards with sample hey | |
+| 3.15 | station 7 name | engineer | spec Screens | the only text input, 1..24 | |
+| 3.16 | roles screen (advanced) | engineer | Part E | hidden when supportsRoles false | |
+| 3.17 | preview strip + peek sheet | engineer | spec Screens | length vs cap, last badge, chassis muted | |
+| 3.18 | skipped stations (S9) | engineer | S9 | defaults kept, skipped list in store | |
+| 3.19 | UI tests: store, flow, caps and floors | tester | Part F | green | |
+
 ## Log
 
 - Agent files in .claude/agents/ are not picked up until the session restarts. Until then each role runs as a general-purpose Sonnet subagent with the role file pasted into its prompt.
