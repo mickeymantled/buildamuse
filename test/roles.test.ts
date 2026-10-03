@@ -1,33 +1,46 @@
-// Roles test: Part D of docs/Build-a-Bot-v2-Brief.md (roles) and section 9 of docs/V2-DESIGN.md.
-// Every expectation comes from the brief text, the design, or the library JSON records (role
-// sets, roles, stat lines, gates, profile templates). Nothing here is copied from compiler output.
+// Roles test: Part D of docs/Build-a-Bot-v2-Brief.md (roles), section 9 of docs/V2-DESIGN.md and
+// the QUESTIONS.md decisions B1 (length tiers on small caps) and B2 (gpt mode deprecated).
+// Every expectation comes from the brief text, the design, the QUESTIONS decisions or the library
+// JSON records (role sets, roles, stat lines, gates, chassis, profile templates). Nothing here is
+// copied from compiler output.
 //
-// Two groups:
+// Three groups:
 //   1. Library facts: one coordinator per set, canDelegate flags, never-list sizes, locked stats,
 //      no executor by default, and the documented fallback for profiles without role support.
-//   2. Compiled role sets: every member of every set compiled on openclaw, hermes and chatgpt-gpt
-//      (plus grok and chatgpt-project, which the design lists as role-capable), then the fallback
-//      notes on muse, chatgpt-dot and chatgpt-instructions.
+//   2. Compiled role sets: every member of every set compiled on openclaw, hermes and grok (caps of
+//      4,000 or less, so the B1 tiers apply) and on chatgpt-project and chatgpt-gpt (cap 8,000,
+//      full rules). The gpt mode is hidden and deprecated (B2) but stays in the compiler, so its
+//      role souls are still checked. Then the fallback notes on muse, chatgpt-dot and
+//      chatgpt-instructions.
+//   3. Length tiers on role souls (B1): Tier A cuts the author's pack rules lines, Tier B switches
+//      the chassis to short forms, chassis lines are never dropped, AGENTS.md keeps every rules
+//      line, and role souls on gpt or project keep the full rules.
 //
 // Starters: the library roster has no starter whose migrated packs fit the research set, so the
 // research cases use Sol with packs set to ['research']. Trading uses Marty (memecoins), coding
-// uses Rook (coding), personal-ops uses June (personal-ops).
+// uses Rook (coding), personal-ops uses June (personal-ops). One extra trading case gives Marty
+// three packs, perps among them, so Brian's pack.perps.rule.1 is on a soul that gets cut.
 
 import { describe, it, expect } from 'vitest';
+import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 import { compile, library } from '../src/compiler/compile.js';
 import { GOLDEN_SPECS, buildFor } from '../tools/golden.js';
 import type { GoldenSpec } from '../tools/golden.js';
+import { evalWhen } from '../src/compiler/cond.js';
 import { resolveProfile } from '../src/compiler/profile.js';
 import { effectiveGates, effectiveLimits } from '../src/compiler/gates.js';
 import { normalizeRoles } from '../src/compiler/passes/roles.js';
 import type {
   Build,
   BundleFile,
+  ChassisLine,
   ChatgptMode,
   CompileResult,
   Level,
   Plan,
+  Profile,
   RolePack,
   RoleSet,
   StatId,
@@ -157,25 +170,45 @@ function limitRuleLines(build: Build): string[] {
   return Object.entries(effectiveLimits(build, library)).map(([id, value]) => limitLine(id, value));
 }
 
-function packRuleLines(build: Build): string[] {
+// One pack rules line with its library id. 'brief' marks Brian's own text (origin 'brief'); every
+// other pack rules line is the author's (B1: only pack.perps.rule.1 is Brian's).
+interface RuleEntry {
+  id: string;
+  line: string;
+  brief: boolean;
+}
+
+function packRuleEntries(build: Build): RuleEntry[] {
   return build.packs.flatMap((id) => {
     const pack = library.packs.find((p) => p.id === id);
     if (!pack) {
       throw new Error(`test setup: no pack ${id} in the library`);
     }
-    return pack.rulesLines.map((l) => l.line);
+    return pack.rulesLines.map((l) => ({ id: l.id, line: l.line, brief: l.origin === 'brief' }));
   });
 }
 
-function rulesBlock(build: Build): string[] {
-  return [...gateRuleLines(build), ...limitRuleLines(build), ...packRuleLines(build)];
+// The pack rules lines a soul should carry: all of them, less the ids B1 Tier A cut from it.
+function packRuleLines(build: Build, cut: ReadonlySet<string> = new Set()): string[] {
+  return packRuleEntries(build)
+    .filter((e) => !cut.has(e.id))
+    .map((e) => e.line);
+}
+
+function rulesBlock(build: Build, cut: ReadonlySet<string> = new Set()): string[] {
+  return [...gateRuleLines(build), ...limitRuleLines(build), ...packRuleLines(build, cut)];
 }
 
 // A role's own never line can repeat a rules line word for word (the implementer's never line and
 // the coding pack's test rule are one sentence), so one copy of that text proves nothing about the
 // rules block. The block copy is the one on top of the role's own.
 function copiesNeeded(line: string, role: RolePack): number {
-  return 1 + role.never.filter((n) => n.line === line).length;
+  return 1 + neverCopies(line, role);
+}
+
+// How many of the role's own never lines are exactly this text.
+function neverCopies(line: string, role: RolePack): number {
+  return role.never.filter((n) => n.line === line).length;
 }
 
 function expectLines(container: string, lines: string[], role: RolePack, who: string): void {
@@ -186,11 +219,18 @@ function expectLines(container: string, lines: string[], role: RolePack, who: st
 
 // Asserts every rules block line is in the container, and that the rules block copies run in block
 // order. The last copy of a line is the block copy, because the rules block sits after the role's
-// never lines in every layout.
-function expectRulesBlock(container: string, build: Build, role: RolePack, who: string): void {
-  expectLines(container, rulesBlock(build), role, who);
+// never lines in every layout. `cut` is the set of pack rules ids B1 Tier A removed from this
+// container; those lines are not expected.
+function expectRulesBlock(
+  container: string,
+  build: Build,
+  role: RolePack,
+  who: string,
+  cut: ReadonlySet<string> = new Set(),
+): void {
+  expectLines(container, rulesBlock(build, cut), role, who);
   let from = -1;
-  for (const line of rulesBlock(build)) {
+  for (const line of rulesBlock(build, cut)) {
     const at = container.lastIndexOf(line);
     expect(at, `${who} has this line out of block order: ${line}`).toBeGreaterThan(from);
     from = at;
@@ -234,6 +274,7 @@ interface SetCase {
   setId: string;
   starter: string;
   packs?: string[]; // overrides the packs the starter's chips derive
+  label?: string; // names a case that shares a set and a starter with another
 }
 
 const CASES: SetCase[] = [
@@ -251,13 +292,23 @@ interface ProfileCase {
   kind: 'openclaw' | 'hermes' | 'paste';
 }
 
-// The profiles that deliver one soul per role.
-const SOUL_PROFILES: ProfileCase[] = [
-  { id: 'openclaw', target: 'openclaw', kind: 'openclaw' },
-  { id: 'hermes', target: 'hermes', kind: 'hermes' },
-  { id: 'chatgpt-gpt', target: 'chatgpt', mode: 'gpt', kind: 'paste' },
-  { id: 'grok', target: 'grok', kind: 'paste' },
-  { id: 'chatgpt-project', target: 'chatgpt', mode: 'project', kind: 'paste' },
+// B1: the length tiers apply to a profile whose cap is this or less.
+const TIER_CAP = 4000;
+
+// A profile that delivers one soul per role, with the cap B1 and the brief set for it.
+interface SoulProfileCase extends ProfileCase {
+  cap: number;
+}
+
+// The profiles that deliver one soul per role. Caps (B1): OpenClaw 3,600, Hermes 4,000, Grok 4,000;
+// the gpt and project souls sit under 8,000. gpt is hidden and deprecated (B2) and stays here
+// because the compiler still builds it.
+const SOUL_PROFILES: SoulProfileCase[] = [
+  { id: 'openclaw', target: 'openclaw', kind: 'openclaw', cap: 3600 },
+  { id: 'hermes', target: 'hermes', kind: 'hermes', cap: 4000 },
+  { id: 'chatgpt-gpt', target: 'chatgpt', mode: 'gpt', kind: 'paste', cap: 8000 },
+  { id: 'grok', target: 'grok', kind: 'paste', cap: 4000 },
+  { id: 'chatgpt-project', target: 'chatgpt', mode: 'project', kind: 'paste', cap: 8000 },
 ];
 
 // The profiles that give a note instead of role souls.
@@ -329,6 +380,75 @@ function lineCount(content: string): number {
 
 function occurrences(haystack: string, needle: string): number {
   return haystack.split(needle).length - 1;
+}
+
+// ---------------------------------------------------------------------------------------------
+// B1 tier helpers. The role warnings read "roles: cut <id> (...) in <path>" for Tier A and
+// "roles: chassis switched to short forms (...) in <path>" for Tier B, one set per delivered file.
+
+const CUT_PREFIX = 'roles: cut ';
+const SHORT_PREFIX = 'roles: chassis switched to short forms';
+
+function warningsFor(result: CompileResult, path: string, prefix: string): string[] {
+  return result.warnings.filter((w) => w.startsWith(prefix) && w.endsWith(` in ${path}`));
+}
+
+// The pack rules ids the compile reports as cut from the soul at this path.
+function cutIdsFrom(result: CompileResult, path: string): string[] {
+  return warningsFor(result, path, CUT_PREFIX).map((w) => w.slice(CUT_PREFIX.length).split(' ')[0]);
+}
+
+function cutSetFrom(result: CompileResult, path: string): Set<string> {
+  return new Set(cutIdsFrom(result, path));
+}
+
+// What one chassis line reads as on a profile, in the full or the short form. A null profile
+// variant omits the line. Short form (B1, V29): the profile's own short text wins; else the
+// generic short text, unless the profile has its own worded variant, which wins over the generic
+// short form; else the variant, else the library line.
+function chassisText(profile: Profile, line: ChassisLine, form: 'full' | 'short'): string | null {
+  const variant = Object.hasOwn(profile.chassisVariants, line.id) ? profile.chassisVariants[line.id] : undefined;
+  if (variant === null) {
+    return null;
+  }
+  if (form === 'short') {
+    const shorts = profile.chassisShortVariants;
+    if (shorts !== undefined && Object.hasOwn(shorts, line.id)) {
+      return shorts[line.id];
+    }
+    if (line.short !== undefined && typeof variant !== 'string') {
+      return line.short;
+    }
+  }
+  return typeof variant === 'string' ? variant : line.line;
+}
+
+interface ChassisExpectation {
+  id: string;
+  full: string; // the line in full form on this profile
+  short: string; // the line in short form on this profile
+}
+
+// Every chassis line a role soul on this profile must carry: its `when` holds for the build and the
+// profile does not omit it. Chassis lines are never dropped (B1), so this list holds in either form.
+function chassisExpected(profile: Profile, build: Build): ChassisExpectation[] {
+  return library.chassis.lines
+    .filter((line) => evalWhen(line.when, build, library.chips))
+    .flatMap((line) => {
+      const full = chassisText(profile, line, 'full');
+      const short = chassisText(profile, line, 'short');
+      return full === null || short === null ? [] : [{ id: line.id, full, short }];
+    });
+}
+
+// Characters the short forms save in one soul: the two forms differ only in the line's text.
+function shortSavings(expected: ChassisExpectation[]): number {
+  return expected.reduce((n, c) => n + (c.full.length - c.short.length), 0);
+}
+
+// A rules bullet is "- " plus the text plus one newline between it and the next line.
+function bulletSize(line: string): number {
+  return line.length + 3;
 }
 
 // The notes that match a fallback template, with {roles} as a wildcard.
@@ -718,12 +838,20 @@ for (const c of CASES) {
         }
 
         // Where the role soul is the only rules layer a worker loads, it has to carry the whole
-        // rules block (V2-DESIGN sections 7 and 9): gate lines, limit lines, pack rules lines.
+        // rules block (V2-DESIGN sections 7 and 9): gate lines, limit lines, pack rules lines. On a
+        // cap of 4,000 or less (B1 Tier A) the author's pack rules lines may be cut from a soul that
+        // is over the cap; the compile says which in its warnings, and group 3 checks that report
+        // against the cap. Here the block is every line except the ones reported cut. gpt and project
+        // are over 4,000, so nothing is cut there.
         if (pc.kind !== 'openclaw') {
           const soulOf = (role: RolePack): string => {
             const file = soulFileOf(result(), pc, role);
             expect(file, `${role.id} soul file`).toBeDefined();
             return file?.content ?? '';
+          };
+          const cutOf = (role: RolePack): Set<string> => {
+            const file = soulFileOf(result(), pc, role);
+            return file ? cutSetFrom(result(), file.path) : new Set();
           };
 
           it('every role soul restates every approve and forbid gate rules line', () => {
@@ -743,29 +871,28 @@ for (const c of CASES) {
             });
           }
 
-          it('every role soul restates every rules line of the selected packs', () => {
-            const lines = packRuleLines(build);
-            expect(lines.length).toBeGreaterThan(0);
+          it('every role soul restates every rules line of the selected packs, less the author lines Tier A cut (B1)', () => {
+            expect(packRuleLines(build).length).toBeGreaterThan(0);
             for (const role of members) {
-              expectLines(soulOf(role), lines, role, `${role.id} soul`);
+              expectLines(soulOf(role), packRuleLines(build, cutOf(role)), role, `${role.id} soul`);
             }
           });
 
-          it('every role soul carries the rules block in order: gates, limits, pack rules', () => {
+          it('every role soul carries the rules block in order: gates, limits, pack rules (less Tier A cuts)', () => {
             for (const role of members) {
-              expectRulesBlock(soulOf(role), build, role, `${role.id} soul`);
+              expectRulesBlock(soulOf(role), build, role, `${role.id} soul`, cutOf(role));
             }
           });
 
           if (pc.id === 'grok') {
             // A Bot description has no rules layer but its Never block, which is the rules block.
-            it('the Never section of every role description carries the rules block', () => {
+            it('the Never section of every role description carries the rules block (less Tier A cuts)', () => {
               const heading = library.targets.profiles.find((p) => p.id === 'grok')?.templates['grok.h.never']
                 .line as string;
               for (const role of members) {
                 const never = sectionUnder(soulOf(role), heading);
                 expect(never.length, `${role.id}: Never section under "${heading}"`).toBeGreaterThan(0);
-                expectRulesBlock(never, build, role, `${role.id} Never section`);
+                expectRulesBlock(never, build, role, `${role.id} Never section`, cutOf(role));
               }
             });
           }
@@ -968,6 +1095,341 @@ describe('Compiled role sets: instructions on the paid plan also gives the fallb
 });
 
 // ---------------------------------------------------------------------------------------------
+// 3. Length tiers on role souls (B1, QUESTIONS.md).
+//
+// On a profile whose cap is 4,000 or less (openclaw 3,600, hermes 4,000, grok 4,000) every role soul
+// goes through two tiers, in this order, and only while it is over the cap:
+//   Tier A: cut the author's pack rules lines from the soul. That is every pack rules line except
+//           Brian's (origin 'brief'), which is pack.perps.rule.1. Warning per line:
+//           "roles: cut <id> ... in <path>".
+//   Tier B: if the soul is still over the cap and the chassis is in full form, switch the chassis
+//           lines to their short forms, keeping Tier A's cuts. Warning:
+//           "roles: chassis switched to short forms ... in <path>".
+// Chassis lines are never dropped, in either form. The role's AGENTS.md (openclaw) is not capped and
+// keeps every rules line. Role souls on gpt and project (cap 8,000) keep the full rules and chassis.
+//
+// The size checks below are arithmetic on the delivered soul: a rules bullet is "- " plus the text
+// plus a newline, and a short form saves the length difference between the two chassis texts.
+// Whether a tier ran is read from the compile's warnings; the checks prove the warnings agree with
+// the cap, the soul text and the library.
+
+// The CASES plus Marty with three trading packs. Memecoins, perps and prediction markets together
+// carry enough author pack rules lines to push a hermes or grok role soul over 4,000, and perps
+// brings Brian's own pack.perps.rule.1, which a cut must leave alone.
+const TIER_CASES: SetCase[] = [
+  ...CASES,
+  {
+    setId: 'trading',
+    starter: 'marty',
+    packs: ['memecoins', 'perps', 'prediction-markets'],
+    label: 'trading, three packs with perps',
+  },
+];
+
+function tierLabel(c: SetCase): string {
+  return c.label ?? `${c.setId} (${c.starter})`;
+}
+
+const tierCompiles = new Map<string, { build: Build; result: CompileResult }>();
+
+// One compile per case and profile, shared by the checks and the coverage guard.
+function tierCompile(c: SetCase, pc: ProfileCase): { build: Build; result: CompileResult } {
+  const key = `${tierLabel(c)}|${pc.id}`;
+  let found = tierCompiles.get(key);
+  if (!found) {
+    const build = buildOn(c, pc, allMembers(c));
+    found = { build, result: compile(build) };
+    tierCompiles.set(key, found);
+  }
+  return found;
+}
+
+describe('Role soul length tiers: what the tiers rest on', () => {
+  it('the role-capable profiles have the B1 caps, and the tiers reach openclaw, hermes and grok only', () => {
+    for (const pc of SOUL_PROFILES) {
+      const profile = library.targets.profiles.find((p) => p.id === pc.id);
+      expect(profile?.lengthCap, `${pc.id} cap`).toBe(pc.cap);
+    }
+    expect(SOUL_PROFILES.filter((pc) => pc.cap <= TIER_CAP).map((pc) => pc.id)).toEqual([
+      'openclaw',
+      'hermes',
+      'grok',
+    ]);
+  });
+
+  it("Brian's pack.perps.rule.1 is the only pack rules line with origin brief", () => {
+    const brief = library.packs.flatMap((p) => p.rulesLines).filter((l) => l.origin === 'brief');
+    expect(brief.map((l) => l.id)).toEqual(['pack.perps.rule.1']);
+  });
+
+  it('the three-pack trading case carries perps and an author line for Tier A to cut', () => {
+    const entries = packRuleEntries(buildOn(TIER_CASES[TIER_CASES.length - 1], SOUL_PROFILES[1], []));
+    expect(entries.filter((e) => e.brief).map((e) => e.id)).toEqual(['pack.perps.rule.1']);
+    expect(entries.filter((e) => !e.brief).length).toBeGreaterThan(0);
+  });
+});
+
+for (const c of TIER_CASES) {
+  const set = setOf(c.setId);
+  const members = set.members.map(roleOf);
+
+  describe(`Role soul length tiers: ${tierLabel(c)}`, () => {
+    for (const pc of SOUL_PROFILES) {
+      describe(pc.id, () => {
+        const compiled = lazy(() => tierCompile(c, pc));
+        const build = (): Build => compiled().build;
+        const result = (): CompileResult => compiled().result;
+        const profile = resolveProfile(buildOn(c, pc, []), library);
+        const entries = packRuleEntries(buildOn(c, pc, []));
+        const authorIds = entries.filter((e) => !e.brief).map((e) => e.id);
+        const rulesInSoul = pc.kind !== 'openclaw'; // openclaw keeps its rules in AGENTS.md
+
+        // Runs a check on every role soul of the set on this profile.
+        const eachSoul = (check: (role: RolePack, path: string, soul: string) => void): void => {
+          for (const role of members) {
+            const file = soulFileOf(result(), pc, role);
+            expect(file, `${role.id} soul file on ${pc.id}`).toBeDefined();
+            check(role, (file as BundleFile).path, (file as BundleFile).content);
+          }
+        };
+
+        // The tiers touch pack rules lines and chassis wording only. The role's own content stays.
+        it('the tiers leave the role alone: 40 to 120 lines, never lines, delegation, audit lines, stat lines', () => {
+          eachSoul((role, _path, soul) => {
+            const n = lineCount(soul);
+            expect(n, `${role.id} line count`).toBeGreaterThanOrEqual(MIN_LINES);
+            expect(n, `${role.id} line count`).toBeLessThanOrEqual(MAX_LINES);
+            for (const line of role.never) {
+              expect(soul, `${role.id}: ${line.id}`).toContain(line.line);
+            }
+            if (role.id === set.coordinator) {
+              expect(soul, `${role.id} is the coordinator`).not.toContain('Never delegate.');
+            } else {
+              expect(occurrences(soul, delegateLine(set)), `${role.id} delegation line`).toBe(1);
+            }
+            if (AUDIT_ROLES.includes(role.id)) {
+              expect(soul, `${role.id} no-stake`).toContain(NO_STAKE);
+              expect(soul, `${role.id} no-fix`).toContain(NO_FIX);
+            } else {
+              expect(soul, `${role.id} no-stake`).not.toContain(NO_STAKE);
+              expect(soul, `${role.id} no-fix`).not.toContain(NO_FIX);
+            }
+            for (const stat of TALK_STATS) {
+              expect(soul, `${role.id} ${stat}`).toContain(statLine(stat, expectedLevel(role, stat, build())));
+            }
+          });
+        });
+
+        if (pc.cap > TIER_CAP) {
+          it(`cap ${pc.cap} is over 4,000, so no tier runs: nothing is cut and the chassis stays full`, () => {
+            expect(result().warnings.filter((w) => w.startsWith(CUT_PREFIX) || w.startsWith(SHORT_PREFIX))).toEqual([]);
+          });
+
+          it("every role soul keeps every pack rules line, Brian's and the author's, and fits the cap", () => {
+            expect(entries.length).toBeGreaterThan(0);
+            eachSoul((role, _path, soul) => {
+              expectLines(soul, entries.map((e) => e.line), role, `${role.id} soul`);
+              expect(soul.length, `${role.id} soul length`).toBeLessThanOrEqual(pc.cap);
+            });
+          });
+
+          it('every role soul keeps every chassis line in its full form', () => {
+            const expected = chassisExpected(profile, build());
+            expect(expected.length).toBeGreaterThan(0);
+            eachSoul((role, _path, soul) => {
+              for (const x of expected) {
+                expect(soul, `${role.id}: ${x.id}`).toContain(x.full);
+              }
+            });
+          });
+          return;
+        }
+
+        // The form a soul's chassis ended in: short when Tier B ran, else the profile's own form.
+        const formOf = (path: string): 'full' | 'short' =>
+          warningsFor(result(), path, SHORT_PREFIX).length > 0 ? 'short' : profile.chassisForm;
+
+        it(`every role soul fits the cap of ${pc.cap} after the tiers, with no over-cap warning`, () => {
+          eachSoul((role, path, soul) => {
+            expect(soul.length, `${role.id} soul length`).toBeLessThanOrEqual(pc.cap);
+            expect(
+              result().warnings.filter((w) => w.startsWith(`roles: ${path} is `)),
+              `${role.id} over-cap warning`,
+            ).toEqual([]);
+          });
+        });
+
+        it("Tier A cuts the author's pack rules lines, all of them or none, never Brian's, each reported once", () => {
+          eachSoul((role, path) => {
+            const ids = cutIdsFrom(result(), path);
+            expect(new Set(ids).size, `${role.id}: each cut reported once`).toBe(ids.length);
+            for (const id of ids) {
+              expect(authorIds, `${role.id}: ${id} is an author line`).toContain(id);
+            }
+            if (rulesInSoul) {
+              if (ids.length > 0) {
+                expect([...ids].sort(), `${role.id}: Tier A cuts every author line`).toEqual([...authorIds].sort());
+              }
+            } else {
+              expect(ids, `${role.id}: the openclaw soul has no rules layer to cut from`).toEqual([]);
+            }
+            for (const w of warningsFor(result(), path, CUT_PREFIX)) {
+              expect(w, `${role.id}: warning names the cap`).toContain(`over ${pc.cap}`);
+            }
+          });
+        });
+
+        it('a cut line is gone from the soul, a kept line stays, and Brian\'s lines always stay', () => {
+          eachSoul((role, path, soul) => {
+            const cut = cutSetFrom(result(), path);
+            for (const e of entries) {
+              const copies = occurrences(soul, e.line);
+              const own = neverCopies(e.line, role);
+              if (!rulesInSoul || cut.has(e.id)) {
+                expect(copies, `${role.id}: ${e.id} is not in the soul`).toBe(own);
+              } else {
+                expect(copies, `${role.id}: ${e.id} stays in the soul`).toBeGreaterThanOrEqual(own + 1);
+              }
+            }
+          });
+        });
+
+        it('Tier A runs only while the soul is over the cap: before any tier it was over', () => {
+          eachSoul((role, path, soul) => {
+            const cutIds = cutIdsFrom(result(), path);
+            if (cutIds.length === 0) {
+              return; // nothing cut, and the first check shows the soul fits
+            }
+            const removed = entries.filter((e) => cutIds.includes(e.id)).reduce((n, e) => n + bulletSize(e.line), 0);
+            const shortened =
+              warningsFor(result(), path, SHORT_PREFIX).length > 0 ? shortSavings(chassisExpected(profile, build())) : 0;
+            expect(soul.length + shortened + removed, `${role.id}: size before any tier`).toBeGreaterThan(pc.cap);
+          });
+        });
+
+        if (profile.chassisForm === 'full') {
+          it('Tier B switches the chassis to short forms only when Tier A was not enough, keeping Tier A\'s cuts', () => {
+            eachSoul((role, path, soul) => {
+              const warns = warningsFor(result(), path, SHORT_PREFIX);
+              expect(warns.length, `${role.id}: at most one short-forms warning`).toBeLessThanOrEqual(1);
+              if (warns.length === 0) {
+                return;
+              }
+              expect(warns[0], `${role.id}: warning names the cap`).toContain(`over ${pc.cap}`);
+              // Tier A ran first and cut every author line there was to cut, and those stay cut.
+              if (rulesInSoul) {
+                expect([...cutIdsFrom(result(), path)].sort(), `${role.id}: Tier A cuts stay cut`).toEqual(
+                  [...authorIds].sort(),
+                );
+              }
+              const at = result().warnings.indexOf(warns[0]);
+              for (const w of warningsFor(result(), path, CUT_PREFIX)) {
+                expect(result().warnings.indexOf(w), `${role.id}: Tier A warning comes before Tier B`).toBeLessThan(at);
+              }
+              // After Tier A the soul was still over the cap in full chassis.
+              const afterA = soul.length + shortSavings(chassisExpected(profile, build()));
+              expect(afterA, `${role.id}: size after Tier A, full chassis`).toBeGreaterThan(pc.cap);
+            });
+          });
+        } else {
+          it(`the chassis is already in short form on ${pc.id}, so Tier B has nothing to switch`, () => {
+            eachSoul((role, path) => {
+              expect(warningsFor(result(), path, SHORT_PREFIX), role.id).toEqual([]);
+            });
+          });
+        }
+
+        it('chassis lines are never dropped: every one is in the soul, in the form the tiers left it', () => {
+          const expected = chassisExpected(profile, build());
+          expect(expected.length).toBeGreaterThan(0);
+          eachSoul((role, path, soul) => {
+            const form = formOf(path);
+            for (const x of expected) {
+              if (form === 'short') {
+                expect(soul, `${role.id} short: ${x.id}`).toContain(x.short);
+                if (x.full !== x.short) {
+                  expect(soul, `${role.id} short: full text of ${x.id} is gone`).not.toContain(x.full);
+                }
+              } else {
+                expect(soul, `${role.id} full: ${x.id}`).toContain(x.full);
+                if (x.full !== x.short && !x.full.includes(x.short)) {
+                  expect(soul, `${role.id} full: short text of ${x.id} is not used`).not.toContain(x.short);
+                }
+              }
+            }
+          });
+        });
+
+        if (pc.kind === 'openclaw') {
+          it('every role AGENTS.md keeps every rules line, the author\'s included, and no tier touches it', () => {
+            for (const role of members) {
+              const path = `workspace-${role.id}/AGENTS.md`;
+              const file = result().files.find((f) => f.path === path);
+              expect(file, path).toBeDefined();
+              expectRulesBlock(file?.content ?? '', build(), role, path);
+              expect(warningsFor(result(), path, CUT_PREFIX), `${path} cut`).toEqual([]);
+              expect(warningsFor(result(), path, SHORT_PREFIX), `${path} short forms`).toEqual([]);
+            }
+          });
+        }
+
+        if (rulesInSoul && entries.some((e) => e.brief)) {
+          it("Brian's pack.perps.rule.1 stays on every soul while the author lines go", () => {
+            expect(entries.filter((e) => e.brief).map((e) => e.id)).toEqual(['pack.perps.rule.1']);
+            eachSoul((role, path, soul) => {
+              expect(cutIdsFrom(result(), path).length, `${role.id}: this case is over the cap before Tier A`).toBeGreaterThan(0);
+              expect(cutIdsFrom(result(), path), role.id).not.toContain('pack.perps.rule.1');
+              const line = entries.find((e) => e.id === 'pack.perps.rule.1')?.line ?? '';
+              expect(soul, `${role.id}: ${line}`).toContain(line);
+            });
+          });
+        }
+      });
+    }
+  });
+}
+
+// A guard so the checks above cannot go quiet: the matrix has to reach every tier path.
+describe('Role soul length tiers: the matrix reaches every path', () => {
+  const rows = lazy(() =>
+    TIER_CASES.flatMap((c) =>
+      SOUL_PROFILES.filter((pc) => pc.cap <= TIER_CAP).flatMap((pc) => {
+        const { build, result } = tierCompile(c, pc);
+        const entries = packRuleEntries(build);
+        return setOf(c.setId)
+          .members.map(roleOf)
+          .map((role) => {
+            const file = soulFileOf(result, pc, role);
+            const path = file?.path ?? '';
+            const cut = cutIdsFrom(result, path);
+            return {
+              where: `${tierLabel(c)} on ${pc.id}: ${role.id}`,
+              profile: pc.id,
+              cut: cut.length > 0,
+              short: warningsFor(result, path, SHORT_PREFIX).length > 0,
+              briefKept:
+                cut.length > 0 && entries.some((e) => e.brief && (file?.content ?? '').includes(e.line)),
+            };
+          });
+      }),
+    ),
+  );
+
+  it('has souls that fit with no tier, after Tier A alone, after Tier B alone, and after both', () => {
+    expect(rows().some((r) => !r.cut && !r.short), 'a soul that needs no tier').toBe(true);
+    expect(rows().some((r) => r.cut && !r.short), 'a soul that fits after Tier A').toBe(true);
+    expect(rows().some((r) => !r.cut && r.short), 'a soul that needs Tier B alone').toBe(true);
+    expect(rows().some((r) => r.cut && r.short), 'a soul that needs Tier A then Tier B').toBe(true);
+  });
+
+  it("has a cut soul that keeps Brian's line, on hermes and on grok", () => {
+    for (const id of ['hermes', 'grok']) {
+      expect(rows().some((r) => r.profile === id && r.briefKept), `${id}: a cut soul with pack.perps.rule.1`).toBe(true);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
 // The role rules layers carry the user's limits, not just the pack defaults.
 
 describe('Limit overrides reach every role rules layer', () => {
@@ -1045,10 +1507,50 @@ describe('Locked stats override the build stats', () => {
 
 describe('Role golden specs', () => {
   const roleSpecs = GOLDEN_SPECS.filter((s) => s.roles !== undefined);
+  const goldenDir = fileURLToPath(new URL('./golden/v2/', import.meta.url));
+
+  // Where a role soul sits in a golden: the "### <path> (" heading of its file.
+  const soulPathOf = (pc: ProfileCase, role: RolePack): string => {
+    switch (pc.kind) {
+      case 'openclaw':
+        return `workspace-${role.id}/SOUL.md`;
+      case 'hermes':
+        return `profiles/${role.id}/SOUL.md`;
+      case 'paste': {
+        const profile = library.targets.profiles.find((p) => p.id === pc.id);
+        return `${profile?.personalityPath} (${role.label})`;
+      }
+    }
+  };
 
   it('there are four, one per role set', () => {
     const sets = roleSpecs.map((s) => roleOf((s.roles as string[])[0]).set).sort();
     expect(sets).toEqual(['coding', 'personal-ops', 'research', 'trading']);
+  });
+
+  it('the four are marty.openclaw.roles, rook.hermes.roles, june.grok.roles and sol.chatgpt-project.roles', () => {
+    expect(roleSpecs.map((s) => s.id).sort()).toEqual([
+      'june.grok.roles',
+      'marty.openclaw.roles',
+      'rook.hermes.roles',
+      'sol.chatgpt-project.roles',
+    ]);
+  });
+
+  it('the research role golden is Sol on chatgpt-project, and no role golden is on the deprecated gpt mode (B2)', () => {
+    const sol = roleSpecs.find((s) => s.id === 'sol.chatgpt-project.roles');
+    expect(sol, 'sol.chatgpt-project.roles spec').toBeDefined();
+    expect(sol).toMatchObject({ starter: 'sol', target: 'chatgpt', mode: 'project' });
+    expect(roleSpecs.filter((s) => s.mode === 'gpt' || s.id.includes('chatgpt-gpt'))).toEqual([]);
+    expect(existsSync(goldenDir + 'sol.chatgpt-gpt.roles.md'), 'sol.chatgpt-gpt.roles.md is removed').toBe(false);
+  });
+
+  it('the role goldens show both length tiers: rook.hermes.roles cuts the author pack rules, then goes short (B1)', () => {
+    const spec = roleSpecs.find((s) => s.id === 'rook.hermes.roles');
+    expect(spec, 'rook.hermes.roles spec').toBeDefined();
+    const warnings = compile(buildFor(spec as GoldenSpec, library)).warnings;
+    expect(warnings.some((w) => w.startsWith(CUT_PREFIX)), 'a Tier A cut').toBe(true);
+    expect(warnings.some((w) => w.startsWith(SHORT_PREFIX)), 'a Tier B switch').toBe(true);
   });
 
   for (const spec of roleSpecs) {
@@ -1066,6 +1568,21 @@ describe('Role golden specs', () => {
       const set = setOf(roleOf((spec.roles as string[])[0]).set);
       expect(result.roles).toEqual(set.members.filter((id) => id === set.coordinator || (spec.roles as string[]).includes(id)));
       expect(result.roles).toContain(set.coordinator);
+    });
+
+    it(`${spec.id}: one soul per role, each within the profile cap, and the golden file lists each soul`, () => {
+      const pc = SOUL_PROFILES.find((p) => p.target === spec.target && p.mode === spec.mode);
+      expect(pc, `${spec.id} is on a role-capable profile`).toBeDefined();
+      const result = compile(buildFor(spec, library));
+      expect(existsSync(goldenDir + spec.id + '.md'), `${spec.id}.md exists`).toBe(true);
+      const golden = readFileSync(goldenDir + spec.id + '.md', 'utf8');
+      for (const id of result.roles) {
+        const role = roleOf(id);
+        const files = soulFilesOf(result, pc as SoulProfileCase, role);
+        expect(files.length, `${id} soul file`).toBe(1);
+        expect(files[0].content.length, `${id} soul length`).toBeLessThanOrEqual((pc as SoulProfileCase).cap);
+        expect(golden, `${id} in the golden`).toContain(`### ${soulPathOf(pc as SoulProfileCase, role)} (`);
+      }
     });
   }
 });
