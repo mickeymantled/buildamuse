@@ -127,31 +127,31 @@ Waiting on Brian: V25 caps (blocking), V14 dot forbid label, V15 custom GPT reti
 | C7 | golden specs without gpt (M3.1) | engineer | B2 | reviewer PASS | done |
 | C8 | goldens regenerated, tests updated, safety on every set | tester, safety | all | npm test green, safety PASS | done |
 
-## M3: UI
+## M3: UI (done 2026-10-03)
 
 Done when (Part F): stations 0 through 7 as specced plus pack, limits, gates and roles screens; store; preview strip; floors and caps enforced. Mobile first (390px), tap-only, light and dark, 44px touch targets, no em dashes, UI copy says "your bot's personality" except where a target uses SOUL.md.
 
 | # | Slice | Agent | Source | Done when | Status |
 | --- | --- | --- | --- | --- | --- |
 | 3.1 | hide gpt mode, remove its goldens | (C4, C7, C8) | B2 | goldens without gpt | done |
-| 3.2 | Tailwind, Zustand store (build v2, station, from flag, retarget, memoized compile), UI copy file | engineer | spec Screens: State; Part E | store unit tests pass | |
-| 3.3 | shared components: Card, Chip, ChipGrid, Slider, Stepper, Toggle3, Pill, ProgressDots, BottomSheet | engineer | spec Screens: Layout | reviewer PASS | |
-| 3.4 | station 0 target picker + App router shell | engineer | Part E | five cards, chatgpt radios, plan tap | |
-| 3.5 | roster screen (compiled against the chosen target) | engineer | spec Roster + Part E | nine cards, Use and Remix | |
-| 3.6 | station 1 base | engineer | spec Screens | defaults set, chip order | |
-| 3.7 | station 2 world (chip grid n/6) | engineer | spec Screens | cap 6, dimming | |
-| 3.8 | pack screen | engineer | Part E | preselected from chips, max 3 | |
-| 3.9 | limits screen | engineer | Part E | steppers, venue notes | |
-| 3.10 | gates screen | engineer | Part E, B1 | three-state, pay locked, copy per target, Paid steer | |
-| 3.11 | station 3 stats | engineer | spec Screens, library Stats | n/14, floors, samples, risk with Markets, badges | |
-| 3.12 | station 4 peeves | engineer | spec Screens | n/5, built-in checkmarks | |
-| 3.13 | station 5 heart | engineer | spec Screens | d1 alternate, d2, d3 locked | |
-| 3.14 | station 6 outfit | engineer | spec Screens | twelve cards with sample hey | |
-| 3.15 | station 7 name | engineer | spec Screens | the only text input, 1..24 | |
-| 3.16 | roles screen (advanced) | engineer | Part E | hidden when supportsRoles false | |
-| 3.17 | preview strip + peek sheet | engineer | spec Screens | length vs cap, last badge, chassis muted | |
-| 3.18 | skipped stations (S9) | engineer | S9 | defaults kept, skipped list in store | |
-| 3.19 | UI tests: store, flow, caps and floors | tester | Part F | green | |
+| 3.2 | Tailwind, Zustand store (build v2, station, from flag, retarget, memoized compile), UI copy file | engineer | spec Screens: State; Part E | store unit tests pass | done (6a1916c; tests in 3.19a) |
+| 3.3 | shared components: Card, Chip, ChipGrid, Slider, Stepper, Toggle3, Pill, ProgressDots, BottomSheet | engineer | spec Screens: Layout | reviewer PASS | done (cb218ea) |
+| 3.4 | station 0 target picker + App router shell | engineer | Part E | five cards, chatgpt radios, plan tap | done (dbe3681) |
+| 3.5 | roster screen (compiled against the chosen target) | engineer | spec Roster + Part E | nine cards, Use and Remix | done (4f9335d) |
+| 3.6 | station 1 base | engineer | spec Screens | defaults set, chip order | done (e552096) |
+| 3.7 | station 2 world (chip grid n/6) | engineer | spec Screens | cap 6, dimming | done (32cbb58) |
+| 3.8 | pack screen | engineer | Part E | preselected from chips, max 3 | done (f197688) |
+| 3.9 | limits screen | engineer | Part E | steppers, venue notes | done (4c2d721) |
+| 3.10 | gates screen | engineer | Part E, B1 | three-state, pay locked, copy per target, Paid steer | done (360ef53) |
+| 3.11 | station 3 stats | engineer | spec Screens, library Stats | n/14, floors, samples, risk with Markets, badges | done (419513e) |
+| 3.12 | station 4 peeves | engineer | spec Screens | n/5, built-in checkmarks | done (42454e7) |
+| 3.13 | station 5 heart | engineer | spec Screens | d1 alternate, d2, d3 locked | done (06c4d6a) |
+| 3.14 | station 6 outfit | engineer | spec Screens | twelve cards with sample hey | done (5dfe9e5) |
+| 3.15 | station 7 name | engineer | spec Screens | the only text input, 1..24 | done (abc84fb) |
+| 3.16 | roles screen (advanced) | engineer | Part E | hidden when supportsRoles false | done (aaf4b32) |
+| 3.17 | preview strip + peek sheet | engineer | spec Screens | length vs cap, last badge, chassis muted | done (2949b31) |
+| 3.18 | skipped stations (S9) | engineer | S9 | defaults kept, skipped list in store | done: store records skipped (6a1916c), tested in 2d6de47 |
+| 3.19 | UI tests: store, flow, caps and floors | tester | Part F | green | done: store tests (2d6de47, 546), flow and copy tests (172) |
 
 ## Log
 
@@ -171,3 +171,12 @@ Done when (Part F): stations 0 through 7 as specced plus pack, limits, gates and
 - BLOCKING: V25 caps. Grok 2,000, free custom instructions 1,500, paid 5,000 and some 3,600 souls can't hold every chassis line plus the rules layer. Needs Brian; until then over-cap output ships with a warning.
 - M2 Wave D: tests and 64 goldens landed; lead fixed a dedupe bug (pack twins), grok approval fields and two tests after review rounds (V28). Safety PASS on every golden set.
 - M2 closeout done (2026-10-02): Brian's B1 to B10 landed; lead fixes V29 (short-form precedence, Tier A cuts kept) and V30 (grok sources from one pack); 55 goldens, safety PASS on every set; 5,055 tests pass, 2 expected fail (Marty and June on free custom instructions, UI steers to Paid).
+- M3 3.2 failed review round 2 on one nit (hardcoded tab title); lead set document.title from copy and made the kids nudge reversible (U6b) rather than re-dispatching. 3.3 passed in two rounds.
+- M3 wave 2: store tests (3.19a), 3.4 and 3.5 passed review. Lead removed the unused startersLabel and normalized .js imports in screens. The preview pane's dev server hung on "starting" (policy check), so the visual check is deferred; engineers verified 390px layout with a temporary vite server.
+- M3 wave 3: 3.6 to 3.9 passed review in one round each; readings logged as U9.
+- Lead visual check (2026-10-02, preview pane at 375px, dark and light): target with ChatGPT modes and plan, roster row (page does not scroll sideways), Remix Marty to base, world with sticky counter, packs, limits. All as specced. .claude/launch.json runs vite through node directly (npx hung in the pane).
+- M3 wave 4: 3.10 to 3.13 passed review (peeves in two rounds). Lead fix on 3.12: Chip checked state made tappable so "already built in" sits on the chip (spec) and the pick can be undone. Lead clicked through gates, stats, peeves and heart on a June remix. Readings in U10.
+- M3 wave 5: 3.14 to 3.17 passed review (name in two rounds, preview in three). Lead fix on 3.16: the roles switch stays visible while on. Lead clicked an OpenClaw Rook remix end to end: preview strip, peek sheet, roles switch and screen, name, certificate placeholder. Readings in U11. 3.18 needed no UI: skip recording is in the store and its tests.
+- Lead audit (2026-10-03, 375px, Grok Odds remix, base through name plus target and roster): every button, radio, switch and input is at least 44 by 44, and scrollWidth equals the viewport on every screen.
+- M3 3.19b: UI flow and copy tests passed review in two rounds and found one bug (the peek sheet was not a dialog); lead fixed BottomSheet (role dialog, aria-modal, focus moves in on open) and flipped the test.
+- M3 DONE (2026-10-03). Done criteria checked: stations 0 to 7 plus packs, limits, gates and roles; store; preview strip; floors and caps enforced in the store and through the UI; tap-only (one textbox, on name); 375px with no sideways scroll; 44px targets audited; light and dark checked; no em dashes (test plus repo sweep); copy has no SOUL.md and Muse only where allowed (test). Suite: 15 files, 5,774 passed, 2 expected fail (V25 caps), 11 todo; typecheck clean; vite build clean (one chunk-size warning: the library ships in the main bundle, worth splitting in M4). Waiting for Brian's go on M4.
