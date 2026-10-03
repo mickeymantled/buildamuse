@@ -10,8 +10,9 @@
 //   2. Compiled role sets: every member of every set compiled on openclaw, hermes and grok (caps of
 //      4,000 or less, so the B1 tiers apply) and on chatgpt-project and chatgpt-gpt (cap 8,000,
 //      full rules). The gpt mode is hidden and deprecated (B2) but stays in the compiler, so its
-//      role souls are still checked. Then the fallback notes on muse, chatgpt-dot and
-//      chatgpt-instructions.
+//      role souls are still checked. On grok, chatgpt-project and chatgpt-gpt the fallback.roles
+//      line is an install step that shows roles, not a note (QUESTIONS W33). Then the fallback
+//      notes on muse, chatgpt-dot and chatgpt-instructions.
 //   3. Length tiers on role souls (B1): Tier A cuts the author's pack rules lines, Tier B switches
 //      the chassis to short forms, chassis lines are never dropped, AGENTS.md keeps every rules
 //      line, and role souls on gpt or project keep the full rules.
@@ -663,6 +664,39 @@ describe('Role library: profiles without role support', () => {
     const line = dot?.templates['fallback.roles'].line ?? '';
     expect(line).toContain('one agent');
   });
+
+  // W33: a profile that ships role files with no install step that shows roles gets its
+  // fallback.roles line as the step that shows them. This pins which profiles those are, from the
+  // library, so the compiled checks below cannot quietly skip one.
+  it('the profiles with role files and no roles install step are grok, chatgpt-gpt and chatgpt-project', () => {
+    const promoted = library.targets.profiles
+      .filter(
+        (p) =>
+          (p.roleFallback === 'team' || p.roleFallback === 'separate-bundles') &&
+          !p.installSteps.some((s) => (s.shows ?? []).includes('roles')),
+      )
+      .map((p) => p.id)
+      .sort();
+    expect(promoted).toEqual(['chatgpt-gpt', 'chatgpt-project', 'grok']);
+    for (const id of promoted) {
+      expect(library.targets.profiles.find((p) => p.id === id)?.templates['fallback.roles'], id).toBeDefined();
+    }
+  });
+
+  it('openclaw and hermes already have a roles install step, so no fallback.roles line is promoted there', () => {
+    for (const id of ['openclaw', 'hermes']) {
+      const profile = library.targets.profiles.find((p) => p.id === id);
+      expect(profile?.installSteps.some((s) => (s.shows ?? []).includes('roles')), id).toBe(true);
+      expect(profile?.templates['fallback.roles'], id).toBeUndefined();
+    }
+  });
+
+  it('the profiles that emit no role files (muse, chatgpt-dot, chatgpt-instructions) have no roles install step', () => {
+    for (const id of ['muse', 'chatgpt-dot', 'chatgpt-instructions']) {
+      const profile = library.targets.profiles.find((p) => p.id === id);
+      expect(profile?.installSteps.some((s) => (s.shows ?? []).includes('roles')), id).toBe(false);
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -898,14 +932,18 @@ for (const c of CASES) {
           }
         }
 
-        // The compile also delivers the team note where the profile has one.
+        // The compile also delivers the team line where the profile has one. These profiles ship role
+        // files and have no install step that shows roles, so (W33) the fallback.roles line is that
+        // step: a BundleStep with shows ['roles'], id profile.<pid>.fallback.roles, placed after the
+        // other non-closer steps. It is not a note.
         if (pc.kind === 'paste') {
           const profile = library.targets.profiles.find((p) => p.id === pc.id);
           const baseline = lazy(() => compile(withoutRoles(build)));
+          const template = profile?.templates['fallback.roles'].line ?? '';
+          const templateId = profile?.templates['fallback.roles'].id ?? '';
 
-          it('gives exactly one fallback.roles note naming every role', () => {
-            const template = profile?.templates['fallback.roles'].line ?? '';
-            const matched = notesMatching(template, result().notes);
+          it('gives exactly one fallback.roles line, as an install step naming every role', () => {
+            const matched = notesMatching(template, result().installSteps);
             expect(matched.length).toBe(1);
             const wildcard = wildcardOf(template, matched[0]);
             for (const role of members) {
@@ -913,11 +951,35 @@ for (const c of CASES) {
             }
           });
 
-          it('the only note the roles add is that fallback.roles note', () => {
-            const template = profile?.templates['fallback.roles'].line ?? '';
-            const added = result().notes.filter((n) => !baseline().notes.includes(n));
-            expect(added).toEqual(notesMatching(template, result().notes));
+          it('does not give the fallback.roles line as a note', () => {
+            expect(notesMatching(template, result().notes)).toEqual([]);
+            expect(result().noteItems.filter((n) => n.kind === 'role')).toEqual([]);
+            expect(result().noteItems.filter((n) => n.id === templateId)).toEqual([]);
+          });
+
+          it('the only step the roles add is that fallback.roles step, and they add no note', () => {
+            const added = result().installSteps.filter((s) => !baseline().installSteps.includes(s));
+            expect(added).toEqual(notesMatching(template, result().installSteps));
             expect(added.length).toBe(1);
+            expect(result().notes).toEqual(baseline().notes);
+          });
+
+          it('the fallback.roles step has the template id, shows roles, follows the other steps and precedes any closer', () => {
+            const steps = result().steps;
+            const at = steps.findIndex((s) => s.id === templateId);
+            expect(templateId).toBe(`profile.${pc.id}.fallback.roles`);
+            expect(at, `${templateId} is a step`).toBeGreaterThanOrEqual(0);
+            const step = steps[at];
+            expect(step.shows).toEqual(['roles']);
+            expect(step.closer).toBe(false);
+            expect(notesMatching(template, [step.text])).toEqual([step.text]);
+            expect(steps.slice(0, at).every((s) => !s.closer)).toBe(true);
+            expect(steps.slice(at + 1).every((s) => s.closer)).toBe(true);
+            expect(steps.filter((s) => !s.closer).at(-1)?.id).toBe(templateId);
+            // Every other step is the one the same build has with no roles, in the same order.
+            expect(steps.filter((s) => s.id !== templateId).map((s) => s.id)).toEqual(
+              baseline().steps.map((s) => s.id),
+            );
           });
 
           it('does not give the fallback.none note', () => {
@@ -1027,6 +1089,16 @@ for (const c of CASES) {
           expect(result().soul).toBe(baseline().soul);
         });
 
+        // W33: no role files ship here, so no step is promoted and no step shows roles.
+        it('adds no install step and no step that shows roles', () => {
+          expect(result().steps).toEqual(baseline().steps);
+          expect(result().installSteps).toEqual(baseline().installSteps);
+          expect(result().steps.some((s) => s.shows.includes('roles'))).toBe(false);
+          for (const template of fallbackRolesTemplates()) {
+            expect(notesMatching(template, result().installSteps), template).toEqual([]);
+          }
+        });
+
         if (pc.id === 'chatgpt-dot') {
           it('gives exactly one fallback.roles note naming every role', () => {
             const template = profile().templates['fallback.roles'].line;
@@ -1044,6 +1116,14 @@ for (const c of CASES) {
             const added = result().notes.filter((n) => !baseline().notes.includes(n));
             expect(added).toEqual(notesMatching(template, result().notes));
             expect(added.length).toBe(1);
+          });
+
+          // The dot emits no role files, so the note stays a note (W33).
+          it('keeps the fallback.roles line as a note of kind role, with the template id', () => {
+            const record = profile().templates['fallback.roles'];
+            const items = result().noteItems.filter((n) => n.kind === 'role');
+            expect(items.map((n) => n.id)).toEqual([record.id]);
+            expect(items.map((n) => n.text)).toEqual(notesMatching(record.line, result().notes));
           });
 
           it('does not give the fallback.none note', () => {
@@ -1091,6 +1171,14 @@ describe('Compiled role sets: instructions on the paid plan also gives the fallb
     for (const template of fallbackRolesTemplates()) {
       expect(notesMatching(template, result.notes), template).toEqual([]);
     }
+  });
+
+  it('gives no fallback.roles step and no step that shows roles', () => {
+    const result = compile(build);
+    for (const template of fallbackRolesTemplates()) {
+      expect(notesMatching(template, result.installSteps), template).toEqual([]);
+    }
+    expect(result.steps.some((s) => s.shows.includes('roles'))).toBe(false);
   });
 });
 

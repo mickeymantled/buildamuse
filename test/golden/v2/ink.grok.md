@@ -168,9 +168,17 @@ Also put these hard rules in the skill's approval field: Payments: forbidden. Ne
 2. Edit Profile: paste Description, set label to the build name.
 3. Say the memory sentence.
 4. Say each skill sentence.
-5. Say each routine sentence; Test run before enabling; don't enable until two runs look right.
-6. Connect only the plugins the skills name; plugins are account-wide.
-7. Optional: Share > Create template for an x.ai link; remove anything private first.
+5. Connect only the plugins the skills name; plugins are account-wide.
+6. Optional: Share > Create template for an x.ai link; remove anything private first.
+
+## Steps
+
+1. New > Create new Bot, name it. [none]
+2. Edit Profile: paste Description, set label to the build name. [personality, label]
+3. Say the memory sentence. [memory, firstTask]
+4. Say each skill sentence. [skills]
+5. Connect only the plugins the skills name; plugins are account-wide. [none]
+6. Optional: Share > Create template for an x.ai link; remove anything private first. [none]
 
 ## Notes
 

@@ -442,12 +442,19 @@ Remember that I'm a student, I'm into music. The hard part right now is I need t
 2. Open the Project's Instructions and paste your personality. Treat 8,000 characters as the limit.
 3. Upload each skill file to the Project's files.
 4. Say the memory sentence in a chat inside the Project.
-5. Say each routine sentence in a chat inside the Project. verify: whether your plan includes Tasks.
+5. Projects don't work as a team. Each role (Lead, Searcher, Synthesizer, Fact-checker) is a separate Project. Hand-offs between them are manual: you copy one Project's report and paste it into the next. Nothing passes between them on its own.
+
+## Steps
+
+1. Create a Project and name it. [none]
+2. Open the Project's Instructions and paste your personality. Treat 8,000 characters as the limit. [personality]
+3. Upload each skill file to the Project's files. [skills]
+4. Say the memory sentence in a chat inside the Project. [memory]
+5. Projects don't work as a team. Each role (Lead, Searcher, Synthesizer, Fact-checker) is a separate Project. Hand-offs between them are manual: you copy one Project's report and paste it into the next. Nothing passes between them on its own. [roles]
 
 ## Notes
 
 - verify: the Project instructions limit (8,000 assumed, per the brief).
-- Projects don't work as a team. Each role (Lead, Searcher, Synthesizer, Fact-checker) is a separate Project. Hand-offs between them are manual: you copy one Project's report and paste it into the next. Nothing passes between them on its own.
 
 ## Gates
 

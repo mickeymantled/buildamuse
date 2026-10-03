@@ -9,9 +9,11 @@
 // Expected values come from the plan and from the files on disk (and from git history for the
 // pre-split baseline), never from compiler output.
 //
-// The pre-split baseline block is a migration check. It is valid until the first M4 content edit to
-// profiles.json (W3 step tags, W4 verify cleanup, W21 SKILL.md frontmatter). Retire or re-pin that
-// block in the same slice that makes the edit; the structural blocks stay.
+// The pre-split baseline block is a migration check. M4 slice 4.4 (W3 step tags) re-pinned it: the
+// profile comparisons now strip the keys 4.4 added (`shows`, `when` and `closer` on install steps,
+// and the `rulesPath` line on chatgpt-dot) before comparing, so any other change to a profile still
+// fails. It is valid until the next M4 content edit to profiles.json (W4 verify cleanup, W21 SKILL.md
+// frontmatter); re-pin or retire it in the slice that makes that edit. The structural blocks stay.
 
 import { describe, it, expect } from 'vitest';
 import { execFileSync } from 'node:child_process';
@@ -93,6 +95,19 @@ function preSplitBaseline(): { targets: TargetCard[]; profiles: Profile[]; commi
 }
 
 const baseline = preSplitBaseline();
+
+// Slice 4.4 additions to a profile, removed so the rest can be compared with the pre-split record:
+// the tag keys on install steps and the chatgpt-dot rulesPath line. Key order of what remains is kept.
+function withoutStepTags(p: Profile): Profile {
+  const copy = structuredClone(p);
+  delete copy.rulesPath;
+  for (const step of copy.installSteps) {
+    delete step.shows;
+    delete step.when;
+    delete step.closer;
+  }
+  return copy;
+}
 
 describe('targets.json holds only the cards', () => {
   it('is a bare array, not the old { targets, profiles } object', () => {
@@ -209,7 +224,7 @@ describe('library/index.ts reassembles the split', () => {
   });
 });
 
-describe('pre-split baseline (migration check, retire when profiles.json content changes)', () => {
+describe('pre-split baseline (migration check, step tags and rulesPath stripped; re-pin at the next profiles.json content edit)', () => {
   it.skipIf(baseline === null)('found a pre-split targets.json in git', () => {
     expect(baseline).not.toBeNull();
     expect(baseline?.targets).toHaveLength(5);
@@ -220,23 +235,24 @@ describe('pre-split baseline (migration check, retire when profiles.json content
     expect(cards).toEqual(baseline?.targets);
   });
 
-  it.skipIf(baseline === null)('profiles equal the old profiles array', () => {
-    expect(profiles).toEqual(baseline?.profiles);
+  it.skipIf(baseline === null)('profiles equal the old profiles array once the step tags and rulesPath are stripped', () => {
+    expect(profiles.map(withoutStepTags)).toEqual(baseline?.profiles);
   });
 
-  it.skipIf(baseline === null)('serialize to the same text, so key order is unchanged too', () => {
+  it.skipIf(baseline === null)('serialize to the same text once stripped, so key order is unchanged too', () => {
     expect(JSON.stringify(cards)).toBe(JSON.stringify(baseline?.targets));
-    expect(JSON.stringify(profiles)).toBe(JSON.stringify(baseline?.profiles));
+    expect(JSON.stringify(profiles.map(withoutStepTags))).toBe(JSON.stringify(baseline?.profiles));
   });
 
   for (const id of PROFILE_IDS) {
-    it.skipIf(baseline === null)(`profile ${id} matches its pre-split record`, () => {
+    it.skipIf(baseline === null)(`profile ${id} matches its pre-split record (tags stripped)`, () => {
       const before = baseline?.profiles.find((p) => p.id === id);
       const after = library.targets.profiles.find((p) => p.id === id);
       expect(before, `${id} missing from the pre-split file`).toBeDefined();
       expect(after, `${id} missing from the library`).toBeDefined();
-      expect(after).toEqual(before);
-      expect(JSON.stringify(after)).toBe(JSON.stringify(before));
+      const stripped = after ? withoutStepTags(after) : undefined;
+      expect(stripped).toEqual(before);
+      expect(JSON.stringify(stripped)).toBe(JSON.stringify(before));
     });
   }
 

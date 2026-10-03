@@ -297,6 +297,14 @@ If the task can't ask me, it stops and tells me instead.
 4. Say the memory sentence in a chat inside the Project.
 5. Say each routine sentence in a chat inside the Project. verify: whether your plan includes Tasks.
 
+## Steps
+
+1. Create a Project and name it. [none]
+2. Open the Project's Instructions and paste your personality. Treat 8,000 characters as the limit. [personality]
+3. Upload each skill file to the Project's files. [skills]
+4. Say the memory sentence in a chat inside the Project. [memory]
+5. Say each routine sentence in a chat inside the Project. verify: whether your plan includes Tasks. [routines]
+
 ## Notes
 
 - verify: the Project instructions limit (8,000 assumed, per the brief).

@@ -22,19 +22,34 @@
     "installSteps": [
       {
         "id": "profile.muse.step.1",
-        "line": "Paste this over the file in Identity › Soul."
+        "line": "Paste this over the file in Identity › Soul.",
+        "shows": [
+          "personality"
+        ]
       },
       {
         "id": "profile.muse.step.2",
-        "line": "Say this to your Muse in chat."
+        "line": "Say this to your Muse in chat.",
+        "shows": [
+          "memory"
+        ]
       },
       {
         "id": "profile.muse.step.3",
-        "line": "One at a time. It should confirm each. If it doesn't, say it again in a fresh chat."
+        "line": "One at a time. It should confirm each. If it doesn't, say it again in a fresh chat.",
+        "shows": [
+          "skills",
+          "routines"
+        ],
+        "when": [
+          "skills",
+          "routines"
+        ]
       },
       {
         "id": "profile.muse.step.4",
-        "line": "Then say hi."
+        "line": "Then say hi.",
+        "closer": true
       }
     ],
     "reloadNote": null,
@@ -116,27 +131,54 @@
     "installSteps": [
       {
         "id": "profile.openclaw.step.1",
-        "line": "Save SOUL.md at ~/.openclaw/workspace/SOUL.md."
+        "line": "Save SOUL.md at ~/.openclaw/workspace/SOUL.md.",
+        "shows": [
+          "personality"
+        ]
       },
       {
         "id": "profile.openclaw.step.2",
-        "line": "Save AGENTS.md beside it, in the same folder."
+        "line": "Save AGENTS.md beside it, in the same folder.",
+        "shows": [
+          "rules"
+        ]
       },
       {
         "id": "profile.openclaw.step.3",
-        "line": "Save each skill file at the path shown on it (skills/<id>/SKILL.md)."
+        "line": "Save each skill file at the path shown on it (skills/<id>/SKILL.md).",
+        "shows": [
+          "skills"
+        ],
+        "when": [
+          "skills"
+        ]
       },
       {
         "id": "profile.openclaw.step.4",
-        "line": "If you added roles, each role compiles to its own agent workspace. Save its files as listed."
+        "line": "If you added roles, each role compiles to its own agent workspace. Save its files as listed.",
+        "shows": [
+          "roles"
+        ],
+        "when": [
+          "roles"
+        ]
       },
       {
         "id": "profile.openclaw.step.5",
-        "line": "Say the memory sentence."
+        "line": "Say the memory sentence.",
+        "shows": [
+          "memory"
+        ]
       },
       {
         "id": "profile.openclaw.step.6",
-        "line": "Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether OpenClaw keeps routines in files or in chat."
+        "line": "Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether OpenClaw keeps routines in files or in chat.",
+        "shows": [
+          "routines"
+        ],
+        "when": [
+          "routines"
+        ]
       }
     ],
     "reloadNote": null,
@@ -208,23 +250,48 @@
     "installSteps": [
       {
         "id": "profile.hermes.step.1",
-        "line": "Save SOUL.md at ~/.hermes/SOUL.md."
+        "line": "Save SOUL.md at ~/.hermes/SOUL.md.",
+        "shows": [
+          "personality"
+        ]
       },
       {
         "id": "profile.hermes.step.2",
-        "line": "Save USER.md at ~/.hermes/memories/USER.md, and AGENTS.md in the folder you run Hermes from."
+        "line": "Save USER.md at ~/.hermes/memories/USER.md, and AGENTS.md in the folder you run Hermes from.",
+        "shows": [
+          "memory",
+          "rules"
+        ]
       },
       {
         "id": "profile.hermes.step.3",
-        "line": "Save each skill file at the path shown on it (skills/<id>/SKILL.md)."
+        "line": "Save each skill file at the path shown on it (skills/<id>/SKILL.md).",
+        "shows": [
+          "skills"
+        ],
+        "when": [
+          "skills"
+        ]
       },
       {
         "id": "profile.hermes.step.4",
-        "line": "If you added roles, each role compiles to its own Hermes profile. Save its files as listed."
+        "line": "If you added roles, each role compiles to its own Hermes profile. Save its files as listed.",
+        "shows": [
+          "roles"
+        ],
+        "when": [
+          "roles"
+        ]
       },
       {
         "id": "profile.hermes.step.5",
-        "line": "Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether Hermes keeps routines in files or in chat."
+        "line": "Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether Hermes keeps routines in files or in chat.",
+        "shows": [
+          "routines"
+        ],
+        "when": [
+          "routines"
+        ]
       },
       {
         "id": "profile.hermes.step.6",
@@ -321,19 +388,39 @@
       },
       {
         "id": "profile.grok.step.2",
-        "line": "Edit Profile: paste Description, set label to the build name."
+        "line": "Edit Profile: paste Description, set label to the build name.",
+        "shows": [
+          "personality",
+          "label"
+        ]
       },
       {
         "id": "profile.grok.step.3",
-        "line": "Say the memory sentence."
+        "line": "Say the memory sentence.",
+        "shows": [
+          "memory",
+          "firstTask"
+        ]
       },
       {
         "id": "profile.grok.step.4",
-        "line": "Say each skill sentence."
+        "line": "Say each skill sentence.",
+        "shows": [
+          "skills"
+        ],
+        "when": [
+          "skills"
+        ]
       },
       {
         "id": "profile.grok.step.5",
-        "line": "Say each routine sentence; Test run before enabling; don't enable until two runs look right."
+        "line": "Say each routine sentence; Test run before enabling; don't enable until two runs look right.",
+        "shows": [
+          "routines"
+        ],
+        "when": [
+          "routines"
+        ]
       },
       {
         "id": "profile.grok.step.6",
@@ -514,23 +601,44 @@
       },
       {
         "id": "profile.chatgpt-dot.step.2",
-        "line": "Before connecting work accounts: add each Custom Rule below with the setting shown."
+        "line": "Before connecting work accounts: add each Custom Rule below with the setting shown.",
+        "shows": [
+          "customRules"
+        ]
       },
       {
         "id": "profile.chatgpt-dot.step.3",
-        "line": "Send the \"Here's how I want you to work\" message."
+        "line": "Send the \"Here's how I want you to work\" message.",
+        "shows": [
+          "personality"
+        ]
       },
       {
         "id": "profile.chatgpt-dot.step.4",
-        "line": "Say the memory sentence."
+        "line": "Say the memory sentence.",
+        "shows": [
+          "memory"
+        ]
       },
       {
         "id": "profile.chatgpt-dot.step.5",
-        "line": "Say each skill sentence."
+        "line": "Say each skill sentence.",
+        "shows": [
+          "skills"
+        ],
+        "when": [
+          "skills"
+        ]
       },
       {
         "id": "profile.chatgpt-dot.step.6",
-        "line": "Say each scheduled task; confirm the time zone."
+        "line": "Say each scheduled task; confirm the time zone.",
+        "shows": [
+          "routines"
+        ],
+        "when": [
+          "routines"
+        ]
       },
       {
         "id": "profile.chatgpt-dot.step.7",
@@ -567,6 +675,10 @@
       "auto": "Take action without asking",
       "approve": "Ask before taking action",
       "forbid": "Hand off to you"
+    },
+    "rulesPath": {
+      "id": "profile.chatgpt-dot.rulesPath",
+      "line": "Settings > Personalization > Permissions > Custom rules"
     },
     "notes": [
       {
@@ -642,19 +754,34 @@
       },
       {
         "id": "profile.chatgpt-gpt.step.2",
-        "line": "Set the Name. Paste the description into Description."
+        "line": "Set the Name. Paste the description into Description.",
+        "shows": [
+          "description"
+        ]
       },
       {
         "id": "profile.chatgpt-gpt.step.3",
-        "line": "Paste your personality into Instructions. The hard limit is 8,000 characters."
+        "line": "Paste your personality into Instructions. The hard limit is 8,000 characters.",
+        "shows": [
+          "personality"
+        ]
       },
       {
         "id": "profile.chatgpt-gpt.step.4",
-        "line": "Add the four conversation starters."
+        "line": "Add the four conversation starters.",
+        "shows": [
+          "starters"
+        ]
       },
       {
         "id": "profile.chatgpt-gpt.step.5",
-        "line": "Upload each skill file under Knowledge."
+        "line": "Upload each skill file under Knowledge.",
+        "shows": [
+          "skills"
+        ],
+        "when": [
+          "skills"
+        ]
       },
       {
         "id": "profile.chatgpt-gpt.step.6",
@@ -666,11 +793,20 @@
       },
       {
         "id": "profile.chatgpt-gpt.step.8",
-        "line": "Say the memory sentence in a chat with your GPT."
+        "line": "Say the memory sentence in a chat with your GPT.",
+        "shows": [
+          "memory"
+        ]
       },
       {
         "id": "profile.chatgpt-gpt.step.9",
-        "line": "Say each routine sentence. verify: whether your plan includes Tasks."
+        "line": "Say each routine sentence. verify: whether your plan includes Tasks.",
+        "shows": [
+          "routines"
+        ],
+        "when": [
+          "routines"
+        ]
       },
       {
         "id": "profile.chatgpt-gpt.step.10",
@@ -779,11 +915,17 @@
       },
       {
         "id": "profile.chatgpt-instructions.step.2",
-        "line": "Paste the memory block into the first field."
+        "line": "Paste the memory block into the first field.",
+        "shows": [
+          "memory"
+        ]
       },
       {
         "id": "profile.chatgpt-instructions.step.3",
-        "line": "Paste your personality into the second field."
+        "line": "Paste your personality into the second field.",
+        "shows": [
+          "personality"
+        ]
       },
       {
         "id": "profile.chatgpt-instructions.step.4",
@@ -875,19 +1017,37 @@
       },
       {
         "id": "profile.chatgpt-project.step.2",
-        "line": "Open the Project's Instructions and paste your personality. Treat 8,000 characters as the limit."
+        "line": "Open the Project's Instructions and paste your personality. Treat 8,000 characters as the limit.",
+        "shows": [
+          "personality"
+        ]
       },
       {
         "id": "profile.chatgpt-project.step.3",
-        "line": "Upload each skill file to the Project's files."
+        "line": "Upload each skill file to the Project's files.",
+        "shows": [
+          "skills"
+        ],
+        "when": [
+          "skills"
+        ]
       },
       {
         "id": "profile.chatgpt-project.step.4",
-        "line": "Say the memory sentence in a chat inside the Project."
+        "line": "Say the memory sentence in a chat inside the Project.",
+        "shows": [
+          "memory"
+        ]
       },
       {
         "id": "profile.chatgpt-project.step.5",
-        "line": "Say each routine sentence in a chat inside the Project. verify: whether your plan includes Tasks."
+        "line": "Say each routine sentence in a chat inside the Project. verify: whether your plan includes Tasks.",
+        "shows": [
+          "routines"
+        ],
+        "when": [
+          "routines"
+        ]
       }
     ],
     "reloadNote": null,

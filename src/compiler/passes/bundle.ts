@@ -247,6 +247,32 @@ function stepsOf(ctx: CompileContext, has: Delivered): BundleStep[] {
 // Verify lines, the profile's own notes, the reload note, each pack's venue note, role notes,
 // then (custom GPT) the Actions note. A verify line with a `when` shows only if the bundle
 // delivers one of those artifacts.
+// Grok, Project and GPT deliver role artifacts with no install step of their own, only a role
+// fallback note that says what to do with them. When role files ship and no step shows roles, that
+// note becomes the step that shows them, so a role's gate block always sits under a step (wave 2
+// safety review, QUESTIONS W33). The note's library id and text are unchanged.
+function promotedRoleNote(
+  steps: BundleStep[],
+  roleNotes: RoleNote[],
+  roleFiles: BundleFile[],
+): { steps: BundleStep[]; notes: RoleNote[] } {
+  const [first, ...rest] = roleNotes;
+  // A missing template yields a visible [TODO] placeholder; it stays a note and is never a step.
+  if (
+    roleFiles.length === 0 ||
+    first === undefined ||
+    first.text.startsWith('[TODO:') ||
+    steps.some((s) => s.shows.includes('roles'))
+  ) {
+    return { steps, notes: roleNotes };
+  }
+  const step: BundleStep = { id: first.ids[0], text: first.text, shows: ['roles'], closer: false };
+  return {
+    steps: [...steps.filter((s) => !s.closer), step, ...steps.filter((s) => s.closer)],
+    notes: rest,
+  };
+}
+
 function noteItemsOf(ctx: CompileContext, roleNotes: RoleNote[], has: Delivered): BundleNote[] {
   const { profile } = ctx;
   const note = (line: Line, kind: BundleNote['kind']): BundleNote => ({
@@ -341,8 +367,9 @@ export function assembleBundle(ctx: CompileContext, parts: BundleParts): Bundle 
   ];
   const spoken = spokenItems(ctx, parts, main.spoken);
   const has = deliveredOf(ctx, files, spoken);
-  const steps = stepsOf(ctx, has);
-  const noteItems = noteItemsOf(ctx, roles.notes, has);
+  const promoted = promotedRoleNote(stepsOf(ctx, has), roles.notes, roles.files);
+  const steps = promoted.steps;
+  const noteItems = noteItemsOf(ctx, promoted.notes, has);
   const undelivered = undeliveredOf(ctx, parts);
 
   const bundle: Bundle = {

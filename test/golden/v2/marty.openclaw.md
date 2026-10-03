@@ -300,9 +300,16 @@ A scheduled run follows the rules in AGENTS.md like any other run.
 1. Save SOUL.md at ~/.openclaw/workspace/SOUL.md.
 2. Save AGENTS.md beside it, in the same folder.
 3. Save each skill file at the path shown on it (skills/<id>/SKILL.md).
-4. If you added roles, each role compiles to its own agent workspace. Save its files as listed.
-5. Say the memory sentence.
-6. Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether OpenClaw keeps routines in files or in chat.
+4. Say the memory sentence.
+5. Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether OpenClaw keeps routines in files or in chat.
+
+## Steps
+
+1. Save SOUL.md at ~/.openclaw/workspace/SOUL.md. [personality]
+2. Save AGENTS.md beside it, in the same folder. [rules]
+3. Save each skill file at the path shown on it (skills/<id>/SKILL.md). [skills]
+4. Say the memory sentence. [memory]
+5. Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether OpenClaw keeps routines in files or in chat. [routines]
 
 ## Notes
 

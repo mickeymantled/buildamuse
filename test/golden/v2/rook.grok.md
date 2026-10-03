@@ -258,6 +258,16 @@ Before you save it, read all of this back to me, including the owning Bot. Test 
 6. Connect only the plugins the skills name; plugins are account-wide.
 7. Optional: Share > Create template for an x.ai link; remove anything private first.
 
+## Steps
+
+1. New > Create new Bot, name it. [none]
+2. Edit Profile: paste Description, set label to the build name. [personality, label]
+3. Say the memory sentence. [memory, firstTask]
+4. Say each skill sentence. [skills]
+5. Say each routine sentence; Test run before enabling; don't enable until two runs look right. [routines]
+6. Connect only the plugins the skills name; plugins are account-wide. [none]
+7. Optional: Share > Create template for an x.ai link; remove anything private first. [none]
+
 ## Notes
 
 - verify: group chats hold 2 to 6 Bots and the Bots decide who answers; the coordinator is a convention, not a setting.

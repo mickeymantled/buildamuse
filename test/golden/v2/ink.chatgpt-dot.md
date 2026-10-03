@@ -167,9 +167,18 @@ Set up idea bank (when I say "bank this," log it with the date; when I say "what
 3. Send the "Here's how I want you to work" message.
 4. Say the memory sentence.
 5. Say each skill sentence.
-6. Say each scheduled task; confirm the time zone.
-7. Connect plugins only for what the skills need; review plugin permissions separately.
-8. Give it one project first.
+6. Connect plugins only for what the skills need; review plugin permissions separately.
+7. Give it one project first.
+
+## Steps
+
+1. Create your dot on desktop; name it, pick or generate the avatar. [none]
+2. Before connecting work accounts: add each Custom Rule below with the setting shown. [customRules]
+3. Send the "Here's how I want you to work" message. [personality]
+4. Say the memory sentence. [memory]
+5. Say each skill sentence. [skills]
+6. Connect plugins only for what the skills need; review plugin permissions separately. [none]
+7. Give it one project first. [none]
 
 ## Notes
 

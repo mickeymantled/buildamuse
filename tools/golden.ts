@@ -148,6 +148,19 @@ export function renderGolden(spec: GoldenSpec, result: CompileResult, lib: Libra
     sections.push(['## Install steps', '', ...result.installSteps.map((s, i) => `${i + 1}. ${s}`)]);
   }
 
+  // The tagged steps the certificate renders: hidden steps are gone, the closer has no number.
+  if (result.steps.length > 0) {
+    let num = 0;
+    sections.push([
+      '## Steps',
+      '',
+      ...result.steps.map((s) => {
+        const shows = `[${s.shows.length > 0 ? s.shows.join(', ') : 'none'}]`;
+        return s.closer ? `closer: ${s.text} ${shows}` : `${++num}. ${s.text} ${shows}`;
+      }),
+    ]);
+  }
+
   if (result.notes.length > 0) {
     sections.push(['## Notes', '', ...result.notes.map((n) => `- ${n}`)]);
   }

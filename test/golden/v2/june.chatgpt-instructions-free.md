@@ -114,6 +114,14 @@ Honesty, then my instructions, then brevity, then jokes.
 4. Check the limit: 1,500 characters on Free, 5,000 on Paid.
 5. Save.
 
+## Steps
+
+1. Open Settings > Personalization > Custom instructions. [none]
+2. Paste the memory block into the first field. [memory]
+3. Paste your personality into the second field. [personality]
+4. Check the limit: 1,500 characters on Free, 5,000 on Paid. [none]
+5. Save. [none]
+
 ## Notes
 
 - verify: whether custom instructions show one field or two on your plan.

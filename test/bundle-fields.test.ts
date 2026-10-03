@@ -172,10 +172,46 @@ function visible<T extends { when?: StepWhen[] }>(items: T[], has: Delivered): T
   return items.filter((i) => i.when === undefined || i.when.length === 0 || i.when.some((w) => has[w]));
 }
 
-// Library order with the `when` tags applied, closers last.
-function expectedSteps(profile: Profile, result: CompileResult): InstallStep[] {
-  const shown = visible(profile.installSteps, deliveredOf(result, profile));
-  return [...shown.filter((s) => s.closer !== true), ...shown.filter((s) => s.closer === true)];
+// What one step of a bundle is: a library install step, or the promoted role fallback line.
+interface ExpectedStep {
+  id: string;
+  text: string;
+  shows: ArtifactKind[];
+  closer: boolean;
+}
+
+const fromRecord = (s: InstallStep): ExpectedStep => ({
+  id: s.id,
+  text: s.line,
+  shows: s.shows ?? [],
+  closer: s.closer === true,
+});
+
+// QUESTIONS W33. A profile that ships role files (a file with a "Role ..." label) and has no shown
+// install step that shows roles gets its fallback.roles template as a step: the library id of the
+// template, its text with {roles} filled by the role labels in set member order joined with ", "
+// (the joiner the committed role goldens show, "(Chief of staff, Triager, Scheduler)"), and
+// shows ['roles'], never a closer.
+function promotedRoleStep(profile: Profile, result: CompileResult): ExpectedStep | undefined {
+  const roleFilesShip = result.files.some((f) => fileLabelKind(f, profile) === 'role');
+  const shownSteps = visible(profile.installSteps, deliveredOf(result, profile));
+  const template = Object.hasOwn(profile.templates, 'fallback.roles') ? profile.templates['fallback.roles'] : undefined;
+  if (!roleFilesShip || template === undefined || shownSteps.some((s) => (s.shows ?? []).includes('roles'))) {
+    return undefined;
+  }
+  const labels = result.roles.map((id) => library.roles.find((r) => r.id === id)?.label ?? `?${id}`);
+  return { id: template.id, text: template.line.replaceAll('{roles}', labels.join(', ')), shows: ['roles'], closer: false };
+}
+
+// Library order with the `when` tags applied, then the promoted role step (if any), closers last.
+function expectedSteps(profile: Profile, result: CompileResult): ExpectedStep[] {
+  const shown = visible(profile.installSteps, deliveredOf(result, profile)).map(fromRecord);
+  const promoted = promotedRoleStep(profile, result);
+  return [
+    ...shown.filter((s) => !s.closer),
+    ...(promoted !== undefined ? [promoted] : []),
+    ...shown.filter((s) => s.closer),
+  ];
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -343,19 +379,35 @@ describe.each(GOLDEN_SPECS)('bundle fields: $id', (spec) => {
       expect(result.steps.map((s) => s.text)).toEqual(result.installSteps);
     });
 
-    it("step ids are the profile's installSteps ids in order (when applied, closers last)", () => {
+    // A step's id is a profile installSteps id, or the profile's fallback.roles template id when
+    // role files ship and no install step shows roles (W33).
+    it("step ids are the profile's installSteps ids in order (when applied, closers last), plus the fallback.roles id when promoted", () => {
       expect(result.steps.map((s) => s.id)).toEqual(expectedSteps(profile, result).map((s) => s.id));
+      const known = [
+        ...profile.installSteps.map((s) => s.id),
+        ...(Object.hasOwn(profile.templates, 'fallback.roles') ? [profile.templates['fallback.roles'].id] : []),
+      ];
+      for (const s of result.steps) {
+        expect(known, `${spec.id} ${s.id}`).toContain(s.id);
+      }
     });
 
-    it('step text, shows and closer come from the profile record', () => {
-      expect(result.steps).toEqual(
-        expectedSteps(profile, result).map((s) => ({
-          id: s.id,
-          text: s.line,
-          shows: s.shows ?? [],
-          closer: s.closer === true,
-        })),
-      );
+    it('step text, shows and closer come from the profile record, or the fallback.roles template when promoted', () => {
+      expect(result.steps).toEqual(expectedSteps(profile, result));
+    });
+
+    it('the fallback.roles line is a step exactly when role files ship and no install step shows roles', () => {
+      const promoted = promotedRoleStep(profile, result);
+      const asStep = result.steps.filter((s) => s.id === `profile.${profile.id}.fallback.roles`);
+      const asNote = result.noteItems.filter((n) => n.id === `profile.${profile.id}.fallback.roles`);
+      if (promoted !== undefined) {
+        expect(asStep, spec.id).toEqual([promoted]);
+        expect(asNote, spec.id).toEqual([]);
+        expect(result.installSteps, spec.id).toContain(promoted.text);
+        expect(result.notes, spec.id).not.toContain(promoted.text);
+      } else {
+        expect(asStep, spec.id).toEqual([]);
+      }
     });
   });
 
@@ -612,7 +664,7 @@ describe.each(GPT_SPECS)('bundle fields on the custom GPT: $id', (spec) => {
 
   it('steps, notes, verify and kinds hold on the GPT too', () => {
     expect(result.steps.map((s) => s.text)).toEqual(result.installSteps);
-    expect(result.steps.map((s) => s.id)).toEqual(expectedSteps(profile, result).map((s) => s.id));
+    expect(result.steps).toEqual(expectedSteps(profile, result));
     expect(result.noteItems.map((n) => n.text)).toEqual(result.notes);
     expect(result.verify).toEqual(result.noteItems.filter((n) => n.kind === 'verify'));
     for (const file of result.files) {
@@ -1066,6 +1118,158 @@ describe('roles on a profile without role support', () => {
   ] as const)('%s compiles roles and lists none as undelivered', (_name, target, mode) => {
     const result = compile(marty(target, mode));
     expect(result.undelivered.filter((u) => u.kind === 'roles')).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// 6a. The role fallback line is an install step where no install step shows roles (QUESTIONS W33).
+//
+// Grok (team), the ChatGPT Project and the custom GPT (separate bundles) ship role files and have
+// no install step of their own for them, only a fallback.roles line. When role files ship, that
+// line becomes a BundleStep with shows ['roles'] after the other non-closer steps, and it leaves
+// noteItems and notes. Its id and its text are the template's. OpenClaw and Hermes have a roles
+// step already. Dot, Muse and custom instructions ship no role files, so nothing is promoted.
+
+describe('the role fallback line as an install step (W33)', () => {
+  const ROLE_IDS = ['scout', 'risk-manager', 'journal'];
+  const ROLE_LABELS = ROLE_IDS.map((id) => library.roles.find((r) => r.id === id)?.label ?? `?${id}`);
+
+  const withRoles = (target: TargetId, mode?: ChatgptMode, plan?: Plan, roles: string[] | null = ROLE_IDS): Build => {
+    const base = buildFor(specOf('marty.openclaw'), library);
+    const { mode: _mode, plan: _plan, roles: _roles, ...rest } = base;
+    return {
+      ...rest,
+      target,
+      ...(mode !== undefined ? { mode } : {}),
+      ...(plan !== undefined ? { plan } : {}),
+      ...(roles !== null ? { roles } : {}),
+    };
+  };
+
+  const PROMOTED = [
+    ['grok', 'grok', undefined],
+    ['chatgpt-project', 'chatgpt', 'project'],
+    ['chatgpt-gpt', 'chatgpt', 'gpt'],
+  ] as const;
+
+  const tpl = (profileId: string): { id: string; line: string } => {
+    const profile = library.targets.profiles.find((p) => p.id === profileId) as Profile;
+    return profile.templates['fallback.roles'];
+  };
+
+  // The roles-free baseline of the same target, to say what else is in the step list.
+  const baselineOf = (target: TargetId, mode?: ChatgptMode): CompileResult =>
+    compile(withRoles(target, mode, undefined, null));
+
+  describe.each(PROMOTED)('%s', (id, target, mode) => {
+    const result = compile(withRoles(target, mode));
+    const record = tpl(id);
+
+    it('has the promoted step: the template id, the filled template text, shows roles, not a closer', () => {
+      expect(record.id).toBe(`profile.${id}.fallback.roles`);
+      const matches = result.steps.filter((s) => s.id === record.id);
+      expect(matches).toEqual([
+        {
+          id: record.id,
+          text: record.line.replaceAll('{roles}', ROLE_LABELS.join(', ')),
+          shows: ['roles'],
+          closer: false,
+        },
+      ]);
+    });
+
+    it('puts the promoted step after every other non-closer step and before any closer', () => {
+      const at = result.steps.findIndex((s) => s.id === record.id);
+      expect(at).toBeGreaterThanOrEqual(0);
+      expect(result.steps.slice(0, at).every((s) => !s.closer)).toBe(true);
+      expect(result.steps.slice(at + 1).every((s) => s.closer)).toBe(true);
+      expect(result.steps.filter((s) => !s.closer).at(-1)?.id).toBe(record.id);
+    });
+
+    it('leaves the other steps as the roles-free build has them, in the same order', () => {
+      const others = result.steps.filter((s) => s.id !== record.id);
+      expect(others).toEqual(baselineOf(target, mode).steps);
+    });
+
+    it('adds the line to installSteps and removes it from noteItems and notes', () => {
+      const step = result.steps.find((s) => s.id === record.id);
+      expect(result.installSteps).toContain(step?.text);
+      expect(result.installSteps).toEqual(result.steps.map((s) => s.text));
+      expect(result.noteItems.filter((n) => n.id === record.id || n.kind === 'role')).toEqual([]);
+      expect(result.notes).not.toContain(step?.text);
+      expect(result.notes).toEqual(baselineOf(target, mode).notes);
+    });
+
+    it('puts the promoted step before a closer on a copy of the library whose last shown install step is a closer', () => {
+      const libProfile = library.targets.profiles.find((p) => p.id === id) as Profile;
+      // The last step this build shows (a routines step is hidden when the build has no routines).
+      const closer = visible(libProfile.installSteps, deliveredOf(result, libProfile)).at(-1) as InstallStep;
+      const closerLib: Library = {
+        ...library,
+        targets: {
+          ...library.targets,
+          profiles: library.targets.profiles.map((p) =>
+            p.id !== id
+              ? p
+              : { ...p, installSteps: p.installSteps.map((s) => (s.id === closer.id ? { ...s, closer: true } : s)) },
+          ),
+        },
+      };
+      const synth = compile(withRoles(target, mode), closerLib);
+      const ids = synth.steps.map((s) => s.id);
+      expect(ids.at(-1)).toBe(closer.id);
+      expect(ids.at(-2)).toBe(record.id);
+      expect(synth.steps.at(-1)?.closer).toBe(true);
+      expect(synth.steps.filter((s) => s.closer).map((s) => s.id)).toEqual([closer.id]);
+    });
+
+    it('is not promoted when the build has no roles', () => {
+      const none = baselineOf(target, mode);
+      expect(none.steps.some((s) => s.id === record.id)).toBe(false);
+      expect(none.steps.some((s) => s.shows.includes('roles'))).toBe(false);
+    });
+  });
+
+  it.each([
+    ['openclaw', 'openclaw', undefined, 'profile.openclaw.step.4'],
+    ['hermes', 'hermes', undefined, 'profile.hermes.step.4'],
+  ] as const)('%s already has a roles step and promotes nothing', (id, target, mode, roleStepId) => {
+    const result = compile(withRoles(target, mode));
+    const profile = library.targets.profiles.find((p) => p.id === id) as Profile;
+    expect(result.steps.filter((s) => s.shows.includes('roles')).map((s) => s.id)).toEqual([roleStepId]);
+    expect(result.steps.map((s) => s.id)).toEqual(
+      expectedSteps(profile, result).map((s) => s.id),
+    );
+    for (const s of result.steps) {
+      expect(profile.installSteps.map((r) => r.id), s.id).toContain(s.id);
+    }
+    expect(result.noteItems.filter((n) => n.kind === 'role')).toEqual([]);
+  });
+
+  it('keeps the fallback.roles line as a note on chatgpt-dot, where no role files ship', () => {
+    const result = compile(withRoles('chatgpt', 'dot'));
+    const record = tpl('chatgpt-dot');
+    expect(result.files.filter((f) => f.role !== undefined)).toEqual([]);
+    expect(result.steps.some((s) => s.id === record.id || s.shows.includes('roles'))).toBe(false);
+    expect(result.noteItems.filter((n) => n.kind === 'role')).toEqual([
+      { id: record.id, text: record.line.replaceAll('{roles}', ROLE_LABELS.join(', ')), kind: 'role' },
+    ]);
+    expect(result.notes).toContain(record.line.replaceAll('{roles}', ROLE_LABELS.join(', ')));
+  });
+
+  it.each([
+    ['muse', 'muse', undefined, undefined],
+    ['chatgpt-instructions free', 'chatgpt', 'instructions', 'free'],
+    ['chatgpt-instructions paid', 'chatgpt', 'instructions', 'paid'],
+  ] as const)('%s ships no role files, promotes no step and keeps its fallback.none line as a note', (name, target, mode, plan) => {
+    const result = compile(withRoles(target, mode, plan));
+    const profileId = name.startsWith('chatgpt-instructions') ? 'chatgpt-instructions' : name;
+    const none = (library.targets.profiles.find((p) => p.id === profileId) as Profile).templates['fallback.none'];
+    expect(result.files.filter((f) => f.role !== undefined)).toEqual([]);
+    expect(result.steps.some((s) => s.shows.includes('roles'))).toBe(false);
+    expect(result.steps.some((s) => s.id.endsWith('.fallback.roles') || s.id.endsWith('.fallback.none'))).toBe(false);
+    expect(result.steps).toEqual(compile(withRoles(target, mode, plan, null)).steps);
+    expect(result.noteItems.filter((n) => n.kind === 'role')).toEqual([{ id: none.id, text: none.line, kind: 'role' }]);
   });
 });
 

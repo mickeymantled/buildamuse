@@ -177,6 +177,13 @@ From now on, work this way: what's for dinner (ingredients in: three options, on
 3. One at a time. It should confirm each. If it doesn't, say it again in a fresh chat.
 4. Then say hi.
 
+## Steps
+
+1. Paste this over the file in Identity › Soul. [personality]
+2. Say this to your Muse in chat. [memory]
+3. One at a time. It should confirm each. If it doesn't, say it again in a fresh chat. [skills, routines]
+closer: Then say hi. [none]
+
 ## Notes
 
 - verify: Meta has not published the default Soul.md text; these opening lines come from the Build-a-Bot brief.
