@@ -21,6 +21,7 @@ import type {
   Section,
   StatId,
 } from '../types.js';
+import { fitTiers } from './length.js';
 import { render } from './render.js';
 
 export interface RoleNote {
@@ -445,14 +446,27 @@ export function roleRenderOptions(ctx: CompileContext, role: RolePack): RenderOp
   return { order: ROLE_ORDER, headings };
 }
 
+// A role soul on a cap of 4,000 or less goes through the same length tiers as the main soul (B1):
+// author pack rules lines first, then the short chassis records. Tier warnings go to `warnings`.
+// Role souls carry no chip triggers, so there is no trigger drop after the tiers.
 function soulFile(
   ctx: CompileContext,
   role: RolePack,
   path: string,
   label: string,
   delivery: BundleFile['delivery'],
+  warnings: string[],
 ): BundleFile {
-  const { soul, soulLines } = render(roleSoulItems(ctx, role), ctx.lib, roleRenderOptions(ctx, role));
+  const tiered = fitTiers(
+    ctx,
+    (c) => ({ items: roleSoulItems(c, role), opts: roleRenderOptions(c, role) }),
+    {
+      cut: (id) => `roles: cut ${id} (author pack rule, soul over ${ctx.cap}) in ${path}`,
+      short: `roles: chassis switched to short forms (soul over ${ctx.cap}) in ${path}`,
+    },
+  );
+  warnings.push(...tiered.warnings);
+  const { soul, soulLines } = render(tiered.built.items, ctx.lib, tiered.built.opts);
   return { path, label, delivery, content: soul, lines: soulLines };
 }
 
@@ -508,8 +522,8 @@ export function roleOutputs(ctx: CompileContext): RoleOutputs {
     return { files, notes, warnings };
   }
 
-  // Role souls obey the profile's length cap like any soul. Nothing is dropped here; the
-  // overflow is reported so the caller can see it.
+  // Role souls obey the profile's length cap like any soul. Past the tiers nothing is dropped
+  // here; the overflow is reported so the caller can see it.
   const addSoul = (file: BundleFile): void => {
     files.push(file);
     if (file.content.length > ctx.cap) {
@@ -521,13 +535,15 @@ export function roleOutputs(ctx: CompileContext): RoleOutputs {
     case 'workspaces':
       for (const role of ctx.roles) {
         const dir = `workspace-${role.id}`;
-        addSoul(soulFile(ctx, role, `${dir}/SOUL.md`, `Role soul: ${role.label}`, 'file'));
+        addSoul(soulFile(ctx, role, `${dir}/SOUL.md`, `Role soul: ${role.label}`, 'file', warnings));
         files.push(agentsFile(ctx, role, `${dir}/AGENTS.md`));
       }
       break;
     case 'profiles':
       for (const role of ctx.roles) {
-        addSoul(soulFile(ctx, role, `profiles/${role.id}/SOUL.md`, `Role soul: ${role.label}`, 'file'));
+        addSoul(
+          soulFile(ctx, role, `profiles/${role.id}/SOUL.md`, `Role soul: ${role.label}`, 'file', warnings),
+        );
       }
       break;
     case 'team':
@@ -539,6 +555,7 @@ export function roleOutputs(ctx: CompileContext): RoleOutputs {
             `${ctx.profile.personalityPath} (${role.label})`,
             `Role description: ${role.label}`,
             'paste',
+            warnings,
           ),
         );
       }
@@ -553,6 +570,7 @@ export function roleOutputs(ctx: CompileContext): RoleOutputs {
             `${ctx.profile.personalityPath} (${role.label})`,
             `Role instructions: ${role.label}`,
             'paste',
+            warnings,
           ),
         );
       }

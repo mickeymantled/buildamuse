@@ -22,7 +22,7 @@ import { grokItems, grokRenderOptions } from './passes/layouts/grok.js';
 import { instructionsPass, instructionsRenderOptions } from './passes/layouts/instructions.js';
 import { dedupe } from './passes/dedupe.js';
 import { contradictions } from './passes/contradictions.js';
-import { length } from './passes/length.js';
+import { fitTiers, length } from './passes/length.js';
 import { render } from './passes/render.js';
 import { buildName } from './passes/name.js';
 import { seed, seedIds } from './passes/seed.js';
@@ -93,19 +93,34 @@ export function compile(build: Build | BuildV1, lib: Library = library): Compile
   // 3. Skills and routines, delivered the way the profile carries them.
   const delivery = skillsAndRoutines(ctx);
 
-  // 4. Assemble the personality items for the profile's layout.
-  const laid = layout(ctx, delivery);
+  // 4. Assemble the personality items for the profile's layout, dedupe them and drop contradiction
+  // losers. On a cap of 4,000 or less (B1) this runs once more with the short chassis records when
+  // cutting the author's pack rules lines is not enough.
+  const settle = (c: CompileContext) => {
+    const laid = layout(c, delivery);
+    const deduped = dedupe(laid.items, lib, resolved);
+    const decontradicted = contradictions(deduped.items, b, lib);
+    return {
+      items: decontradicted.items,
+      opts: laid.opts,
+      fitWarnings: laid.fitWarnings,
+      warnings: [...deduped.warnings, ...decontradicted.warnings],
+    };
+  };
+  const tiered = fitTiers(ctx, settle, {
+    cut: (id) => `length: cut ${id} (author pack rule, soul over ${cap})`,
+    short: `length: chassis switched to short forms (soul over ${cap})`,
+  });
+  const { items, opts, fitWarnings } = tiered.built;
 
-  // 5. Dedupe, drop contradiction losers, then trim to the profile's cap.
-  const deduped = dedupe(laid.items, lib, resolved);
-  const decontradicted = contradictions(deduped.items, b, lib);
+  // 5. Trim to the profile's cap. Instructions on the free plan already fit themselves.
   const trimmed =
     profile.layout === 'instructions' && form === 'short'
-      ? { items: decontradicted.items, warnings: laid.fitWarnings }
-      : length(decontradicted.items, b, lib, cap, laid.opts);
-  const { soul, soulLines } = render(trimmed.items, lib, laid.opts);
+      ? { items, warnings: fitWarnings }
+      : length(items, b, lib, cap, opts);
+  const { soul, soulLines } = render(trimmed.items, lib, opts);
 
-  const warnings = [...deduped.warnings, ...decontradicted.warnings, ...trimmed.warnings];
+  const warnings = [...tiered.built.warnings, ...tiered.warnings, ...trimmed.warnings];
   // V25: nothing protected is dropped, so a soul still over its cap ships with a warning.
   const overCap = `length: soul is ${soul.length} characters, over ${cap}`;
   if (soul.length > cap && !warnings.some((w) => w.startsWith(overCap))) {

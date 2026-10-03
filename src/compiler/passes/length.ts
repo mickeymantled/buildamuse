@@ -1,9 +1,22 @@
-// Pass: trim the soul under the max length by dropping low-priority lines.
+// Pass: trim the soul under the max length. On a cap of 4,000 or less the tiers (author pack rules
+// lines, then the short chassis records) run first; then low-priority lines drop.
 
-import type { BuildCore, Item, Library, PassResult, RenderOptions } from '../types.js';
+import type {
+  BuildCore,
+  CompileContext,
+  Item,
+  Library,
+  PassResult,
+  Profile,
+  RenderOptions,
+} from '../types.js';
+import { applyChassis } from '../profile.js';
 import { render } from './render.js';
 
 export const MAX_SOUL_LENGTH = 3600;
+
+// B1 tiers apply on a profile whose cap is this or less. Free custom instructions fits itself.
+export const TIER_CAP = 4000;
 
 // Finds the chip-trigger item for a chip at a given trigger index, if present.
 function findTrigger(items: Item[], chip: string, triggerIndex: number): Item | undefined {
@@ -86,4 +99,61 @@ export function length(
   }
 
   return { items: current, warnings };
+}
+
+export function usesTiers(profile: Profile, cap: number): boolean {
+  return cap <= TIER_CAP && profile.id !== 'chatgpt-instructions';
+}
+
+interface Built {
+  items: Item[];
+  opts?: RenderOptions;
+}
+
+// Tier A: a pack rule whose Line is not Brian's text (origin 'brief') is an author line.
+function isAuthorRule(item: Item, ctx: CompileContext): boolean {
+  if (item.kind !== 'pack-rule') return false;
+  const line = ctx.packs.flatMap((p) => p.rulesLines).find((l) => l.id === item.id);
+  return line !== undefined && line.origin !== 'brief';
+}
+
+// Tier A, then Tier B, before any chip trigger drops (B1). A cuts every author pack rules line from
+// this artifact only. B, if still over and the chassis is full, calls build again with the short
+// chassis records and runs A on that. Chassis lines are never dropped. `build` is the caller's own
+// layout (plus any passes that must follow it). The say strings carry the caller's warning text.
+export function fitTiers<T extends Built>(
+  ctx: CompileContext,
+  build: (c: CompileContext) => T,
+  say: { cut: (id: string) => string; short: string },
+): { built: T; warnings: string[] } {
+  const base = build(ctx);
+  if (!usesTiers(ctx.profile, ctx.cap)) {
+    return { built: base, warnings: [] };
+  }
+  const size = (b: Built): number => render(b.items, ctx.lib, b.opts).soul.length;
+  const tierA = (b: T, c: CompileContext): { built: T; warnings: string[] } => {
+    if (size(b) <= c.cap) return { built: b, warnings: [] };
+    const cut = b.items.filter((item) => isAuthorRule(item, c));
+    return {
+      built: { ...b, items: b.items.filter((item) => !cut.includes(item)) },
+      warnings: cut.map((item) => say.cut(item.id)),
+    };
+  };
+
+  const a = tierA(base, ctx);
+  if (size(a.built) <= ctx.cap || ctx.form !== 'full') {
+    return a;
+  }
+  const short: CompileContext = {
+    ...ctx,
+    form: 'short',
+    chassis: applyChassis(ctx.resolved.chassis, ctx.profile, 'short'),
+  };
+  // B1 order: author pack rules are cut first, then chassis goes short. Rules cut in
+  // Tier A stay cut in the short rebuild.
+  const rebuilt = build(short);
+  const cutIds = new Set(a.built === base ? [] : base.items.filter((item) => !a.built.items.includes(item)).map((item) => item.id));
+  const kept = { ...rebuilt, items: rebuilt.items.filter((item) => !cutIds.has(item.id)) };
+  const b = tierA(kept, short);
+  return { built: b.built, warnings: [...a.warnings, say.short, ...b.warnings] };
 }
