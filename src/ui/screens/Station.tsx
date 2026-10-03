@@ -4,6 +4,20 @@ import { Screen } from '../components/Screen';
 import { copy } from '../copy.js';
 import { canContinue, canSkip, progressScreens, type ScreenId } from '../flow.js';
 import { useBuilder } from '../store.js';
+import { PreviewStrip } from './PreviewStrip.js';
+
+// Spec stations 2 to 6 and the v2 screens between them show the preview strip above Next.
+const PREVIEW_SCREENS: ReadonlySet<ScreenId> = new Set<ScreenId>([
+  'world',
+  'packs',
+  'limits',
+  'gates',
+  'stats',
+  'peeves',
+  'heart',
+  'outfit',
+  'roles',
+]);
 
 export interface StationProps {
   /** Which screen this is. Title, subtitle, Skip and the progress dots follow from it. */
@@ -15,7 +29,7 @@ export interface StationProps {
   hideNext?: boolean;
   /** One line above Next, shown only while Next is blocked (why it is blocked). */
   hint?: string;
-  /** Slot above the footer button, for the preview strip. */
+  /** Slot above the footer button. Left out, the preview strip fills it on the screens in PREVIEW_SCREENS. */
   peek?: ReactNode;
 }
 
@@ -46,7 +60,7 @@ export function Station({ screen, children, footer, hideNext = false, hint, peek
           : undefined
       }
       footer={footer}
-      peek={peek}
+      peek={peek !== undefined ? peek : PREVIEW_SCREENS.has(screen) ? <PreviewStrip /> : undefined}
     >
       {children}
     </Screen>

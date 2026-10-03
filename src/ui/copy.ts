@@ -249,6 +249,10 @@ export const copy = {
     close: 'Close',
     length: (len: number, cap: number) => `${len}/${cap} characters`,
     badgeLit: 'Badge unlocked',
+    // The peek sheet. The chassis label is the spec's "every Muse gets these." with "bot" (U4).
+    title: "Your bot's personality",
+    chassisLabel: 'every bot gets these.',
+    over: (n: number) => `Over by ${n}`,
   },
 };
 
