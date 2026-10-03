@@ -118,14 +118,14 @@ Waiting on Brian: V25 caps (blocking), V14 dot forbid label, V15 custom GPT reti
 
 | # | Slice | Agent | Source | Done when | Status |
 | --- | --- | --- | --- | --- | --- |
-| C1 | roster taglines | transcriber | B3 | nine taglines verbatim | |
-| C2 | packs: content voice anchor, devops interval (trigger and skill N), perps rules line origin brief | transcriber | B5, B1 | text verbatim, origin flag | |
-| C3 | muse standing-instruction templates ("From now on, ...") | author, safety | B8 | safety PASS | |
-| C4 | targets.json: promises, mode order and gpt hidden + deprecated, caps 4,000 (muse, hermes, grok), grok cap verify removed, dot hand-off note, openclaw spoken memory, hermes test note, muse skill label and templates | transcriber | B1, B2, B4, B6, B8 | reviewer PASS | |
-| C5 | length tiers on caps 4,000 or less: cut author pack rules, then short chassis, then S1 | engineer | B1 | reviewer PASS | |
-| C6 | free instructions bottom block gate lines only; profile notes, deprecated mode, skill label in bundle and trace | engineer | B1, B2, B6, B8 | reviewer PASS | |
-| C7 | golden specs without gpt (M3.1) | engineer | B2 | reviewer PASS | |
-| C8 | goldens regenerated, tests updated, safety on every set | tester, safety | all | npm test green, safety PASS | |
+| C1 | roster taglines | transcriber | B3 | nine taglines verbatim | done |
+| C2 | packs: content voice anchor, devops interval (trigger and skill N), perps rules line origin brief | transcriber | B5, B1 | text verbatim, origin flag | done |
+| C3 | muse standing-instruction templates ("From now on, ...") | author, safety | B8 | safety PASS | done |
+| C4 | targets.json: promises, mode order and gpt hidden + deprecated, caps 4,000 (muse, hermes, grok), grok cap verify removed, dot hand-off note, openclaw spoken memory, hermes test note, muse skill label and templates | transcriber | B1, B2, B4, B6, B8 | reviewer PASS | done |
+| C5 | length tiers on caps 4,000 or less: cut author pack rules, then short chassis, then S1 | engineer | B1 | reviewer PASS | done |
+| C6 | free instructions bottom block gate lines only; profile notes, deprecated mode, skill label in bundle and trace | engineer | B1, B2, B6, B8 | reviewer PASS | done |
+| C7 | golden specs without gpt (M3.1) | engineer | B2 | reviewer PASS | done |
+| C8 | goldens regenerated, tests updated, safety on every set | tester, safety | all | npm test green, safety PASS | done |
 
 ## M3: UI
 
@@ -133,7 +133,7 @@ Done when (Part F): stations 0 through 7 as specced plus pack, limits, gates and
 
 | # | Slice | Agent | Source | Done when | Status |
 | --- | --- | --- | --- | --- | --- |
-| 3.1 | hide gpt mode, remove its goldens | (C4, C7, C8) | B2 | goldens without gpt | |
+| 3.1 | hide gpt mode, remove its goldens | (C4, C7, C8) | B2 | goldens without gpt | done |
 | 3.2 | Tailwind, Zustand store (build v2, station, from flag, retarget, memoized compile), UI copy file | engineer | spec Screens: State; Part E | store unit tests pass | |
 | 3.3 | shared components: Card, Chip, ChipGrid, Slider, Stepper, Toggle3, Pill, ProgressDots, BottomSheet | engineer | spec Screens: Layout | reviewer PASS | |
 | 3.4 | station 0 target picker + App router shell | engineer | Part E | five cards, chatgpt radios, plan tap | |
@@ -170,3 +170,4 @@ Done when (Part F): stations 0 through 7 as specced plus pack, limits, gates and
 - M2 Wave B (slices 27 to 32) passed review except instructions (29), which failed twice on caps; lead removed its repeated-block drop and logged the cap conflict.
 - BLOCKING: V25 caps. Grok 2,000, free custom instructions 1,500, paid 5,000 and some 3,600 souls can't hold every chassis line plus the rules layer. Needs Brian; until then over-cap output ships with a warning.
 - M2 Wave D: tests and 64 goldens landed; lead fixed a dedupe bug (pack twins), grok approval fields and two tests after review rounds (V28). Safety PASS on every golden set.
+- M2 closeout done (2026-10-02): Brian's B1 to B10 landed; lead fixes V29 (short-form precedence, Tier A cuts kept) and V30 (grok sources from one pack); 55 goldens, safety PASS on every set; 5,055 tests pass, 2 expected fail (Marty and June on free custom instructions, UI steers to Paid).
