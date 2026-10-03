@@ -19,6 +19,7 @@ import namesData from './names.json';
 import rosterData from './roster.json';
 import contradictionsData from './contradictions.json';
 import targetsData from './targets.json';
+import profilesData from './profiles.json';
 import gatesData from './gates.json';
 import limitsData from './limits.json';
 import probesData from '../probes/probes.json';
@@ -53,7 +54,12 @@ const examples = examplesData as unknown as Library['examples'];
 const names = namesData as unknown as Library['names'];
 const roster = rosterData as unknown as Library['roster'];
 const contradictions = contradictionsData as unknown as Library['contradictions'];
-const targets = targetsData as unknown as Library['targets'];
+// targets.json holds the five target cards and profiles.json the eight delivery profiles.
+// They are split so the first paint can load the cards alone.
+const targets = {
+  targets: targetsData,
+  profiles: profilesData,
+} as unknown as Library['targets'];
 const gates = gatesData as unknown as Library['gates'];
 const limits = limitsData as unknown as Library['limits'];
 
