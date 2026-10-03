@@ -180,3 +180,34 @@ Done when (Part F): stations 0 through 7 as specced plus pack, limits, gates and
 - Lead audit (2026-10-03, 375px, Grok Odds remix, base through name plus target and roster): every button, radio, switch and input is at least 44 by 44, and scrollWidth equals the viewport on every screen.
 - M3 3.19b: UI flow and copy tests passed review in two rounds and found one bug (the peek sheet was not a dialog); lead fixed BottomSheet (role dialog, aria-modal, focus moves in on open) and flipped the test.
 - M3 DONE (2026-10-03). Done criteria checked: stations 0 to 7 plus packs, limits, gates and roles; store; preview strip; floors and caps enforced in the store and through the UI; tap-only (one textbox, on name); 375px with no sideways scroll; 44px targets audited; light and dark checked; no em dashes (test plus repo sweep); copy has no SOUL.md and Muse only where allowed (test). Suite: 15 files, 5,774 passed, 2 expected fail (V25 caps), 11 todo; typecheck clean; vite build clean (one chunk-size warning: the library ships in the main bundle, worth splitting in M4). Waiting for Brian's go on M4.
+
+## M4: certificate as bundle
+
+Done when: the criteria in docs/M4-PLAN.md section 11 (lead-written; B14 gives none). The architecture, the contracts and the wave plan are in docs/M4-PLAN.md rev 2; the readings are W1 to W30 in QUESTIONS.md. Subagents run on Sonnet; the lead checks every slice before it is committed.
+
+| # | Slice | Wave | Agents | Writes | Status |
+| --- | --- | --- | --- | --- | --- |
+| 4.p | plan, scouts, three-lens critique, copy split, W-list | 0 | lead (+ Sonnet scouts, critics) | docs/M4-PLAN.md, src/ui/copy/, QUESTIONS, PROGRESS | done |
+| 4.0 | safety fixes: auto clamp on not-offered gates (W23), name rules (W24) | 1 | engineer, tester | gates.ts, validate.ts, Toggle3.tsx, Gates.tsx | |
+| 4.1 | library split: cards + profiles.json | 1 | engineer, tester | library/index.ts, targets.json, profiles.json | |
+| 4.2 | compiler fields: steps, noteItems, verify, undelivered (after fit), trimmed, kinds, ids, docs | 1 | engineer, tester | types, bundle, deliver, roles, compile, trace, layouts/instructions, 4 goldens | |
+| 4.3 | SKILL.md format research | 1 | general-purpose (sonnet, web) | text only | |
+| 4.5a | verify cleanup proposal | 1 | author | text only | |
+| 4.6 | decode hardening, drops, version param, defaults.ts | 1 | engineer, tester | encode, migrate, compiler/defaults.ts, store.ts (imports, setGate, setName) | |
+| 4.7a | url helpers | 1 | engineer, tester | src/share/url.ts | |
+| 4.8 | zip writer | 1 | engineer, tester | src/share/zip.ts | |
+| 4.15 | CopyButton copies inside the tap | 1 | engineer, tester | CopyButton.tsx | |
+| 4.4 | step tags, rulesPath, golden Steps section, goldens + safety | 2 | engineer, tester, safety | profiles.json, tools/golden.ts, goldens | |
+| 4.7b | store loadBuild, switchTarget, remix side screen, links hook, LinkError | 2 | engineer, tester | store, flow, App, copy/links, ui-store tests | |
+| 4.9 | Mine diff module | 2 | engineer, tester | src/share/mine.ts | |
+| 4.10 | shell and lazy loading, check:bundle | 2 | engineer, tester | main, Shell, TargetPicker, Target, vite.config, tools/check-bundle | |
+| 4.11 | certificate model (pure) | 2 | engineer, tester | src/ui/certificate/model.ts | |
+| 4.5b | verify transcription (+ SKILL.md template), goldens, safety all sets, guard test | 3 | author, safety, transcriber, reviewer | profiles.json, goldens | |
+| 4.12 | certificate UI | 3 | engineer, tester | Certificate, certificate/*, Radar, copy/certificate | |
+| 4.14 | remix screen and Mine switch | 3 | engineer, tester | Remix, copy/remix | |
+| 4.13 | certificate actions: share, copy link, zip, remix, switch, steer; preview meter with Mine | 4 | engineer, tester | certificate/Actions, copy/actions, PreviewStrip | |
+| 4.17 | integration tests: links, switch, remix, zip, bundle | 4 | tester | tests | |
+| 4.16 | golden and safety recheck | 5 | tester, safety | | |
+| 4.18 | docs: CLAUDE.md, V2-DESIGN, UI-PLAN | 5 | lead | | |
+| 4.19 | multi-lens review, browser, iOS Simulator | 5 | lead (+ Sonnet reviewers) | | |
+| 4.20 | M4 report + first three M5 slices | 5 | lead | | |

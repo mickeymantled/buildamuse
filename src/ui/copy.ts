@@ -5,6 +5,11 @@
 
 import type { ChipGroup, GateSetting, Plan, ProfileId, StatId, TargetId } from '../compiler/types.js';
 import type { ScreenId } from './flow.js';
+import { actionsCopy } from './copy/actions.js';
+import { certificateCopy } from './copy/certificate.js';
+import { linksCopy } from './copy/links.js';
+import { loadCopy } from './copy/load.js';
+import { remixCopy } from './copy/remix.js';
 
 export const copy = {
   appName: 'Build-a-Bot',
@@ -237,20 +242,6 @@ export const copy = {
   // Certificate is M4. "Make this for <other target> instead" is verbatim from Part E.
   makeFor: (targetLabel: string) => `Make this for ${targetLabel} instead`,
 
-  // M3 placeholder headings for the plain-text bundle on the certificate screen. M4 replaces them.
-  certificate: {
-    name: 'Name',
-    soul: 'Personality',
-    seed: 'Memory sentence',
-    skills: 'Skills',
-    rules: 'Custom rules',
-    description: 'Description',
-    starters: 'Conversation starters',
-    steps: 'Install steps',
-    notes: 'Notes',
-    warnings: 'Warnings',
-  },
-
   preview: {
     open: 'Preview',
     close: 'Close',
@@ -261,6 +252,13 @@ export const copy = {
     chassisLabel: 'every bot gets these.',
     over: (n: number) => `Over by ${n}`,
   },
+
+  // M4 areas live in src/ui/copy/, one file per slice so parallel slices never share a writer.
+  ...certificateCopy,
+  ...actionsCopy,
+  ...remixCopy,
+  ...linksCopy,
+  ...loadCopy,
 };
 
 export type Copy = typeof copy;

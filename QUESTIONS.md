@@ -237,3 +237,97 @@ Options for Brian (any mix): (a) raise or drop the 2,000 grok cap (xAI documents
 **B15. Deferred.** The Grok "Setup Bot" URL endpoint (Part F's candidate hosted raw endpoint that compiles a profile from the share-link payload) moves to M5 or later. Logged, not built.
 
 **B16. Loop.** Same loop as M3. Stop at the end of M4 with the same report shape plus the first three M5 slices.
+
+## M4 lead calls (docs/M4-PLAN.md rev 2, after a three-lens plan critique)
+
+Marked "for Brian" where the call changes product behavior or bends a rule; the rest are engineering readings.
+
+**W1. Bundle split, design A.** The first paint is a small shell: the target cards and copy. The compiler, the library and the rest of the UI load in one lazy chunk, prefetched on idle and loaded at once when the URL holds a link. targets.json splits into the cards (targets.json) and the eight profiles (profiles.json). For Brian, "per target": the target-specific JSON is about 6.6 kB gzip, so per-profile chunks would cost an async store for little gain. Design A takes the whole library out of first paint. Done when `npm run check:bundle` passes: the entry chunk holds no library JSON and there is no 500 kB warning.
+
+**W2. Structured bundle fields.** These fields carry ids: steps, noteItems, verify, undelivered, trimmed, the starter, description and build-name ids, docUrl and docReadDate. installSteps and notes stay as string arrays for goldens.
+
+**W3. Step tags.** Install steps get `shows` (which artifacts render under the step), `when` (any-of skills, routines or roles: hide the step when the build delivers none of them) and `closer` (Muse "Then say hi."). The text is unchanged. `when` is allowed only on skill, routine and role steps, never on a step about rules, plugins, Actions or private data. The tag table is in docs/M4-PLAN.md section 2, and goldens gain a Steps section that pins the tags.
+
+**W4. Verify cleanup (content, for Brian).**
+- The six "verify:" clauses embedded in steps and notes become their own verify records. The OpenClaw step.6 clause is removed instead, because V17 settled it.
+- The three safety-relevant notes keep a short inline caveat sentence: Grok reload, the GPT consequential flag, and the OpenClaw new session.
+- Facts research settled (V15 to V18) move from "Still checking" to notes.
+- Role-only verify lines get `when: roles`.
+- The author also flags the Hermes step.6 and reload-note duplicate, and Muse verify.1 saying "Soul.md".
+- Every edit is listed for Brian.
+
+**W5. Header.** The certificate h1 is "Meet <Name>" (spec). The tagline shows only when the build's v1 core picks equal a roster starter's (B3 gave taglines for those nine only). The library's "tagline compiled from outfit + top chip" has no table, so custom builds show none rather than invented text. The radar has five axes without risk and six with it.
+
+**W6. Copy blocks.**
+- Every artifact gets a copy block: files, paste blocks, spoken items, the action text of each dot rule, starters, the description, and the Grok label.
+- Muse step 3 is one "Standing instructions" group (B8): skills, then routines, three shown, then Show more.
+- The Dot table stacks each rule as a card at 375px. Its caption is the Settings path, transcribed verbatim from the brief (new record profile.chatgpt-dot.rulesPath), and the B6 note is attached to it.
+
+**W7. Links and the address bar (for Brian).** A link is read once on load, then cleared from the address bar with replaceState. There is no address-bar sync, no reload restore and no hashchange loader: writing the build into history, session restore and synced tabs without a tap is too close to storage. The link exists only when the user taps Copy link or Share. Share uses the native sheet ("Meet <Name>", with the build name as text) only where it exists, and Copy link is always there.
+
+**W8. Bad links.**
+- Unknown chips, peeves, packs and roles are dropped.
+- An unknown base, outfit, hard part or drive falls back to the default.
+- Risk and d1 are repaired, and the name is cleaned.
+- Decode then runs the compiler's own validation. Anything still invalid shows a link error screen with Start over, never a crash or a developer string.
+- Unknown ids are reported as a count and never echoed back into the page.
+- This replaces the share tests that pinned throwing on unknown scalar ids.
+
+**W9. loadBuild.** One atomic load with no `settle()`. It sets the target, mode and plan from the link, keeps the link's packs, gates, limits, roles and d2, and resets every remix and link field. Packs keep following chips only if they matched the chip-derived packs. Links carry no skipped list.
+
+**W10. Target switch.**
+- Short names (B12). GPT is never offered; a gpt certificate also offers ChatGPT, which resolves to dot.
+- ChatGPT returns to the last ChatGPT mode and plan.
+- The switch leaves the draft untouched. The store no longer prunes packs by profile.
+- A pack a profile can't deliver keeps its gates, limits and rules in effect, drops its skills and triggers, and is named under "Not included". No pack restricts profiles today, so this is tested with a synthetic one.
+
+**W11. Remix from the certificate.** The certificate's Remix snapshots the build as the diff baseline and opens the remix screen (warning plus paste box). The roster's Remix still skips it (B13). The remix screen is a side screen: Continue goes to base, and Back goes to the certificate.
+
+**W12. Mine diff.** Matching is set-based on normalized lines, against the current compile and the baseline compile. The switch defaults off. The paste is capped at 20,000 characters and 50 Mine lines. Next to the switch: Mine lines are the user's own words and aren't checked against their approvals.
+
+**W13. Zip.**
+- A hand-rolled, stored zip with CRC32 and a fixed timestamp, so the bytes are deterministic. No dependency.
+- It holds every file delivery at its bundle path (the same path the certificate shows). Each file also gets its own copy block.
+- For Brian, OpenClaw: the role workspaces (workspace-<role>/) sit beside the main files, while step 1 puts the main files in ~/.openclaw/workspace. An option is to prefix entries with install-relative folders (workspace/...). Kept as bundle paths until Brian picks.
+
+**W14. Undelivered.** Computed after the length fit, from what the paste field actually holds. On free custom instructions the fit drops the inline skills too, so this lists every skill that didn't survive plus every routine. The certificate names them under "Not included on <target>".
+
+**W15. Skipped lines.** One muted "You skipped <name>." per skipped screen (S9).
+
+**W16. Summary lines in user words.** auto, over, steer, trimmed, dropped, undelivered and deprecated. The raw compiler warnings sit behind Details.
+
+**W17. Paid steer on the certificate.** It shows on free custom instructions builds over the cap, with Switch to Paid. The roster's Use skips the gates screen.
+
+**W18. Computer hint: dropped.** Only Dot's desktop setup is sourced, and Dot's step 1 already says it.
+
+**W19. Copy inside the tap.** The textarea copy runs synchronously first; the Clipboard API is the second try. There is no async fallback. When both fail, the block's text is selected. The lead checks iOS Safari in the Simulator; Android Chrome is for Brian.
+
+**W20. Version.** migrateToLatest and decode take the target version as a parameter (lib.version). A synthetic v3 test shows v1 and v2 links still decode. M4 does not change the real LIBRARY_VERSION.
+
+**W21. SKILL.md format.** Research the official OpenClaw and Hermes skill docs. If frontmatter is required, it goes into the profile's skill file template, so it traces. If the docs don't settle it, add a verify line with `when: skills`.
+
+**W22. Grok Setup Bot endpoint (B15).** Not built. Note for M5: it would send the share payload to a server, which cuts against the reason the build lives in the hash (spec: "nothing hits a server log"). Brian's call.
+
+**W23. Safety fix: auto on gates that don't offer it.** For publish, delete, write_query and force_push, the library says auto is "not offered, treat as approve", but the compiler applied any override. Delete=auto on ChatGPT dot compiled to the enforced Custom Rule "Take action without asking" (lead probe, 2026-10-03). The M3 Gates screen offered Auto on those rows.
+- effectiveGates now clamps auto to approve for those gates.
+- The store refuses it, and the Gates screen disables Auto there.
+- A test covers every gate on every profile.
+- The certificate's "auto" summary line names any gate left on auto.
+
+**W24. Safety fix: names.** A link name with a newline added a free line to the soul (lead probe). Names are now cleaned everywhere: control characters and runs of whitespace become one space, and long dashes become "-". Validation rejects anything uncleaned.
+
+**W25. Trimmed rules are shown.** On Muse, Hermes and Grok (cap 4,000), Tier A cuts the author's pack rules lines, and on Muse and Grok they leave the bundle entirely. Those lines extend the gates (for example, calendar counts as send). The certificate says how many rules from which pack were left out to fit. On Muse and Grok it also lists the cut lines under "Left out", so the user can add them by hand.
+
+**W26. Link errors.** A link that can't be decoded or validated shows a link error view with Start over. The certificate never prints a raw "Invalid build" string.
+
+**W27. Remix state lifecycle.** The pasted text, the Mine switch, the baseline and the link drops are cleared by every entry point: link load, starter, blank and reset. So a previous paste never rides into the next build.
+
+**W28. Mine placement and its rule exceptions (for Brian).**
+- The spec says Mine goes "at the end of the soul". It is placed before the act, rules and never sections instead, so Hard rules, Never and "If rules clash" stay after the user's lines. On top-and-bottom layouts it goes above the bottom rules block.
+- Mine lines are the one tracing exception (user.mine.<n>). The spec's Mine section is user text by design.
+- Long dashes in pasted lines become " - ", and the UI says so.
+- Brian can revert any of these.
+
+**W29. Grok first task (for Brian).** No Grok step names the first task, so its block sits under step 3 ("Say the memory sentence."). A clearer option is a new step line, "Give it its first task.", which Brian would have to approve as content.
+
+**W30. Dot rules path.** profile.chatgpt-dot.rulesPath is "Settings > Personalization > Permissions > Custom rules", verbatim from brief Part C. It is the caption of the Custom Rules table, because step 2 says only "below".
