@@ -27,8 +27,11 @@
 //   6. The over-cap warning "mine: soul is N characters, over CAP" is added whenever Mine leaves the
 //      soul over the cap, even when the baseline compile was already over it.
 //   7. withMine re-cleans its input, and with no lines left returns the same result object.
-// Known gap, marked it.fails below: traceBundle has no user.mine.* carve-out yet (trace.ts is not in this
-// slice), so it rejects a withMine result.
+// Tracing: trace.ts carries the one W28 carve-out. traceBundle accepts user.mine.heading and user.mine.<n>
+// ids in the main personality artifact (a file, the soul, or the ChatGPT dot's spoken personality) and
+// nowhere else, and trace() has no carve-out. The tests under "Tracing (W28 carve-out)" below pin that a
+// withMine result passes; test/m4-review-gaps.test.tsx pins the negatives (a spoken memory, skill, routine
+// or first task, a role personality file and any other file all fail the trace).
 //
 // No long dashes appear in this file: they are written as \u escapes.
 
