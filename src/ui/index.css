@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+/* Color tokens. Light by default, redefined for dark. Components read the plain variables. */
+:root {
+  --bg: #faf9f6;
+  --surface: #ffffff;
+  --text: #1a1b1e;
+  --muted: #62666e;
+  --accent: #3a4fd8;
+  --on-accent: #ffffff;
+  --border: #dcdad3;
+  --danger: #b3261e;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121316;
+    --surface: #1b1d21;
+    --text: #f1f0ec;
+    --muted: #a0a4ac;
+    --accent: #8c9bff;
+    --on-accent: #101226;
+    --border: #2f3238;
+    --danger: #ff8a80;
+  }
+}
+
+/* Utility classes for the same tokens: bg-background, bg-surface, text-text, text-muted, and so on. */
+@theme inline {
+  --color-background: var(--bg);
+  --color-surface: var(--surface);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-border: var(--border);
+  --color-danger: var(--danger);
+  --font-sans:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  /* No horizontal page scroll. Only the roster card row scrolls sideways, inside its own box. */
+  overflow-x: clip;
+}
+
+/* 16px side gutters widened by the safe-area insets. Pair with mx-auto max-w-[430px] for the one column. */
+@utility pad-safe {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+}
+
+/* For a pinned footer or strip that sits at the bottom edge. */
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Minimum touch target. */
+@utility touch-44 {
+  min-height: 44px;
+  min-width: 44px;
+}

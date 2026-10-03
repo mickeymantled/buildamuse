@@ -6,6 +6,7 @@ import type {
   BuildCore,
   BuildV1,
   ChatgptMode,
+  ChipId,
   PackId,
   Plan,
   TargetId,
@@ -36,7 +37,8 @@ function isRecord(x: unknown): x is Record<string, unknown> {
   return typeof x === 'object' && x !== null && !Array.isArray(x);
 }
 
-function packsFromChips(chips: readonly string[]): PackId[] {
+// The packs a chip list derives: map each chip, drop repeats, keep the first three.
+export function packsFromChips(chips: readonly ChipId[]): PackId[] {
   const packs: PackId[] = [];
   for (const chip of chips) {
     const pack = CHIP_TO_PACK.get(chip);
