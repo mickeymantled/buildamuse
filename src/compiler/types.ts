@@ -351,13 +351,14 @@ export interface PassResult {
 export interface Line {
   id: string;
   line: string;
+  origin?: 'brief' | 'author'; // pack rules lines: 'brief' = Brian's text (never cut for length)
 }
 
 export interface TargetCard {
   id: TargetId;
   label: string;
   promise: Line;
-  modes?: { id: ChatgptMode; label: string; note: Line }[];
+  modes?: { id: ChatgptMode; label: string; note: Line; hidden?: boolean; deprecated?: Line }[]; // picker order; hidden modes stay in the compiler
 }
 
 // A profile is the unit of delivery: everything about how a bundle is built for one runtime.
@@ -388,6 +389,8 @@ export interface Profile {
   lengthCap: number | { free: number; paid: number };
   customRuleSettings?: Record<GateSetting, string>; // chatgpt-dot only
   templates: Record<string, Line>;
+  notes?: Line[]; // certificate copy shown with the bundle (not verify lines)
+  skillLabel?: string; // label for skill sentences on this profile (default "Skill"); Muse: "Standing instruction"
 }
 
 // Pack skill: the six-field shape. Every profile renders a subset.

@@ -154,3 +154,28 @@ Options for Brian (any mix): (a) raise or drop the 2,000 grok cap (xAI documents
 **V27. Role soul details.** The role proactive line sits with the other stat lines under How you talk (design section 9), not in its own section. Grok has no `fallback.roles` template yet, so the grok team note is a visible placeholder; the author will write one.
 
 **V28. Lead fixes after Wave D (review rounds used up).** (1) Dedupe: a chip trigger whose text equals a pack trigger's gives way to the pack copy, because pack triggers never drop (V25) and keeping the chip copy let the length pass delete the line (Marty on Muse lost two memecoins triggers). (2) Grok: every pack skill and routine now carries every approve/forbid gate's rules line in its approval field, matching Brian's "the requiresApproval field of every skill" (safety flagged June's Conflict scan missing pay). (3) A gate test derived its gate set from compiler output; it now uses pack defaults plus the pay lock. (4) The length test for Markets ordering now uses options (no pack twin) instead of memecoins.
+
+## Decided by Brian (2026-10-02): M2 closeout and go for M3
+
+**B1. Caps (closes V25).**
+- Grok: cap 4,000. Brian tested on 2026-10-02: a 5,499-character description saved in full in a real Grok Bot, so the product limit is above 5,500 and undocumented. 4,000 is a quality choice, not a product limit; the Grok cap verify line is removed.
+- Free custom instructions: the bottom repeat block carries gate lines only (limits and pack rules once, at the top). The UI steers gate-heavy builds to Paid.
+- Muse and Hermes: cap 4,000. On any profile whose cap is 4,000 or less, before any chip trigger drops: first cut the author's extra pack rules lines (every pack rules line except Brian's perps line), then switch chassis lines to their short-form records. Chassis lines are never dropped; a short-form record is allowed because it is traceable. Lead reading: "under 4,000" includes the 4,000 caps (Muse, Hermes, Grok), since those are the caps Brian set; OpenClaw and dot stay 3,600; paid instructions (5,000) is unchanged. The author lines are cut only from the capped artifact, never from AGENTS.md.
+
+**B2. GPT mode.** Kept in the compiler, hidden from the picker, flagged deprecated: "Custom GPTs retire on Dec 11, 2026." ChatGPT radios: Dot (recommended), Project, Custom instructions. Its goldens are removed.
+
+**B3. Taglines (closes S6).** Marty: Your terminally online memecoin desk. June: Runs the family calendar so you don't have to. Rook: Catches it before it ships. Vera: Never lets a draft go out hot. Sol: Explains it, then quizzes you. Dash: Tells you what every yes displaces. Pip: Remembers the thing you forgot. Ink: Won't smooth your voice out. Odds: Says what the crowd thinks, and whether it's wrong.
+
+**B4. Promise lines (closes V13).** Meta Muse: "A personality to paste, then three things to say." OpenClaw: "A zip with SOUL.md, AGENTS.md and skills." Hermes Agent: "A zip with SOUL.md and skills, ready for a profile." Grok Bot: "A profile to paste, skills and routines to say, then a template link to share." ChatGPT: "Three things to say to your dot, plus rules to add in Settings." Mode notes: Project: "Instructions and files for a Project." Custom instructions: "Two blocks to paste into Settings."
+
+**B5. Placeholders.** Content voice anchor: "Match the voice in my saved samples. If there are none, ask me for two posts before you draft anything." Devops interval: "Post status every 15 minutes during an incident, and once when it's over." (The devops skill's "[TODO: N]" becomes 15.)
+
+**B6. Dots forbid (closes V14).** "Hand off to you." Certificate copy: "ChatGPT has no block setting; Hand off means it stops and gives the step to you."
+
+**B7. Added gates (closes V21).** Keep all.
+
+**B8. Doc corrections (closes V16, V17, V18).** Muse: the skills section is renamed "Standing instructions" and each is phrased "From now on, ..." OpenClaw: the memory sentence is spoken; no USER.md. Hermes: the -z note is replaced with: avoid --ignore-rules and --safe-mode.
+
+**B9. Author content (V22).** Approved provisionally; Brian reads gates.json first during M3. Nothing blocked.
+
+**B10. V23 and V26.** Lead recommendations stand.
