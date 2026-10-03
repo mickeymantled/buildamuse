@@ -6,8 +6,9 @@ import { Meter } from '../components/Meter';
 import { Pill } from '../components/Pill';
 import { cx } from '../components/cx';
 import { ChevronIcon } from '../components/icons';
+import { certificateResult } from '../certificate/input.js';
 import { copy } from '../copy.js';
-import { capOf, compiled, isCompileError, useBuilder } from '../store.js';
+import { capOf, isCompileError, useBuilder } from '../store.js';
 
 const BADGE_NAMES = new Map<BadgeId, string>(library.badges.map((b) => [b.id, b.name]));
 
@@ -63,7 +64,8 @@ const OVER_PREVIEW_NARROW = '@max-[20rem]:hidden';
 // BottomSheet component has no separate button slot), so its accessible name is the summary text.
 // One row: the meter takes what the pill and the Preview text leave, and the badge name truncates.
 export function PreviewStrip() {
-  const result = useBuilder(compiled);
+  // The certificate's result, so a remix's Mine lines count toward the length when they are switched on.
+  const result = useBuilder(certificateResult);
   const cap = useBuilder(capOf);
   const lastBadge = useBuilder((s) => s.lastBadge);
   const [open, setOpen] = useState(false);

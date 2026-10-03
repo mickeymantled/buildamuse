@@ -2,6 +2,7 @@
 // 4 to 6). Both are pure and memoized by a JSON key, like the selectors in store.ts, so a screen can
 // pass them to useBuilder and get the same object back for the same state.
 
+import type { CompileResult } from '../../compiler/types.js';
 import { mineLines, mineTexts, withMine } from '../../share/mine.js';
 import {
   capOf,
@@ -76,6 +77,15 @@ export function certificateInput(state: BuilderState): CertificateInput | Compil
     if (oldest !== undefined) inputs.delete(oldest);
   }
   return value;
+}
+
+// The compile the preview strip measures: the certificate's result, so Mine is counted when its
+// switch is on and the paste holds lines. With Mine off this is compiled(state) itself, so a slider
+// drag does no extra work and the strip shows exactly what it always did.
+export function certificateResult(state: BuilderState): CompileResult | CompileError {
+  if (!state.mineOn || state.pasted === '') return compiled(state);
+  const input = certificateInput(state);
+  return 'result' in input ? input.result : input;
 }
 
 // One model per input object, so the model is as stable as the input.

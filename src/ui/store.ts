@@ -104,6 +104,8 @@ export interface BuilderState {
   lastChatgpt?: { mode: ChatgptMode; plan?: Plan };
   // The build when a remix started, to tell the user's own lines from the compiled ones.
   baseline?: Build;
+  // The `from` the certificate's Remix replaced, put back when Back leaves the remix screen.
+  fromBeforeRemix?: From;
   // The personality pasted into the remix box. Memory only, never in the link.
   pasted: string;
   mineOn: boolean;
@@ -186,10 +188,11 @@ export function initialState(): BuilderState {
 // The link and remix fields at rest. Every entry point that starts a build clears them (W27).
 function noLink(): Pick<
   BuilderState,
-  'baseline' | 'pasted' | 'mineOn' | 'decodeWarnings' | 'drops' | 'linkError'
+  'baseline' | 'fromBeforeRemix' | 'pasted' | 'mineOn' | 'decodeWarnings' | 'drops' | 'linkError'
 > {
   return {
     baseline: undefined,
+    fromBeforeRemix: undefined,
     pasted: '',
     mineOn: false,
     decodeWarnings: [],
@@ -603,13 +606,14 @@ export const useBuilder = create<BuilderStore>()((set, get) => {
         drops: [...drops],
       }),
 
-    // The certificate's Remix: the build as it is now becomes the diff baseline.
     // The certificate's Remix: snapshot the build as the Mine baseline and open the remix screen.
     // `from` becomes 'link-remix' so Back on base returns to the remix screen; any old paste is cleared.
+    // The old `from` is kept so Back on the remix screen puts it back (a link certificate stays without Back).
     startRemix: () => {
       const s = get();
       set({
         baseline: previewBuild(s),
+        fromBeforeRemix: s.from,
         screen: 'remix',
         from: 'link-remix',
         pasted: '',
@@ -790,6 +794,10 @@ export const useBuilder = create<BuilderStore>()((set, get) => {
 
     back: () => {
       const s = get();
+      if (s.screen === 'remix' && s.fromBeforeRemix !== undefined) {
+        set({ screen: prevScreen(s), from: s.fromBeforeRemix, fromBeforeRemix: undefined, lastBadge: null });
+        return;
+      }
       set({ screen: prevScreen(s), lastBadge: null });
     },
 
