@@ -149,6 +149,13 @@ export const copy = {
     counterLabel: (n: number, max: number) => `${n} of ${max} packs chosen`,
   },
 
+  // Peeves screen. Chip labels come from the library; "already built in" is copy.alreadyBuiltIn.
+  peeves: {
+    pickUpTo: (max: number) => `Pick up to ${max}`,
+    counterLabel: (n: number, max: number) => `${n} of ${max} chosen`,
+    builtInNote: 'Every bot already has these, so they add no line.',
+  },
+
   heart: {
     question: 'What is the hard part for you?',
     d1: 'It wants this first',

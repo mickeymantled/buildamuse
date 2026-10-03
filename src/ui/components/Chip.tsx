@@ -6,7 +6,7 @@ export interface ChipProps {
   selected?: boolean;
   /** Visually muted, still tappable. Used when the group is full. */
   dimmed?: boolean;
-  /** Already covered by something else. Shown with a check, not tappable. */
+  /** Picked, and already covered by something else ("already built in"). Shown with a check; a tap still toggles it off. */
   checked?: boolean;
   /** Text for the checked state, for example "already built in". Shown small under the label. */
   checkedLabel?: string;
@@ -25,12 +25,11 @@ export function Chip({
   onToggle,
   className,
 }: ChipProps) {
-  const inert = disabled || checked;
   return (
     <button
       type="button"
       aria-pressed={selected || checked}
-      disabled={inert}
+      disabled={disabled}
       onClick={onToggle}
       className={cx(
         'inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-4 py-1 text-left text-sm font-medium leading-5 motion-safe:transition-colors',

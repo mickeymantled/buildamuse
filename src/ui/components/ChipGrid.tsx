@@ -5,7 +5,7 @@ import { cx } from './cx';
 export interface ChipGridItem {
   id: string;
   label: string;
-  /** Already built in: shown checked and not tappable. */
+  /** Picked and already built in: shown with a check, still tappable. */
   checked?: boolean;
   checkedLabel?: string;
   disabled?: boolean;
