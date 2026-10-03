@@ -373,3 +373,94 @@ Marked "for Brian" where the call changes product behavior or bends a rule; the 
 - Hyphenated skill folders apply only on OpenClaw and Hermes. Project and GPT file names keep their record ids.
 
 **W39. Back out of a certificate Remix (accepted lead fix, wave 4).** The certificate's Remix saves the old `from` in `fromBeforeRemix` before setting 'link-remix' (W11, W36). Back on the remix screen puts it back. So a link certificate stays without a Back button, and a roster Use certificate's Back still returns to the roster. A ?remix=1 link has nothing saved, so Back keeps 'link-remix'. Every entry point clears the field (W27). The 4.13 engineer made this change outside its file list; the lead read it, accepted it, and had store-level tests added (test/ui-store-remix.test.ts).
+
+**W40. ChatGPT dot never receives limits or pack rules (for Brian, safety-relevant).** A dot's rules layer is its Custom Rules, which hold one approval setting per gate. The build's limits (for example "Never put more than 1% of the account into one trade") and every pack rules line (for example "Never ask for a seed phrase") are in no dot copy block. The final review found this; the M2 design lost it silently. M4 surfaces it without changing compile output:
+- a "Not included on ChatGPT: your limits and N pack rules" summary line;
+- a Left out list of each line, with a copy button and the reason;
+- when a gate runs on auto, one line that ties the auto gate to the missing limits and suggests Ask before taking action;
+- a note on the Limits screen when the target is dot.
+
+Recommendation for Brian: give the dot personality message a "## Hard rules" section with the limit lines and pack rules lines (gates stay in Custom Rules). That changes dot goldens, so it needs a safety pass. Alternative: clamp money gates to Ask before taking action on dot when limits cannot travel.
+
+**W41. Final review fixes (four lenses, three skeptics per finding; 10 confirmed, 11 rejected).**
+- **Names (an M1 bug):** a name with "$$", "$&" or "{anchor}" corrupted the who line, because it was built with chained string replace. It is now one fill().
+- **Hidden characters in names:** format and private-use characters (zero-width, bidi, tag characters) are cleaned and rejected.
+- **Packs:** a selected pack the target can't deliver can now be unticked.
+- **Paid steer:** Switch to Paid moves focus to the heading, and the summary is a live region with a heading.
+- **Disclosure:** the Details disclosure has a chevron.
+- **Copy buttons:** each is named after its block, and Left out titles are numbered.
+- **Long blocks:** a block over 12 lines folds behind "Show full text"; Copy still copies everything.
+- **Copy link:** a second Copy link sits under the header, with "Leaving to paste? Copy the link first so you can come back." A reload keeps nothing (W7).
+- **Link certificates:** they get "Build your own".
+- **Near-cap meter:** the library's near-cap rule ("drop a chip to shorten", originally at 3,200 of 3,600) is now a near state within 400 of any cap, on the certificate and in the preview strip.
+- **Tests:** the eleven M1 "(M2 UI)" it.todo rows became real tests.
+- **Not changed:** Custom builds still show no tagline (W5). Brian, the library's "tagline compiled from outfit + top chip" has no table; please supply one or confirm none.
+
+**U12. M4 UI strings for Brian to confirm.** These are plain wording the lead and agents wrote, verbatim from src/ui/copy/. Safety-adjacent strings are marked (S).
+
+Header and blocks:
+- "Meet <Name>"
+- radar "Slider levels: ...", "<stat> n of 4"
+- "Copy", "Copied", "Copy it by hand"
+- "Copy <block title>" (screen reader)
+- "Show more", "Show full text"
+- "Setting:"
+- "Label", "Description", "Starter n", "<pack>, rule n", "Mine"
+- groups: "Skills", "Routines", "Standing instructions" (B8), "Conversation starters", "Left out"
+- sections: "Also included", "Before you copy" (the summary heading)
+
+Summary:
+- (S) "Auto, no yes asked:"
+- "Your bot's personality is N characters over the CAP limit for <target>."
+- (S) "To fit <target>, N rules from <pack> were left out."
+- (S) "To fit <target>, N rules from <pack> are in AGENTS.md, not in SOUL.md."
+- "To fit <target>, N lines were shortened or left out."
+- "Changed when this link opened:"
+- "<label> (left out)"
+- "N picks in this link were not recognized, so they were left out or reset."
+- (S) "Risk was removed because no Markets chip is picked."
+- "Risk was added at its default level."
+- "What it wants first was reset to match the hard part."
+- "The name was tidied up."
+- (S) "Not included on <target>:"
+- (S) "Not included on ChatGPT: your limits and N pack rules. Add them to your dot by hand."
+- (S) "These run on auto, and your dot has no limits to check them against. Set them to Ask before taking action, or add your limits by hand first:"
+
+Left out hints:
+- (S) "These rules did not fit. Add them by hand if you want them."
+- (S) "A dot's Custom rules hold only your approvals. Add these by hand if you want them."
+
+Mine:
+- "Keep my edits"
+- (S) "These lines are your own words. They aren't checked against your approvals."
+- "N lines from what you pasted are not in this build."
+- "Your lines are already in the personality above."
+- "Long dashes in your lines were changed to hyphens."
+- "N lines were left out. The limit is 50 lines."
+
+Page footer:
+- "Still checking"
+- "<profile> docs read <date>"
+- "Details"
+- "You skipped <name>.", with the names "your world", "packs", "limits", "approvals", "the sliders", "pet peeves", "heart", "outfit", "roles"
+- meter hint "drop a chip to shorten" (the library doc's text)
+
+Actions:
+- "Copy link", "Link copied", "Couldn't copy the link"
+- "Share", "Couldn't open sharing. Try Copy link instead."
+- "Download zip"
+- "Leaving to paste? Copy the link first so you can come back."
+
+Remix:
+- screen "Remix your bot" / "Your picks are all still here. Change what you like, then build it again."
+- "What you paste stays on this device. It is never put in the link."
+
+Links and loading:
+- "That link did not open" / "It may be cut off, or it may be from a newer version. Start over to build a new bot." / "Start over"
+- "Getting things ready." / "Couldn't load the builder. Check your connection and try again." / "Retry"
+
+Elsewhere:
+- (S) gates "Auto isn't offered for this one; it asks first."
+- (S) limits on dot "ChatGPT dot can't carry these numbers. Your certificate lists them so you can add them by hand."
+- packs "Not carried on this target. Untick to remove."
+- certificate error "Something went wrong building this bot. Go back and try again."

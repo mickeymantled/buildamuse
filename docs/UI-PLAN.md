@@ -72,4 +72,4 @@ All UI strings in one exported object. Verbatim where the spec or brief gives th
 
 ## After M3
 
-M4 changed this plan in places. The first paint is `Shell.tsx` with a presentational `TargetPicker`, and App loads lazily. A `remix` side screen sits between the certificate and base. The store gained `loadBuild`, `switchTarget`, `startRemix`, the paste, the Mine switch and link errors. `settle()` no longer prunes packs by profile, and drops roles only when a change removes their packs. See docs/M4-PLAN.md and QUESTIONS W1 to W38.
+M4 changed this plan in places. The first paint is `Shell.tsx` with a presentational `TargetPicker`, and App loads lazily. A `remix` side screen sits between the certificate and base. The store gained `loadBuild`, `switchTarget`, `startRemix`, the paste, the Mine switch and link errors. `settle()` no longer prunes packs by profile, and drops roles only when a change removes their packs. See docs/M4-PLAN.md and the QUESTIONS W entries.

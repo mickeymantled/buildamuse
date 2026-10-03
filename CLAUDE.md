@@ -10,7 +10,7 @@ A mobile-first static site where a first-time Meta Muse user taps through eight 
 - `docs/Build-a-Bot-v2-Brief.md`: Brian's v2 brief (2026-10-01): six runtimes, bundles, packs, roles, gates. Supersedes the spec where they differ.
 - `docs/V2-DESIGN.md`: the lead's v2 architecture (profiles, layers, ids, trace).
 - `docs/UI-PLAN.md`: the M3 UI architecture (screens, flow, store, components, copy).
-- `docs/M4-PLAN.md`: the M4 certificate architecture (bundle fields, certificate model, links, remix and Mine, zip, bundle split). Readings W1 to W38 in QUESTIONS.md.
+- `docs/M4-PLAN.md`: the M4 certificate architecture (bundle fields, certificate model, links, remix and Mine, zip, bundle split). Readings are the W entries in QUESTIONS.md.
 - `QUESTIONS.md`: every ambiguity found and the reading picked. Check it before deciding anything the docs leave open.
 - `PROGRESS.md`: milestone and slice state. Read it first after any context reset.
 
@@ -28,7 +28,7 @@ A mobile-first static site where a first-time Meta Muse user taps through eight 
 - **heart / drives**: three "what you want" lines. The third is fixed and wins ties.
 - **outfit**: a "reminds you of" card. One flavor sentence.
 - **roster**: nine pre-built build objects.
-- **certificate**: the final screen with the three copy blocks and share link.
+- **certificate**: the final screen. It renders the compiled bundle for the chosen target: install steps with copy blocks under each, summary lines, Still checking, the share link, zip, remix and target switch.
 - **seed**: the one memory sentence the user says to Muse.
 - **skills**: routine setup sentences the user says to Muse.
 - **probe set / probe gate**: six test messages to check a library line changes model output. M5 tool, not in the app.

@@ -181,7 +181,7 @@ Done when (Part F): stations 0 through 7 as specced plus pack, limits, gates and
 - M3 3.19b: UI flow and copy tests passed review in two rounds and found one bug (the peek sheet was not a dialog); lead fixed BottomSheet (role dialog, aria-modal, focus moves in on open) and flipped the test.
 - M3 DONE (2026-10-03). Done criteria checked: stations 0 to 7 plus packs, limits, gates and roles; store; preview strip; floors and caps enforced in the store and through the UI; tap-only (one textbox, on name); 375px with no sideways scroll; 44px targets audited; light and dark checked; no em dashes (test plus repo sweep); copy has no SOUL.md and Muse only where allowed (test). Suite: 15 files, 5,774 passed, 2 expected fail (V25 caps), 11 todo; typecheck clean; vite build clean (one chunk-size warning: the library ships in the main bundle, worth splitting in M4). Waiting for Brian's go on M4.
 
-## M4: certificate as bundle
+## M4: certificate as bundle (done 2026-10-03)
 
 Done when: the criteria in docs/M4-PLAN.md section 11 (lead-written; B14 gives none). The architecture, the contracts and the wave plan are in docs/M4-PLAN.md rev 2; the readings are W1 to W30 in QUESTIONS.md. Subagents run on Sonnet; the lead checks every slice before it is committed.
 
@@ -207,11 +207,28 @@ Done when: the criteria in docs/M4-PLAN.md section 11 (lead-written; B14 gives n
 | 4.14 | remix screen and Mine switch | 3 | engineer, tester | Remix, copy/remix | done |
 | 4.13 | certificate actions: share, copy link, zip, remix, switch, steer; preview meter with Mine | 4 | engineer, tester | certificate/Actions, copy/actions, PreviewStrip | done (W39) |
 | 4.17 | integration tests: links, switch, remix, zip, bundle | 4 | tester | tests | done (101 integration tests) |
-| 4.16 | golden and safety recheck | 5 | tester, safety | | |
+| 4.16 | golden and safety recheck | 5 | tester, safety | | done (final safety recheck PASS, goldens unchanged since 4.5b) |
 | 4.18 | docs: CLAUDE.md, V2-DESIGN, UI-PLAN | 5 | lead | | done |
-| 4.19 | multi-lens review, browser, iOS Simulator | 5 | lead (+ Sonnet reviewers) | | |
-| 4.20 | M4 report + first three M5 slices | 5 | lead | | |
+| 4.19 | multi-lens review, browser, iOS Simulator | 5 | lead (+ Sonnet reviewers) | | done (four lenses x three skeptics; 10 confirmed fixed, W41; preview checks; iOS Simulator unavailable) |
+| 4.20 | M4 report + first three M5 slices | 5 | lead | | done (report) |
 - M4 wave 1 (2026-10-03, 42 Sonnet agents): all seven code slices passed review. 4.6 failed round 3 only on scope (the tester edited share.test.ts and ui-flow.test.tsx beyond its list, and the plan forced both edits), so the lead read the diffs and ratified them. Lead fix: setName no longer splits a surrogate pair. The lead read every diff. Suite: 24 files, 10,146 passed, 2 expected fail (V25). The research found OpenClaw skips skills without frontmatter; the lead confirmed it in the loader source (W31).
 - M4 wave 2 (2026-10-03, 29 Sonnet agents plus a 3-agent gate): 4.4, 4.7b and 4.10 passed review. 4.9 and 4.11 failed round 3 on real bugs, which the lead fixed: the Grok label was not counted as copyable, and a copy function took an array and broke the copy walker. Lead added tests for the kept-rules wording. Safety on 4.4 flagged role gate blocks with no install step on Grok and Project. The lead promoted the role fallback note to a step (W33); a tester updated the pinned tests, and safety re-ran: PASS on the full golden diff. More lead fixes: settle kept dropping a link's roles (W35); certificate Remix Back and the paste reset (W36); the Mine trace carve-out wired and narrowed (W36). Suite: 31 files, 12,795 passed, 3 expected fail (V25 x2, the Back button on a link certificate, which 4.12 wires).
 - M4 wave 3 (2026-10-03, 21 Sonnet agents): 4.12 and 4.14 passed review. 4.5b failed round 3 only because a model.ts id pointed at a record 4.5b had renamed; the lead fixed it (W38), plus the Screen h1 wrap. Safety PASS on the full golden set after the verify cleanup and the SKILL.md frontmatter. The lead opened June (Muse) and Marty (Dot) links in the preview at 375px. Each opened on the certificate with the URL cleaned and no sideways scroll; the Muse spec lines, Standing instructions, Left out list, Dot rules table, caption and hand-off note all render. Suite: 35 files, 13,339 passed, 2 expected fail (V25). Found W37 (risk 4 "Same as 3") for Brian.
 - M4 wave 4 (2026-10-03, 12 Sonnet agents): 4.13 failed round 3 only on scope (a sound store.ts fix outside its list; the lead accepted it as W39 and had store tests added) and on one test that claimed more than it checked. The 4.17 review found three assertions that could not fail; a tester fixed them, with mutation checks. The iOS Simulator is unavailable (no full Xcode), so the iOS Safari copy check goes to Brian. Suite: 38 files, 13,670 passed, 2 expected fail (V25).
+- M4 final review (2026-10-03, 68 Sonnet agents): four lenses (correctness, rules and safety, accessibility and mobile, plan compliance). Each finding went to three independent skeptics: 10 confirmed, 11 rejected. A completeness critic added 8 gaps. All confirmed findings and the critic gaps worth doing now are fixed (W41), with a 20-agent fix wave plus lead fixes for the dot advisories (W40). Final safety recheck PASS on all 55 goldens.
+- M4 DONE (2026-10-03). Every plan section 11 criterion has code and tests, except item 14: iOS Safari copy could not be checked here (no full Xcode), so it is listed for Brian. Suite: 44 files, 14,375 passed, 2 expected fail (V25), 0 todo. Typecheck clean. check:bundle: first paint 76 kB gzip (was 152 kB), library only in the lazy chunks.
+
+### Waiting on Brian (M4)
+- W40 (safety): deliver limits and pack rules to ChatGPT dot (recommended: a Hard rules section in the dot message), or clamp money gates there.
+- W37: the risk 4 line "Same as 3, plus:" dangles; please write it out in full.
+- W41 / W5: a tagline table for custom builds (outfit + top chip), or confirm none.
+- W28: Mine placement before the rules (not "at the end"), the user.mine trace carve-out, and em dashes in pasted lines becoming " - ".
+- W13: the OpenClaw zip layout (bundle paths vs install-relative folders).
+- W31: OpenClaw role agents don't see the main workspace's skills.
+- W32: the verify cleanup wording (three caveats, notes with dated citations).
+- W29: a Grok step for the first task.
+- W7: no reload restore. Confirm, now that Copy link sits under the header.
+- W1: design A as the reading of "lazy-load per target".
+- W22 / B15: the Grok Setup Bot endpoint trade-off (M5 or later).
+- U12: the M4 UI strings.
+- Device checks: Copy, Copy link, Share and Download zip on iOS Safari (iPhone) and Android Chrome. Tip: run `npx vite --host`, then open the Mac's address on the phone over Wi-Fi.

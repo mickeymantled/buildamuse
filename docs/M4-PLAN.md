@@ -10,7 +10,7 @@
 - The M4 scout reports and the three-lens plan critique (2026-10-03).
 
 **Rules.**
-- Lead readings are W1 to W30 in QUESTIONS.md.
+- Lead readings are the W entries in QUESTIONS.md. Where this plan and a later W entry differ, the W entry wins (notably W33 role steps, W35 roles in settle, W36 and W39 remix state, W7 links).
 - This doc is the contract that parallel slices share.
 - Every user-facing string lives in src/ui/copy/ or comes from the library, and every new string goes on the W-list for Brian.
 - Subagents run on Sonnet. The lead checks every slice itself (diff, typecheck, suite, preview pane) before committing.
