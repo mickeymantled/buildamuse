@@ -371,3 +371,5 @@ Marked "for Brian" where the call changes product behavior or bends a rule; the 
 - The shared Screen h1 wraps anywhere, so a 24-character name with no spaces never clips at 375px.
 - 4.5b also tagged gpt.verify.3 ("scheduled tasks by plan") as routine-only. Lead accepted this as a W32 Q1 reading.
 - Hyphenated skill folders apply only on OpenClaw and Hermes. Project and GPT file names keep their record ids.
+
+**W39. Back out of a certificate Remix (accepted lead fix, wave 4).** The certificate's Remix saves the old `from` in `fromBeforeRemix` before setting 'link-remix' (W11, W36). Back on the remix screen puts it back. So a link certificate stays without a Back button, and a roster Use certificate's Back still returns to the roster. A ?remix=1 link has nothing saved, so Back keeps 'link-remix'. Every entry point clears the field (W27). The 4.13 engineer made this change outside its file list; the lead read it, accepted it, and had store-level tests added (test/ui-store-remix.test.ts).
