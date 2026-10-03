@@ -47,6 +47,7 @@ import {
 } from '../src/ui/store.js';
 import type {
   ChatgptMode,
+  CompileResult,
   Level,
   Plan,
   Profile,
@@ -732,9 +733,12 @@ describe('packs follow chips until togglePack is used', () => {
   });
 });
 
-describe('packs the profile cannot deliver are dropped', () => {
+describe('packs the profile cannot deliver are kept in the draft and left out of the compile', () => {
   // No pack in the library restricts its profiles today (every pack's `profiles` is absent), so
   // this narrows one pack in memory for the length of the test and puts it back afterwards.
+  // Plan section 3 (W10): settle() no longer filters packs by profile. A pack the profile cannot
+  // deliver keeps its gates, limits and rules lines in effect and loses only its skills, triggers,
+  // seeds and job lines, and the compile names it as undelivered.
   const coding = packOf('coding');
   const original = coding.profiles;
 
@@ -743,22 +747,75 @@ describe('packs the profile cannot deliver are dropped', () => {
     else coding.profiles = original;
   });
 
-  it('a pack that lists only muse is dropped on grok and returns on muse', () => {
+  const ruleIds = new Set(coding.rulesLines.map((l) => l.id));
+  const undeliveredCoding = { kind: 'pack', id: 'coding', name: coding.label };
+
+  // Every record id the compile traces: personality lines, file lines and spoken items.
+  function tracedIds(r: CompileResult): string[] {
+    return [
+      ...r.soulLines.map((l) => l.id),
+      ...r.files.flatMap((f) => f.lines.map((l) => l.id)),
+      ...r.spoken.flatMap((x) => x.ids),
+    ];
+  }
+
+  // Ids of the pack's own delivery: its triggers, seeds, skills and the like. Its rules lines are not.
+  const packIds = (r: CompileResult): string[] =>
+    tracedIds(r).filter((id) => id.startsWith('pack.coding.') && !ruleIds.has(id));
+
+  // Every text the bundle hands the user, to ask whether a library line is anywhere in it.
+  function bundleText(r: CompileResult): string {
+    return [
+      r.soul,
+      ...r.files.map((f) => f.content),
+      ...r.spoken.map((x) => x.text),
+      ...r.customRules.flatMap((c) => [c.action, c.setting]),
+    ].join('\n');
+  }
+
+  // The engineering chip brings the coding pack on any target.
+  function compileOn(target: TargetId, mode?: ChatgptMode): CompileResult {
+    st().reset();
+    st().setTarget(target, mode);
+    st().toggleChip('engineering');
+    expect(st().draft.packs).toEqual(['coding']);
+    return compile(previewBuild(st()));
+  }
+
+  it('a pack that lists only muse stays in the draft on grok, and the compile leaves out its triggers and skills', () => {
     coding.profiles = ['muse'];
     st().setTarget('muse');
     st().toggleChip('engineering');
     expect(st().draft.packs).toEqual(['coding']);
+    const onMuse = compile(previewBuild(st()));
+    for (const t of coding.triggers) expect(onMuse.soul, t.id).toContain(t.line);
+    expect(onMuse.undelivered.filter((u) => u.kind === 'pack')).toEqual([]);
+    expect(packIds(onMuse).some((id) => id.startsWith('pack.coding.skill.'))).toBe(true);
+
     st().setTarget('grok');
-    expect(st().draft.packs).toEqual([]);
+    expect(st().draft.packs).toEqual(['coding']);
+    const onGrok = compile(previewBuild(st()));
+    for (const t of coding.triggers) expect(onGrok.soul, t.id).not.toContain(t.line);
+    expect(packIds(onGrok)).toEqual([]);
+    expect(onGrok.undelivered).toContainEqual(undeliveredCoding);
+
     st().setTarget('muse');
     expect(st().draft.packs).toEqual(['coding']);
+    const backOnMuse = compile(previewBuild(st()));
+    for (const t of coding.triggers) expect(backOnMuse.soul, t.id).toContain(t.line);
+    expect(backOnMuse.undelivered.filter((u) => u.kind === 'pack')).toEqual([]);
   });
 
-  it('a chip on a target that cannot deliver its pack derives nothing', () => {
+  it('a chip on a target that cannot deliver its pack still derives it, and the compile names it undelivered', () => {
     coding.profiles = ['muse'];
     st().setTarget('openclaw');
     st().toggleChip('engineering');
-    expect(st().draft.packs).toEqual([]);
+    expect(st().draft.packs).toEqual(['coding']);
+    expect(st().touched.packs).toBe(false);
+    const r = compile(previewBuild(st()));
+    expect(r.undelivered).toContainEqual(undeliveredCoding);
+    for (const t of coding.triggers) expect(r.soul, t.id).not.toContain(t.line);
+    expect(packIds(r)).toEqual([]);
   });
 
   it('togglePack refuses a pack the profile cannot deliver', () => {
@@ -768,13 +825,86 @@ describe('packs the profile cannot deliver are dropped', () => {
     expect(st().draft.packs).toEqual([]);
   });
 
-  it('a hand-picked pack is dropped when the target changes to one that cannot deliver it', () => {
+  it('a hand-picked pack stays when the target changes to one that cannot deliver it', () => {
     coding.profiles = ['muse'];
     st().setTarget('muse');
     st().togglePack('coding');
     expect(st().draft.packs).toEqual(['coding']);
+    expect(st().touched.packs).toBe(true);
     st().setTarget('chatgpt', 'dot');
-    expect(st().draft.packs).toEqual([]);
+    expect(st().draft.packs).toEqual(['coding']);
+    expect(st().touched.packs).toBe(true);
+    const r = compile(previewBuild(st()));
+    expect(r.undelivered).toContainEqual(undeliveredCoding);
+    expect(packIds(r)).toEqual([]);
+    // Back on a target that delivers it, the same pack is delivered again.
+    st().setTarget('muse');
+    expect(st().draft.packs).toEqual(['coding']);
+    expect(packIds(compile(previewBuild(st()))).length).toBeGreaterThan(0);
+  });
+
+  it('a later edit on a target that cannot deliver the pack does not drop it', () => {
+    coding.profiles = ['muse'];
+    st().setTarget('grok');
+    st().toggleChip('engineering');
+    st().setName('Edit');
+    st().setBase('professional');
+    expect(st().draft.packs).toEqual(['coding']);
+  });
+
+  const OTHER_PROFILES: { name: string; target: TargetId; mode?: ChatgptMode }[] = [
+    { name: 'openclaw', target: 'openclaw' },
+    { name: 'hermes', target: 'hermes' },
+    { name: 'grok', target: 'grok' },
+    { name: 'chatgpt dot', target: 'chatgpt', mode: 'dot' },
+  ];
+
+  it.each(OTHER_PROFILES)(
+    'on $name the compile leaves out only the pack delivery and keeps its gates, limits and rules',
+    ({ target, mode }) => {
+      delete coding.profiles;
+      const open = compileOn(target, mode);
+      coding.profiles = ['muse'];
+      const restricted = compileOn(target, mode);
+
+      // The delivered pack is traced, so the comparison below is not empty.
+      expect(packIds(open).length).toBeGreaterThan(0);
+      expect(tracedIds(open)).toEqual(expect.arrayContaining(coding.triggers.map((t) => t.id)));
+      // Undelivered, none of its delivery ids reach the bundle, and the pack is named.
+      expect(packIds(restricted)).toEqual([]);
+      expect(restricted.undelivered).toContainEqual(undeliveredCoding);
+      expect(open.undelivered.filter((u) => u.kind === 'pack')).toEqual([]);
+
+      // Gates and limits in effect are the same with or without delivery.
+      expect(restricted.gates).toEqual(open.gates);
+      expect(restricted.limits).toEqual(open.limits);
+      for (const [action, setting] of Object.entries(coding.gatesDefault)) {
+        const line = library.gates.find((g) => g.id === action)?.soulLine[setting];
+        if (line !== null && line !== undefined) {
+          expect(restricted.soul, `${action} ${setting}`).toContain(line);
+        }
+      }
+
+      // A rules line the delivered compile carries is still carried.
+      for (const rule of coding.rulesLines) {
+        if (bundleText(open).includes(rule.line)) {
+          expect(bundleText(restricted), rule.id).toContain(rule.line);
+        }
+      }
+    },
+  );
+
+  it('the rules lines are in the rules file on a rules-file profile whether or not the pack is delivered', () => {
+    for (const target of ['openclaw', 'hermes'] as const) {
+      delete coding.profiles;
+      const open = compileOn(target);
+      coding.profiles = ['muse'];
+      const restricted = compileOn(target);
+      for (const r of [open, restricted]) {
+        const rules = r.files.filter((f) => f.kind === 'rules').map((f) => f.content).join('\n');
+        for (const rule of coding.rulesLines) expect(rules, `${target} ${rule.id}`).toContain(rule.line);
+      }
+    }
   });
 
   it('availablePacks lists every library pack on every profile when none restrict themselves', () => {
@@ -2390,8 +2520,9 @@ function checkInvariants(s: BuilderState, ctx: string): void {
     expect(d.base, `${ctx}: no stats means no base`).toBeUndefined();
   }
 
-  const avail = new Set(availablePacks(compiledProfile(s)).map((p) => p.id));
-  for (const id of d.packs) expect(avail.has(id), `${ctx}: pack ${id} deliverable`).toBe(true);
+  // Packs are not filtered by profile (W10), so the only rule is that each is a known library pack.
+  const knownPacks = new Set(library.packs.map((p) => p.id));
+  for (const id of d.packs) expect(knownPacks.has(id), `${ctx}: pack ${id} is a library pack`).toBe(true);
   if (!s.touched.packs) expect(d.packs, `${ctx}: packs follow chips`).toEqual(expectedPacks(d.chips));
 
   const packs = d.packs.map(packOf);
@@ -2435,11 +2566,6 @@ function checkInvariants(s: BuilderState, ctx: string): void {
 
   expect(s.skipped.length, `${ctx}: skipped screens are all skippable`).toBe(s.skipped.filter(canSkip).length);
   expect(new Set(s.skipped).size, `${ctx}: skipped unique`).toBe(s.skipped.length);
-}
-
-function compiledProfile(s: BuilderState): Profile {
-  const id = s.target === 'chatgpt' ? `chatgpt-${s.mode ?? 'dot'}` : (s.target ?? 'muse');
-  return library.targets.profiles.find((p) => p.id === id) as Profile;
 }
 
 function randomWalk(seed: number, steps: number, onState?: (s: BuilderState) => void): void {

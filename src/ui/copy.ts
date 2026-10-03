@@ -83,6 +83,10 @@ export const copy = {
       title: 'Your bot',
       subtitle: 'Here is what you built.',
     },
+    remix: {
+      title: 'Remix your bot',
+      subtitle: 'Your picks are all still here. Change what you like, then build it again.',
+    },
   } satisfies Record<ScreenId, { title: string; subtitle: string }>,
 
   // The name given to a build that has none yet, so the preview always compiles (U3).

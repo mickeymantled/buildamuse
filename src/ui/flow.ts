@@ -30,8 +30,11 @@ export type ScreenId =
   | 'outfit'
   | 'roles'
   | 'name'
-  | 'certificate';
+  | 'certificate'
+  | 'remix';
 
+// 'remix' is a side screen: it is a ScreenId but not in SCREEN_ORDER, so it has no place in the
+// progress dots and no Skip. It sits between the certificate and base (see nextScreen and prevScreen).
 export const SCREEN_ORDER: readonly ScreenId[] = [
   'target',
   'roster',
@@ -73,7 +76,7 @@ export function isNameValid(name: string): boolean {
 // The slice of the store state the flow reads. Declared here so this file does not import the store.
 export interface FlowState {
   screen: ScreenId;
-  from: 'roster' | 'blank' | 'remix' | null;
+  from: 'roster' | 'blank' | 'remix' | 'link' | 'link-remix' | null;
   target: TargetId | null;
   mode?: ChatgptMode;
   plan?: Plan;
@@ -156,16 +159,26 @@ export function progressScreens(s: FlowState): ScreenId[] {
 }
 
 export function nextScreen(s: FlowState): ScreenId {
+  if (s.screen === 'remix') return 'base';
   const at = SCREEN_ORDER.indexOf(s.screen);
   return visibleScreens(s).find((id) => SCREEN_ORDER.indexOf(id) > at) ?? s.screen;
 }
 
 export function prevScreen(s: FlowState): ScreenId {
+  if (s.screen === 'remix') return 'certificate';
+  // A link opens on the certificate, so there is nothing behind it. A link remix opens on the remix screen.
+  if (s.screen === 'certificate' && s.from === 'link') return 'certificate';
+  if (s.screen === 'base' && s.from === 'link-remix') return 'remix';
   // A starter in use jumped from the roster to the certificate, so back returns to the roster.
   if (s.screen === 'certificate' && s.from === 'roster') return 'roster';
   const at = SCREEN_ORDER.indexOf(s.screen);
   const before = visibleScreens(s).filter((id) => SCREEN_ORDER.indexOf(id) < at);
   return before[before.length - 1] ?? s.screen;
+}
+
+// Whether Back leads anywhere. False on the target screen and on a link's certificate.
+export function canGoBack(s: FlowState): boolean {
+  return prevScreen(s) !== s.screen;
 }
 
 export function canSkip(screen: ScreenId): boolean {

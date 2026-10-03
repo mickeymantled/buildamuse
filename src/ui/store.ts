@@ -42,6 +42,7 @@ import { migrate, packsFromChips, retarget } from '../compiler/migrate.js';
 import { capOf as compilerCapOf } from '../compiler/profile.js';
 import { MAX_CHIPS, MAX_PACKS, MAX_PEEVES, STAT_CAP } from '../compiler/passes/validate.js';
 import library from '../library/index.js';
+import type { Drop } from '../share/encode.js';
 import { copy } from './copy.js';
 import {
   availablePacks,
@@ -59,7 +60,11 @@ import {
 
 export { profileOf };
 
-export type From = 'roster' | 'blank' | 'remix' | null;
+// 'remix' is a starter remix. 'link' and 'link-remix' are a build opened from a share link.
+export type From = 'roster' | 'blank' | 'remix' | 'link' | 'link-remix' | null;
+
+// The pasted personality in the remix box is kept in memory only, and capped here.
+export const PASTE_MAX = 20000;
 
 export interface Draft {
   base?: BaseId;
@@ -95,15 +100,38 @@ export interface BuilderState {
   lastBadge: BadgeId | null;
   // Proactive carries a chip's +1 nudge that the user hasn't moved, so untapping the chip takes it back.
   nudged: boolean;
+  // The ChatGPT mode and plan last left by a target switch, so switching back returns to them.
+  lastChatgpt?: { mode: ChatgptMode; plan?: Plan };
+  // The build when a remix started, to tell the user's own lines from the compiled ones.
+  baseline?: Build;
+  // The personality pasted into the remix box. Memory only, never in the link.
+  pasted: string;
+  mineOn: boolean;
+  // What decode warned about and dropped when a link was opened.
+  decodeWarnings: string[];
+  drops: Drop[];
+  // Set when a link could not be opened. The link error view shows instead of the screens.
+  linkError?: string;
+}
+
+export interface LoadOptions {
+  from: 'link' | 'link-remix';
+  warnings?: string[];
+  drops?: Drop[];
 }
 
 export interface BuilderActions {
   setTarget: (target: TargetId, mode?: ChatgptMode, plan?: Plan) => void;
+  switchTarget: (target: TargetId) => void;
   setMode: (mode: ChatgptMode) => void;
   setPlan: (plan: Plan) => void;
   useStarter: (id: string) => void;
   remixStarter: (id: string) => void;
   startBlank: () => void;
+  loadBuild: (build: Build, opts: LoadOptions) => void;
+  startRemix: () => void;
+  setPasted: (text: string) => void;
+  setMineOn: (on: boolean) => void;
   setBase: (id: BaseId) => void;
   toggleChip: (id: ChipId) => void;
   setStat: (stat: StatId, level: Level) => void;
@@ -150,6 +178,23 @@ export function initialState(): BuilderState {
     skipped: [],
     lastBadge: null,
     nudged: false,
+    lastChatgpt: undefined,
+    ...noLink(),
+  };
+}
+
+// The link and remix fields at rest. Every entry point that starts a build clears them (W27).
+function noLink(): Pick<
+  BuilderState,
+  'baseline' | 'pasted' | 'mineOn' | 'decodeWarnings' | 'drops' | 'linkError'
+> {
+  return {
+    baseline: undefined,
+    pasted: '',
+    mineOn: false,
+    decodeWarnings: [],
+    drops: [],
+    linkError: undefined,
   };
 }
 
@@ -194,6 +239,12 @@ export function statsOf(d: Draft): Stats {
 // Caps a name at 24 UTF-16 units without leaving half of a surrogate pair at the end.
 function capName(text: string): string {
   const cut = text.slice(0, 24);
+  return /[\uD800-\uDBFF]$/.test(cut) ? cut.slice(0, -1) : cut;
+}
+
+// Same cut as capName, for the pasted text.
+function capPaste(text: string): string {
+  const cut = text.slice(0, PASTE_MAX);
   return /[\uD800-\uDBFF]$/.test(cut) ? cut.slice(0, -1) : cut;
 }
 
@@ -367,12 +418,14 @@ function litBadge(prev: BuilderState, next: BuilderState): BadgeId | null {
 // Brings the dependent parts of a state back in line after a change: packs follow chips until the
 // user picks packs, limits, gates and roles drop what the packs no longer expose, risk exists
 // exactly when a Markets chip is tapped, and the heart stays valid and d2 follows blunt until swapped.
-function settle<S extends BuilderState>(s: S): S {
+// Packs are not filtered by profile: a pack a profile can't deliver stays in the build, and the
+// compiler leaves out what it can't deliver. The Packs screen hides those packs and togglePack
+// refuses them.
+// Roles drop only when a change takes away the packs their set fitted (a loaded link's roles that
+// never fitted its packs stay, since the compiler accepts them; QUESTIONS W35).
+function settle<S extends BuilderState>(s: S, prev?: BuilderState): S {
   const d = s.draft;
-  const available = new Set(availablePacks(profileOf(s)).map((p) => p.id));
-  const packs = (s.touched.packs ? d.packs : packsFromChips(d.chips)).filter((id) =>
-    available.has(id),
-  );
+  const packs = s.touched.packs ? d.packs : packsFromChips(d.chips);
 
   let stats = d.stats;
   if (stats) {
@@ -389,7 +442,8 @@ function settle<S extends BuilderState>(s: S): S {
   let roles = d.roles;
   if (roles !== undefined) {
     const set = roleSetOf(roles);
-    if (!set || !roleSetsFor(packs).includes(set)) roles = undefined;
+    const fittedBefore = prev !== undefined && set !== undefined && roleSetsFor(prev.draft.packs).includes(set);
+    if (!set || (fittedBefore && !roleSetsFor(packs).includes(set))) roles = undefined;
   }
   if (s.advancedRoles && roles === undefined) roles = seedRoles(packs);
 
@@ -407,29 +461,54 @@ function settle<S extends BuilderState>(s: S): S {
 
 // ---- The store ----
 
-// A starter loaded as a draft. d2 counts as touched only when it differs from what blunt would pick.
+// A build as a draft. A role list that is empty counts as no roles.
+function draftOf(b: Build): Draft {
+  return {
+    base: b.base,
+    chips: [...b.chips],
+    stats: { ...b.stats },
+    peeves: [...b.peeves],
+    heart: { ...b.heart },
+    outfit: b.outfit,
+    name: b.name,
+    packs: [...b.packs],
+    limits: { ...b.limits },
+    gates: { ...b.gates },
+    roles: b.roles && b.roles.length > 0 ? [...b.roles] : undefined,
+  };
+}
+
+// d2 counts as touched only when it differs from what blunt would pick.
+function d2Touched(b: Build): boolean {
+  return b.heart.d2 !== d2ForBlunt(b.stats.blunt);
+}
+
+// A starter loaded as a draft.
 function starterPatch(s: BuilderState, id: string): Partial<BuilderState> | null {
   const b = starterBuild(s, id);
   if (!b) return null;
   return {
-    draft: {
-      base: b.base,
-      chips: [...b.chips],
-      stats: { ...b.stats },
-      peeves: [...b.peeves],
-      heart: { ...b.heart },
-      outfit: b.outfit,
-      name: b.name,
-      packs: [...b.packs],
-      limits: { ...b.limits },
-      gates: { ...b.gates },
-      roles: b.roles ? [...b.roles] : undefined,
-    },
-    touched: { proactive: false, packs: false, d2: b.heart.d2 !== d2ForBlunt(b.stats.blunt) },
+    draft: draftOf(b),
+    touched: { proactive: false, packs: false, d2: d2Touched(b) },
     advancedRoles: false,
     skipped: [],
     nudged: false,
+    ...noLink(),
   };
+}
+
+function sameList(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((x, i) => x === b[i]);
+}
+
+// A target with the mode and plan it carries: mode only for ChatGPT, plan only for custom instructions.
+function targetPick(
+  target: TargetId,
+  mode?: ChatgptMode,
+  plan?: Plan,
+): { target: TargetId; mode?: ChatgptMode; plan?: Plan } {
+  const m = target === 'chatgpt' ? (mode ?? 'dot') : undefined;
+  return { target, mode: m, plan: m === 'instructions' ? (plan ?? 'free') : undefined };
 }
 
 export const useBuilder = create<BuilderStore>()((set, get) => {
@@ -439,7 +518,7 @@ export const useBuilder = create<BuilderStore>()((set, get) => {
     set((s) => {
       const patch = update(s);
       if (patch === null) return s;
-      const next = settle({ ...s, ...patch });
+      const next = settle({ ...s, ...patch }, s);
       return { ...next, lastBadge: litBadge(s, next) };
     });
   };
@@ -451,10 +530,20 @@ export const useBuilder = create<BuilderStore>()((set, get) => {
   return {
     ...initialState(),
 
-    setTarget: (target, mode, plan) =>
-      commit(() => {
-        const m = target === 'chatgpt' ? (mode ?? 'dot') : undefined;
-        return { target, mode: m, plan: m === 'instructions' ? (plan ?? 'free') : undefined };
+    setTarget: (target, mode, plan) => commit(() => targetPick(target, mode, plan)),
+
+    // "Make this for <target> instead". The draft is untouched, so a switch and a switch back change
+    // nothing. ChatGPT returns to the mode and plan it was left on, and the hidden GPT mode reads as dot.
+    switchTarget: (target) =>
+      set((s) => {
+        const leaving =
+          s.target === 'chatgpt' && target !== 'chatgpt'
+            ? { lastChatgpt: { mode: s.mode ?? 'dot', plan: s.plan } }
+            : {};
+        if (target !== 'chatgpt') return { ...targetPick(target), ...leaving };
+        const from = s.target === 'chatgpt' ? { mode: s.mode, plan: s.plan } : s.lastChatgpt;
+        const mode = from?.mode === 'gpt' ? 'dot' : from?.mode;
+        return targetPick(target, mode, from?.plan);
       }),
 
     setMode: (mode) =>
@@ -488,7 +577,50 @@ export const useBuilder = create<BuilderStore>()((set, get) => {
         nudged: false,
         from: 'blank',
         screen: 'base',
+        ...noLink(),
       })),
+
+    // A share link opened as a build. One atomic set with no settle: the link's packs, gates, limits,
+    // roles and d2 stay as they came, and decode already repaired the rest.
+    loadBuild: (build, { from, warnings = [], drops = [] }) =>
+      set({
+        ...targetPick(build.target, build.mode, build.plan),
+        draft: draftOf(build),
+        touched: {
+          packs: !sameList(build.packs, packsFromChips(build.chips)),
+          d2: d2Touched(build),
+          proactive: false,
+        },
+        nudged: false,
+        advancedRoles: build.roles !== undefined && build.roles.length > 0,
+        skipped: [],
+        lastBadge: null,
+        from,
+        screen: from === 'link-remix' ? 'remix' : 'certificate',
+        ...noLink(),
+        baseline: build,
+        decodeWarnings: [...warnings],
+        drops: [...drops],
+      }),
+
+    // The certificate's Remix: the build as it is now becomes the diff baseline.
+    // The certificate's Remix: snapshot the build as the Mine baseline and open the remix screen.
+    // `from` becomes 'link-remix' so Back on base returns to the remix screen; any old paste is cleared.
+    startRemix: () => {
+      const s = get();
+      set({
+        baseline: previewBuild(s),
+        screen: 'remix',
+        from: 'link-remix',
+        pasted: '',
+        mineOn: false,
+        lastBadge: null,
+      });
+    },
+
+    setPasted: (text) => set({ pasted: capPaste(text) }),
+
+    setMineOn: (on) => set({ mineOn: on }),
 
     setBase: (id) =>
       commit((s) => {

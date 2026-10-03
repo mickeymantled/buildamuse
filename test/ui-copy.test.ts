@@ -39,6 +39,11 @@ const PLAN_SCREENS = [
   'certificate',
 ] as const;
 
+// Side screens are in the flow's ScreenId and in copy, but not in SCREEN_ORDER: no progress dots, no
+// Skip, and the screen sits off the main path (docs/M4-PLAN.md section 3, "Remix screen").
+const SIDE_SCREENS = ['remix'] as const;
+const COPY_SCREENS = [...PLAN_SCREENS, ...SIDE_SCREENS] as const;
+
 // ---- Walking the copy object ----
 
 interface Found {
@@ -154,12 +159,15 @@ describe('"your bot\'s personality" and no SOUL.md', () => {
 });
 
 describe('screen strings', () => {
-  it('names the same screens as the plan and the flow', () => {
+  it('names the same screens as the plan and the flow, plus the remix side screen', () => {
+    // The flow order is the plan's order. The side screen is not in it.
     expect([...SCREEN_ORDER]).toEqual([...PLAN_SCREENS]);
-    expect(Object.keys(copy.screens).sort()).toEqual([...PLAN_SCREENS].sort());
+    for (const id of SIDE_SCREENS) expect([...SCREEN_ORDER], id).not.toContain(id);
+    // copy.screens covers every flow screen and every side screen, and nothing else.
+    expect(Object.keys(copy.screens).sort()).toEqual([...COPY_SCREENS].sort());
   });
 
-  it.each(PLAN_SCREENS)('%s has a title and a subtitle', (id) => {
+  it.each(COPY_SCREENS)('%s has a title and a subtitle', (id) => {
     const entry = copy.screens[id];
     expect(typeof entry.title).toBe('string');
     expect(entry.title.trim().length).toBeGreaterThan(0);
@@ -168,7 +176,7 @@ describe('screen strings', () => {
   });
 
   it('gives every screen its own title (the flow tests tell screens apart by heading)', () => {
-    const titles = PLAN_SCREENS.map((id) => copy.screens[id].title);
+    const titles = COPY_SCREENS.map((id) => copy.screens[id].title);
     expect(new Set(titles).size).toBe(titles.length);
   });
 });
