@@ -32,7 +32,14 @@ export function BottomSheet({
 }: BottomSheetProps) {
   const uid = useId();
   const panelId = `${uid}-p`;
+  const titleId = `${uid}-t`;
   const toggleRef = useRef<HTMLButtonElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  // Opening moves focus into the sheet; every way of closing returns it to the bar.
+  useEffect(() => {
+    if (open) closeRef.current?.focus();
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -79,11 +86,17 @@ export function BottomSheet({
       {open && (
         <div
           id={panelId}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
           className="absolute inset-x-0 bottom-full z-10 mb-2 flex max-h-[70dvh] flex-col overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] shadow-lg"
         >
           <div className="flex items-center justify-between gap-3 border-b border-[color:var(--border)] py-1 pl-4 pr-1">
-            <h2 className="text-base font-semibold text-[color:var(--text)]">{title}</h2>
+            <h2 id={titleId} className="text-base font-semibold text-[color:var(--text)]">
+              {title}
+            </h2>
             <button
+              ref={closeRef}
               type="button"
               onClick={close}
               className={cx('min-h-[44px] rounded-lg px-3 text-sm font-medium text-[color:var(--text)]', FOCUS)}
