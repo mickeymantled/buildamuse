@@ -175,6 +175,8 @@ export const copy = {
     } satisfies Record<GateSetting, string>,
     locked: 'Locked',
     payLocked: 'Payments are always off.',
+    none: 'Nothing to approve for your picks.',
+    switchToPaid: 'Switch to Paid',
   },
 
   // What each profile does with the gate settings. Verbatim from Part E, one per profile.
