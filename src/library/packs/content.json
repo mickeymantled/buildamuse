@@ -3,7 +3,7 @@
   "label": "Content",
   "triggers": [
     { "id": "pack.content.t1", "line": "No claim without a source link." },
-    { "id": "pack.content.t2", "line": "[TODO: voice-anchor slot from memory]" }
+    { "id": "pack.content.t2", "line": "Match the voice in my saved samples. If there are none, ask me for two posts before you draft anything." }
   ],
   "gatesDefault": {
     "publish": "approve"

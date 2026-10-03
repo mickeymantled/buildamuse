@@ -85,7 +85,7 @@
   ],
   "defaultRoles": ["risk-manager", "analyst", "journal"],
   "rulesLines": [
-    { "id": "pack.perps.rule.1", "line": "The agent wallet is trade-only. It cannot withdraw." },
+    { "id": "pack.perps.rule.1", "line": "The agent wallet is trade-only. It cannot withdraw.", "origin": "brief" },
     { "id": "pack.perps.rule.2", "line": "No entry goes out without a stop price, and the liquidation price must sit beyond that stop." },
     { "id": "pack.perps.rule.3", "line": "Never add size to a losing position, and never widen a stop." },
     { "id": "pack.perps.rule.4", "line": "Never add collateral or move funds in or out of the venue account. Tell the user what to do instead." }

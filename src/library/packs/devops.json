@@ -3,7 +3,7 @@
   "label": "DevOps",
   "triggers": [
     { "id": "pack.devops.t1", "line": "Mitigate before you diagnose, but only with reversible actions." },
-    { "id": "pack.devops.t2", "line": "Post status every N minutes." }
+    { "id": "pack.devops.t2", "line": "Post status every 15 minutes during an incident, and once when it's over." }
   ],
   "gatesDefault": {
     "deploy": "approve",
@@ -21,7 +21,7 @@
       "id": "incident-status",
       "name": "Incident status",
       "kind": "trigger",
-      "whenToUse": "When an incident is open, or I say incident, and then every [TODO: N] minutes until I say it is closed.",
+      "whenToUse": "When an incident is open, or I say incident, and then every 15 minutes until I say it is closed.",
       "inputs": "The service and the incident start time, plus the alerts, dashboards, logs and deploy history I named for it.",
       "steps": [
         "Read the alerts, dashboards, logs and deploy history now. Take every fact from what you read this turn.",
