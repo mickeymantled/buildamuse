@@ -189,15 +189,15 @@ Three layers: PERSONALITY, RULES, SKILLS, plus memory, routines and install step
 | Profile | Personality artifact (`soul`) | Rules layer | Skills | Memory | Routines |
 | --- | --- | --- | --- | --- | --- |
 | muse | paste `Identity > Soul`: soul layout + rules section | inline section in the soul | spoken (v1 sentences) | spoken seed | spoken |
-| openclaw | file `SOUL.md` | file `AGENTS.md` | files `skills/<id>/SKILL.md` | file `USER.md` | spoken + verify note |
-| hermes | file `SOUL.md` + rules section | file `AGENTS.md` and the SOUL.md section | files `skills/<id>/SKILL.md` | file `USER.md` | spoken + verify note |
+| openclaw | file `SOUL.md` | file `AGENTS.md` | files `skills/<dir>/SKILL.md` (frontmatter, hyphen dirs; W31) | spoken (B8: no USER.md) | spoken + note |
+| hermes | file `SOUL.md` + rules section | file `AGENTS.md` and the SOUL.md section | files `skills/<dir>/SKILL.md` (frontmatter, hyphen dirs; W31) | file `USER.md` | spoken + verify note |
 | grok | paste `Edit Profile > Description`: grok layout | its `## Never` block, and every skill's approval field | spoken, six fields | spoken seed | spoken, six confirmations |
 | chatgpt-dot | spoken item `Personality`: opening line + soul layout | custom rules (one per gate) | spoken + Brian's suffix | spoken seed | spoken |
 | chatgpt-gpt | paste `Configure > Instructions`: gates block, soul, skill pointers, gates block | top and bottom blocks | knowledge files `knowledge/<id>.md` + pointer lines | spoken seed | spoken + verify note |
 | chatgpt-instructions | paste field 2: gates block, soul (compact when free), inline skills, gates block | top and bottom blocks | inline, top three, one line each | paste field 1 (memory block) | none |
 | chatgpt-project | paste `Project > Instructions`: like gpt | top and bottom blocks | files `project/<id>.md` + pointer lines | spoken seed | spoken + verify note |
 
-`length` = `soul.length`; the cap applies to `soul` (and to field 1 for instructions). Caps: muse, openclaw, hermes, chatgpt-dot 3,600; grok 2,000; chatgpt-gpt and chatgpt-project 8,000; chatgpt-instructions 1,500 free, 5,000 paid; gpt description < 300.
+`length` = `soul.length`; the cap applies to `soul` (and to field 1 for instructions). Caps (B1, 2026-10-02): muse, hermes and grok 4,000; openclaw and chatgpt-dot 3,600; chatgpt-gpt and chatgpt-project 8,000; chatgpt-instructions 1,500 free, 5,000 paid; gpt description < 300. On caps of 4,000 or less, Tier A cuts author pack rules, then Tier B switches chassis to short forms, before any trigger drops.
 
 ### Soul layout (muse, openclaw, hermes, dot, gpt, project, instructions paid)
 
@@ -257,7 +257,7 @@ For every pack: if it exposes `trade`, `gatesDefault.trade === 'approve'` and `g
 
 - `build.roles` normalized: coordinator of the set added if absent; order = set `members` order.
 - Role soul (soul layout or grok layout per profile): opening, `## Mission`, What you want (drive, counter-drive, the build's d3, tiebreak), How you talk (stat lines with `bluntDefault`/`proactiveDefault` replacing the user's blunt and proactive, then `lockedStats` overriding everything), Never (role `never`, then `Report to <coordinator>. Never delegate.` for non-coordinators, reviewer and fact-checker lines), Reporting (to, format, verdict-first line), When you're unsure (`uncertaintyRule`), Acting for me (chassis + gate soul lines), memory chassis, How this sounds (`anchorExchange`), clash. 40..120 lines including blanks.
-- Delivery: openclaw `workspace-<role>/SOUL.md` and `workspace-<role>/AGENTS.md` (role never-lines, delegation line and the rules block, so a worker that loads only AGENTS.md keeps its rules); hermes `profiles/<role>/SOUL.md` and `profiles/<role>/AGENTS.md` (verify paths); grok one description per role plus a team note; chatgpt-gpt and project one Instructions paste per role plus `fallback.roles` note; chatgpt-dot one `fallback.roles` note; muse and instructions: no role output, one note.
+- Delivery: openclaw `workspace-<role>/SOUL.md` and `workspace-<role>/AGENTS.md` (role never-lines, delegation line and the rules block, so a worker that loads only AGENTS.md keeps its rules); hermes `profiles/<role>/SOUL.md` only (V18: Hermes reads AGENTS.md from the run folder); grok one description per role; chatgpt-gpt and project one Instructions paste per role; on these three the `fallback.roles` note becomes the install step that shows the role files (W33); chatgpt-dot one `fallback.roles` note; muse and instructions: no role output, one note.
 
 ## 10. File ownership for parallel slices
 
@@ -265,3 +265,7 @@ For every pack: if it exposes `trade`, `gatesDefault.trade === 'approve'` and `g
 - `src/compiler/` new: `profile.ts`, `gates.ts`, `migrate.ts`; `passes/` new: `packs.ts`, `rules.ts`, `deliver.ts`, `memory.ts`, `roles.ts`, `bundle.ts`, `layouts/grok.ts`, `layouts/instructions.ts`. Changed: `types.ts`, `validate.ts`, `resolve.ts`, `assemble.ts`, `render.ts`, `length.ts`, `trace.ts`, `compile.ts`.
 - `src/share/encode.ts`.
 - `test/packs/<pack>.probes.json`; `test/golden/v2/<starter>.<profile>[.<plan>].md`.
+
+## M4 additions
+
+The certificate-as-bundle architecture (structured bundle fields, the pure certificate model, links, remix and Mine, zip, the lazy first paint) is in docs/M4-PLAN.md. This doc stays the compiler reference; where they differ, M4-PLAN and the QUESTIONS W entries are newer.

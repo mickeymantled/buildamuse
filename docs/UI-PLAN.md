@@ -69,3 +69,7 @@ Each a small presentational component, no store access (screens wire them): `Scr
 ## Copy (`src/ui/copy.ts`)
 
 All UI strings in one exported object. Verbatim where the spec or brief gives them: "Pick a starter", "Build your own", the gates copy per target (Part E), the remix warning, the certificate lines (M4), "full" at the stat cap, "already built in". The spec's floor line names Muse ("every Muse comes with a little honesty and a little care already in."); per Part E ("your bot's personality") the UI says "bot" (U4). Strings the docs don't give are written as plainly as possible and listed in QUESTIONS for Brian.
+
+## After M3
+
+M4 changed this plan in places. The first paint is `Shell.tsx` with a presentational `TargetPicker`, and App loads lazily. A `remix` side screen sits between the certificate and base. The store gained `loadBuild`, `switchTarget`, `startRemix`, the paste, the Mine switch and link errors. `settle()` no longer prunes packs by profile, and drops roles only when a change removes their packs. See docs/M4-PLAN.md and QUESTIONS W1 to W38.

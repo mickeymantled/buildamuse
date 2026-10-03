@@ -208,7 +208,7 @@ Done when: the criteria in docs/M4-PLAN.md section 11 (lead-written; B14 gives n
 | 4.13 | certificate actions: share, copy link, zip, remix, switch, steer; preview meter with Mine | 4 | engineer, tester | certificate/Actions, copy/actions, PreviewStrip | |
 | 4.17 | integration tests: links, switch, remix, zip, bundle | 4 | tester | tests | |
 | 4.16 | golden and safety recheck | 5 | tester, safety | | |
-| 4.18 | docs: CLAUDE.md, V2-DESIGN, UI-PLAN | 5 | lead | | |
+| 4.18 | docs: CLAUDE.md, V2-DESIGN, UI-PLAN | 5 | lead | | done |
 | 4.19 | multi-lens review, browser, iOS Simulator | 5 | lead (+ Sonnet reviewers) | | |
 | 4.20 | M4 report + first three M5 slices | 5 | lead | | |
 - M4 wave 1 (2026-10-03, 42 Sonnet agents): all seven code slices passed review. 4.6 failed round 3 only on scope (the tester edited share.test.ts and ui-flow.test.tsx beyond its list, and the plan forced both edits), so the lead read the diffs and ratified them. Lead fix: setName no longer splits a surrogate pair. The lead read every diff. Suite: 24 files, 10,146 passed, 2 expected fail (V25). The research found OpenClaw skips skills without frontmatter; the lead confirmed it in the loader source (W31).

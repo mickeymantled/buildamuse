@@ -9,6 +9,8 @@ A mobile-first static site where a first-time Meta Muse user taps through eight 
 - Library wins on text. Spec wins on structure. The library's tables are the source of truth; its "Two worked compiles" are illustrative and were hand-written, so they drifted. When a table and a worked compile disagree, the table wins.
 - `docs/Build-a-Bot-v2-Brief.md`: Brian's v2 brief (2026-10-01): six runtimes, bundles, packs, roles, gates. Supersedes the spec where they differ.
 - `docs/V2-DESIGN.md`: the lead's v2 architecture (profiles, layers, ids, trace).
+- `docs/UI-PLAN.md`: the M3 UI architecture (screens, flow, store, components, copy).
+- `docs/M4-PLAN.md`: the M4 certificate architecture (bundle fields, certificate model, links, remix and Mine, zip, bundle split). Readings W1 to W38 in QUESTIONS.md.
 - `QUESTIONS.md`: every ambiguity found and the reading picked. Check it before deciding anything the docs leave open.
 - `PROGRESS.md`: milestone and slice state. Read it first after any context reset.
 
@@ -39,7 +41,7 @@ A mobile-first static site where a first-time Meta Muse user taps through eight 
 - No real people, no franchise characters, anywhere.
 - Chassis lines ship in every build and cannot be removed by any pick.
 - Blunt and warm never go below 1.
-- Every output line is traceable to a library record id.
+- Every output line is traceable to a library record id. One carve-out: a remix's "## Mine" lines are the user's own pasted text and trace to `user.mine.*`, only in the personality artifact (QUESTIONS W28, W36).
 - No em dashes in any output, UI text, commit message or doc we write.
 - Don't invent library content. If something is missing, add a TODO and a visibly marked placeholder (`[TODO: ...]`).
 
@@ -49,12 +51,15 @@ A mobile-first static site where a first-time Meta Muse user taps through eight 
 npm install
 npm test            # vitest
 npm run typecheck   # tsc --noEmit
-npm run golden      # regenerate test/golden/v2/*.md (60 goldens plus 4 role goldens)
+npm run golden      # regenerate test/golden/v2/*.md (55 bundles, 4 of them role goldens)
+npm run check:bundle  # production build; fails if library text reaches the first-paint chunk
 ```
 
 ## Layout
 
 - `src/library/*.json`: hand-edited content. The compiler never mutates it.
-- `src/compiler/`: types, `compile.ts`, `passes/`, `trace.ts`, `cond.ts`, `migrate.ts`.
-- `test/`: one file per behavior (output, passes, seed, gates, grok, caps, roles, share, rules, names, validation), `golden/v2/` (64 bundles), `packs/` (probe prompts).
-- `.claude/agents/`: transcriber, engineer, tester, reviewer.
+- `src/compiler/`: types, `compile.ts`, `passes/`, `trace.ts`, `cond.ts`, `migrate.ts`, `defaults.ts`.
+- `src/share/`: share links (`encode.ts`, `url.ts`), the remix Mine diff (`mine.ts`), the zip writer (`zip.ts`).
+- `src/ui/`: `Shell.tsx` (first paint), `App.tsx`, `store.ts`, `flow.ts`, `copy.ts` plus `copy/`, `screens/`, `components/`, `certificate/` (pure `model.ts` and its views).
+- `test/`: one file per behavior (compiler, share, UI, certificate), `golden/v2/` (55 bundles), `packs/` (probe prompts).
+- `.claude/agents/`: author, engineer, reviewer, safety, tester, transcriber (all Sonnet; the lead orchestrates and checks).
