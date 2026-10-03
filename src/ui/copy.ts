@@ -212,7 +212,13 @@ export const copy = {
 
   roles: {
     toggle: 'Advanced: split into roles',
+    // One line under the packs-screen switch.
+    toggleHint: 'Turn one bot into a small team, each with its own job.',
     coordinator: 'Always on',
+    // A team's lead before any role in that team is picked.
+    coordinatorIdle: 'Joins when you pick a role here',
+    off: 'Roles are off. You can turn them on at the bottom of the packs screen.',
+    none: 'None of your packs have a team yet.',
   },
 
   // Certificate is M4. "Make this for <other target> instead" is verbatim from Part E.

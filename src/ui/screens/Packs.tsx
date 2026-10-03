@@ -1,18 +1,26 @@
 import { useShallow } from 'zustand/react/shallow';
 import { MAX_PACKS } from '../../compiler/passes/validate.js';
 import { Card, CardList } from '../components/Card';
+import { FOCUS, cx } from '../components/cx';
 import { copy } from '../copy.js';
-import { availablePacks, profileOf } from '../flow.js';
+import { availablePacks, profileOf, roleSetsFor } from '../flow.js';
 import { useBuilder } from '../store.js';
 import { Station } from './Station.js';
 
 // After World. The packs this target can deliver, as toggle cards in library order. They start from
 // the chips and follow them until the user taps one (the store handles that). At the cap the other
 // cards dim, and their tap is refused by the store. Skip is allowed, and so is picking none.
+// At the bottom, the advanced roles switch, only for a target that supports roles and packs that have a team.
 export function Packs() {
   const packs = useBuilder(useShallow((s) => availablePacks(profileOf(s))));
   const chosen = useBuilder(useShallow((s) => s.draft.packs));
   const togglePack = useBuilder((s) => s.togglePack);
+  // Shown while a pack has a team, and kept while on so it can always be turned off (U11).
+  const showRoles = useBuilder(
+    (s) => profileOf(s).supportsRoles && (s.advancedRoles || roleSetsFor(s.draft.packs).length > 0),
+  );
+  const advancedRoles = useBuilder((s) => s.advancedRoles);
+  const setAdvancedRoles = useBuilder((s) => s.setAdvancedRoles);
 
   const full = chosen.length >= MAX_PACKS;
 
@@ -45,6 +53,38 @@ export function Packs() {
           );
         })}
       </CardList>
+
+      {showRoles && (
+        <div className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={advancedRoles}
+            aria-describedby="roles-toggle-hint"
+            onClick={() => setAdvancedRoles(!advancedRoles)}
+            className={cx('flex min-h-[44px] w-full items-center justify-between gap-3 text-left', FOCUS)}
+          >
+            <span className="text-base font-semibold text-text">{copy.roles.toggle}</span>
+            <span
+              aria-hidden="true"
+              className={cx(
+                'flex h-7 w-12 shrink-0 items-center rounded-full border p-0.5 motion-safe:transition-colors',
+                advancedRoles ? 'border-accent bg-accent' : 'border-border bg-background',
+              )}
+            >
+              <span
+                className={cx(
+                  'h-5 w-5 rounded-full motion-safe:transition-transform',
+                  advancedRoles ? 'translate-x-5 bg-[color:var(--on-accent,var(--bg))]' : 'bg-muted',
+                )}
+              />
+            </span>
+          </button>
+          <p id="roles-toggle-hint" className="text-sm text-muted">
+            {copy.roles.toggleHint}
+          </p>
+        </div>
+      )}
     </Station>
   );
 }
