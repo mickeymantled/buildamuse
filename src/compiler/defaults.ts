@@ -62,8 +62,15 @@ export function d2ForBlunt(blunt: Level, lib: Library = library): DriveId {
   return drive?.id ?? `d2.blunt.${blunt}`;
 }
 
-// Replaces every control character and every run of whitespace with one space, and the em and en
-// dash with "-". It does not trim, so a name can be typed one character at a time.
+// Drops format characters (\p{Cf}: zero-width, bidi controls, Unicode tags, soft hyphen, BOM) and
+// private-use characters (\p{Co}) with no replacement, so a hidden character cannot split a word or
+// add a gap. Then it replaces every control character and every run of whitespace with one space,
+// and the em and en dash with "-". It does not trim, so a name can be typed one character at a time.
+// Dropping ZWJ (U+200D) splits a joined emoji such as a family into its parts; variation selectors,
+// skin tones and flags made of regional indicators are kept.
 export function cleanName(s: string): string {
-  return s.replace(/[\p{Cc}\s]+/gu, ' ').replace(/[\u2013\u2014]/g, '-');
+  return s
+    .replace(/[\p{Cf}\p{Co}]+/gu, '')
+    .replace(/[\p{Cc}\s]+/gu, ' ')
+    .replace(/[\u2013\u2014]/g, '-');
 }

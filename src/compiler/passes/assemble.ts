@@ -10,6 +10,7 @@ import type {
   Resolved,
   Section,
 } from '../types.js';
+import { fill } from '../fill.js';
 import { gateSoulItems, rulesItems } from '../gates.js';
 import { exampleItems } from './examples.js';
 
@@ -37,10 +38,12 @@ export function assemble(build: BuildCore, lib: Library, resolved: Resolved): It
   if (!outfit) throw new Error(`assemble: missing outfit ${build.outfit}`);
   const base = lib.bases.find((b) => b.id === build.base);
   if (!base) throw new Error(`assemble: missing base ${build.base}`);
-  const whoText = lib.chassis.who.text
-    .replace('{name}', build.name.trim())
-    .replace('{anchor}', outfit.anchor)
-    .replace('{baseLine}', base.baseLine);
+  // One pass through fill, so a name carrying "$&" or "{anchor}" is copied as typed.
+  const whoText = fill(lib.chassis.who.text, {
+    name: build.name.trim(),
+    anchor: outfit.anchor,
+    baseLine: base.baseLine,
+  });
   items.push({
     id: lib.chassis.who.id,
     text: whoText,
