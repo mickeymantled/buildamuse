@@ -51,7 +51,9 @@ export function applyChassis(
         out.push({ ...line, line: profileShort, id: `${line.id}#short@${profile.id}` });
         continue;
       }
-      if (line.short !== undefined) {
+      // A profile's own wording wins over the generic short form (a dot soul must not
+      // get the file-target short text); with no profile short form, use the variant.
+      if (line.short !== undefined && typeof variant !== 'string') {
         out.push({ ...line, line: line.short, id: `${line.id}#short` });
         continue;
       }
