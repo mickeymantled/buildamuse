@@ -188,15 +188,15 @@ Done when: the criteria in docs/M4-PLAN.md section 11 (lead-written; B14 gives n
 | # | Slice | Wave | Agents | Writes | Status |
 | --- | --- | --- | --- | --- | --- |
 | 4.p | plan, scouts, three-lens critique, copy split, W-list | 0 | lead (+ Sonnet scouts, critics) | docs/M4-PLAN.md, src/ui/copy/, QUESTIONS, PROGRESS | done |
-| 4.0 | safety fixes: auto clamp on not-offered gates (W23), name rules (W24) | 1 | engineer, tester | gates.ts, validate.ts, Toggle3.tsx, Gates.tsx | |
-| 4.1 | library split: cards + profiles.json | 1 | engineer, tester | library/index.ts, targets.json, profiles.json | |
-| 4.2 | compiler fields: steps, noteItems, verify, undelivered (after fit), trimmed, kinds, ids, docs | 1 | engineer, tester | types, bundle, deliver, roles, compile, trace, layouts/instructions, 4 goldens | |
-| 4.3 | SKILL.md format research | 1 | general-purpose (sonnet, web) | text only | |
-| 4.5a | verify cleanup proposal | 1 | author | text only | |
-| 4.6 | decode hardening, drops, version param, defaults.ts | 1 | engineer, tester | encode, migrate, compiler/defaults.ts, store.ts (imports, setGate, setName) | |
-| 4.7a | url helpers | 1 | engineer, tester | src/share/url.ts | |
-| 4.8 | zip writer | 1 | engineer, tester | src/share/zip.ts | |
-| 4.15 | CopyButton copies inside the tap | 1 | engineer, tester | CopyButton.tsx | |
+| 4.0 | safety fixes: auto clamp on not-offered gates (W23), name rules (W24) | 1 | engineer, tester | gates.ts, validate.ts, Toggle3.tsx, Gates.tsx | done (4791acd) |
+| 4.1 | library split: cards + profiles.json | 1 | engineer, tester | library/index.ts, targets.json, profiles.json | done (cc57e7f) |
+| 4.2 | compiler fields: steps, noteItems, verify, undelivered (after fit), trimmed, kinds, ids, docs | 1 | engineer, tester | types, bundle, deliver, roles, compile, trace, layouts/instructions, 4 goldens | done (9408662) |
+| 4.3 | SKILL.md format research | 1 | general-purpose (sonnet, web) | text only | done: frontmatter required on OpenClaw (W31) |
+| 4.5a | verify cleanup proposal | 1 | author | text only | done: approved as W32 |
+| 4.6 | decode hardening, drops, version param, defaults.ts | 1 | engineer, tester | encode, migrate, compiler/defaults.ts, store.ts (imports, setGate, setName) | done (d67889e) |
+| 4.7a | url helpers | 1 | engineer, tester | src/share/url.ts | done (d202628) |
+| 4.8 | zip writer | 1 | engineer, tester | src/share/zip.ts | done (52d235f) |
+| 4.15 | CopyButton copies inside the tap | 1 | engineer, tester | CopyButton.tsx | done (7cba1f7) |
 | 4.4 | step tags, rulesPath, golden Steps section, goldens + safety | 2 | engineer, tester, safety | profiles.json, tools/golden.ts, goldens | |
 | 4.7b | store loadBuild, switchTarget, remix side screen, links hook, LinkError | 2 | engineer, tester | store, flow, App, copy/links, ui-store tests | |
 | 4.9 | Mine diff module | 2 | engineer, tester | src/share/mine.ts | |
@@ -211,3 +211,4 @@ Done when: the criteria in docs/M4-PLAN.md section 11 (lead-written; B14 gives n
 | 4.18 | docs: CLAUDE.md, V2-DESIGN, UI-PLAN | 5 | lead | | |
 | 4.19 | multi-lens review, browser, iOS Simulator | 5 | lead (+ Sonnet reviewers) | | |
 | 4.20 | M4 report + first three M5 slices | 5 | lead | | |
+- M4 wave 1 (2026-10-03, 42 Sonnet agents): all seven code slices passed review. 4.6 failed round 3 only on scope (the tester edited share.test.ts and ui-flow.test.tsx beyond its list, and the plan forced both edits), so the lead read the diffs and ratified them. Lead fix: setName no longer splits a surrogate pair. The lead read every diff. Suite: 24 files, 10,146 passed, 2 expected fail (V25). The research found OpenClaw skips skills without frontmatter; the lead confirmed it in the loader source (W31).

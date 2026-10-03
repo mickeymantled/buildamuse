@@ -147,6 +147,11 @@ The author flags two more items:
 
 Every edit is listed for Brian. Goldens regenerate, with safety PASS on every set.
 
+3a. **Decided after wave 1 (W31, W32).**
+- **Verify cleanup:** 4.5b applies the W32 edit list.
+- **Verify `when`:** on verify lines, `roles` reads "the build picked roles", while skills and routines read "delivered". Steps keep the delivered reading for all three.
+- **SKILL.md:** 4.5b adds the W31 frontmatter (templates plus hyphenated dirs, with a YAML-safe description) and a test that every OpenClaw and Hermes SKILL.md starts with valid frontmatter whose `name` equals its directory.
+
 4. **SKILL.md (W21).** A general-purpose Sonnet agent with web tools reads the official OpenClaw and Hermes skill docs and records the URL and date.
    - If frontmatter is required, it goes into the profile's `skill.file` template in profiles.json, with a new `{dir}` variable, so it traces to the template id. The description is quoted.
    - If the docs don't settle it, add a verify record with `when: ['skills']`.

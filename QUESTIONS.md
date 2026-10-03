@@ -331,3 +331,27 @@ Marked "for Brian" where the call changes product behavior or bends a rule; the 
 **W29. Grok first task (for Brian).** No Grok step names the first task, so its block sits under step 3 ("Say the memory sentence."). A clearer option is a new step line, "Give it its first task.", which Brian would have to approve as content.
 
 **W30. Dot rules path.** profile.chatgpt-dot.rulesPath is "Settings > Personalization > Permissions > Custom rules", verbatim from brief Part C. It is the caption of the Custom Rules table, because step 2 says only "below".
+
+**W31. SKILL.md frontmatter (research 2026-10-03; lead checked the OpenClaw loader source).** OpenClaw skips any skill without frontmatter `name` and `description`: the loader returns null with "description is required". So every OpenClaw skill file we shipped would have been silently skipped. Hermes loads files without frontmatter, but its validator and docs require both fields. Both runtimes follow the agentskills.io format.
+- **Fix in 4.5b:** the openclaw and hermes skill file templates gain `name: {dir}` and `description: "{description}"`. The description is the skill's whenToUse (pack skills) or detail (chip skills), on one line, escaped. A new skill.chipFile template replaces the hard-coded chip skill text.
+- **Directory names:** skill folders use hyphens, not underscores (underscores are off-spec for OpenClaw).
+- **Goldens:** every OpenClaw and Hermes skill file and path changes.
+- **Logged for Brian, not fixed in M4:** OpenClaw role agents in other workspaces don't see the main workspace's skills (docs). They need a copy, or the skills go in ~/.openclaw/skills.
+- **Not added:** a note that Hermes cuts skill descriptions to 57 characters in its skill list.
+- **Sources:** docs.openclaw.ai/tools/skills, docs.openclaw.ai/tools/creating-skills, agentskills.io/specification, hermes-agent.nousresearch.com/docs/user-guide/features/skills (all read 2026-10-03).
+
+**W32. Verify cleanup approvals (lead, pending Brian).** The author's 4.5a proposal is approved as follows.
+- **Edits 1 to 11:** the six clauses move out.
+  - The OpenClaw clause is removed, because V17 settled it.
+  - Hermes, Grok, GPT and Project gain verify records.
+  - The GPT flag record keeps the author's context words: "verify: the exact name of the consequential flag, x-openai-isConsequential, before you rely on it."
+- **Caveats (edits 4, 10, 12):** "A routine that is already running may not pick up a profile edit." (Grok reload); "Check the exact flag name before you rely on it." (GPT Actions note); new OpenClaw reload note: "Start a new session to load changes to SOUL.md and AGENTS.md. They may not apply on the next turn."
+- **Settled facts become notes with dated citations (edits 13 to 17):** muse.verify.1 and .2, openclaw.verify.1, hermes.verify.1, and gpt.verify.1. For gpt.verify.1, the creation-off half goes to the deprecated summary, and the retirement date stays on the card.
+- **The author's open questions:**
+  - Q1: routine-only verify lines get `when: ['routines']`.
+  - Q2: V19 and V20 lines stay verify.
+  - Q3: on verify lines, `when: roles` means the build picked roles (not that the profile delivers them), so dot's teams line still shows on dot. That line drops the code word: "verify: when teams of dots arrive."
+  - Q4: keep the plan-Tasks records separate.
+- **Hermes duplicate (d1):** step.6 folds into the reload note, which gains "; they skip SOUL.md", and step.6 is removed.
+- **Muse wording (d2):** the Muse note reads "Meta has not published the default Soul text (Meta help, 2026-10-01); these opening lines come from Build-a-Bot."
+- **For Brian:** every wording above, especially the three caveats and the two notes reworded for users.
