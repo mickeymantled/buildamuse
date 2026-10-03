@@ -28,14 +28,13 @@ export interface GoldenSpec {
   roles?: RoleId[];
 }
 
-// The six profiles every starter is compiled on.
+// The five profiles every starter is compiled on. The GPT mode is hidden from the picker, so it has no goldens.
 const PROFILES: { suffix: string; target: TargetId; mode?: ChatgptMode }[] = [
   { suffix: 'muse', target: 'muse' },
   { suffix: 'openclaw', target: 'openclaw' },
   { suffix: 'hermes', target: 'hermes' },
   { suffix: 'grok', target: 'grok' },
   { suffix: 'chatgpt-dot', target: 'chatgpt', mode: 'dot' },
-  { suffix: 'chatgpt-gpt', target: 'chatgpt', mode: 'gpt' },
 ];
 
 const CHATGPT_EXTRAS: { suffix: string; mode: ChatgptMode; plan?: Plan }[] = [
@@ -46,7 +45,7 @@ const CHATGPT_EXTRAS: { suffix: string; mode: ChatgptMode; plan?: Plan }[] = [
 
 function buildSpecs(): GoldenSpec[] {
   const specs: GoldenSpec[] = [];
-  // Nine starters x six profiles = 54.
+  // Nine starters x five profiles = 45.
   for (const entry of library.roster) {
     for (const p of PROFILES) {
       specs.push({
@@ -57,7 +56,7 @@ function buildSpecs(): GoldenSpec[] {
       });
     }
   }
-  // Marty and June on the other three ChatGPT modes = 6 more, 60 total.
+  // Marty and June on the other three ChatGPT modes = 6 more, 51 total.
   for (const starter of ['marty', 'june']) {
     for (const x of CHATGPT_EXTRAS) {
       specs.push({
@@ -69,12 +68,12 @@ function buildSpecs(): GoldenSpec[] {
       });
     }
   }
-  // Four role goldens, extra to the 60.
+  // Four role goldens, extra to the 51.
   specs.push(
     { id: 'marty.openclaw.roles', starter: 'marty', target: 'openclaw', roles: ['scout', 'risk-manager', 'journal'] },
     { id: 'rook.hermes.roles', starter: 'rook', target: 'hermes', roles: ['planner', 'implementer', 'reviewer', 'tester'] },
     { id: 'june.grok.roles', starter: 'june', target: 'grok', roles: ['chief-of-staff', 'triager', 'scheduler'] },
-    { id: 'sol.chatgpt-gpt.roles', starter: 'sol', target: 'chatgpt', mode: 'gpt', roles: ['lead', 'searcher', 'synthesizer', 'fact-checker'] },
+    { id: 'sol.chatgpt-project.roles', starter: 'sol', target: 'chatgpt', mode: 'project', roles: ['lead', 'searcher', 'synthesizer', 'fact-checker'] },
   );
   return specs;
 }
