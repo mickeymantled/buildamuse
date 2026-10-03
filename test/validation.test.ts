@@ -3,6 +3,9 @@
 
 import { describe, it, expect } from 'vitest';
 import { compile, library } from '../src/compiler/compile.js';
+import { migrate } from '../src/compiler/migrate.js';
+import { applyChassis, chassisFormOf, resolveProfile } from '../src/compiler/profile.js';
+import { resolve } from '../src/compiler/passes/resolve.js';
 import type { BuildV1 } from '../src/compiler/types.js';
 
 function juneBuild(): BuildV1 {
@@ -11,6 +14,10 @@ function juneBuild(): BuildV1 {
 
 const HONESTY_LINE =
   "If I'm about to make a mistake, any mistake, say so in the first line and say why.";
+const HONESTY_ID = 'chassis.talk.mistake';
+// B1 Tier B: on a cap of 4,000 or less the chassis switches to its short forms when the soul is
+// still over the cap after the author pack rules are cut.
+const TIER_B_WARNING_PREFIX = 'length: chassis switched to short forms';
 const WARM_1_LINE = "Even, calm tone. Don't perform sympathy. Get to what's useful.";
 const BLUNT_1_LINE = "If I'm off track, raise it kindly and clearly before helping. Don't bury it at the end.";
 
@@ -216,22 +223,49 @@ describe('Floors', () => {
   });
 
   it('every output contains the honesty and care lines (roster builds)', () => {
+    const honestyRecord = library.chassis.lines.find((c) => c.id === HONESTY_ID);
+    expect(honestyRecord).toBeDefined();
+    // The full form is the spec text; the short form comes from the library table.
+    expect(honestyRecord!.line).toBe(HONESTY_LINE);
+    expect(typeof honestyRecord!.short).toBe('string');
+
     for (const entry of library.roster) {
       const b = structuredClone(entry.build);
       const result = compile(b);
-      expect(result.soul).toContain(HONESTY_LINE);
-      // Honesty is the blunt stat line; care is the warm stat line.
+
+      // The honesty chassis line may ship in its short form when Tier B fires (B1). Accept the
+      // line as applyChassis returns it for the result's form, never a line from nowhere.
+      const v2 = migrate(structuredClone(entry.build));
+      const profile = resolveProfile(v2, library);
+      const tierBFired = result.warnings.some((w) => w.startsWith(TIER_B_WARNING_PREFIX));
+      const form = tierBFired ? 'short' : chassisFormOf(profile, v2);
+      const applied = applyChassis(resolve(v2, library).chassis, profile, form);
+      const honesty = applied.find((l) => l.id.split('#')[0].split('@')[0] === HONESTY_ID);
+      expect(honesty, `${entry.id}: honesty line missing from applyChassis`).toBeDefined();
+      const expectedHonesty = form === 'short' ? honestyRecord!.short! : HONESTY_LINE;
+      expect(honesty!.line, `${entry.id}: applyChassis honesty line for form ${form}`).toBe(
+        expectedHonesty,
+      );
+      expect(result.soul, `${entry.id}: honesty line (${form} form)`).toContain(honesty!.line);
+      // Exactly one honesty line ships, never both forms.
+      const other = form === 'short' ? HONESTY_LINE : honestyRecord!.short!;
+      expect(result.soul.includes(other), `${entry.id}: the other form must not ship too`).toBe(
+        false,
+      );
+
+      // Honesty is also the blunt stat line; care is the warm stat line. Stat lines are never
+      // shortened or dropped, even when Tier B fires.
       const bluntStatLine = library.stats.find(
         (s) => s.stat === 'blunt' && s.level === b.stats.blunt,
       );
       expect(bluntStatLine).toBeDefined();
-      expect(result.soul).toContain(bluntStatLine!.line);
+      expect(result.soul, `${entry.id}: blunt stat line`).toContain(bluntStatLine!.line);
       const warmLevel = b.stats.warm;
       const warmStatLine = library.stats.find(
         (s) => s.stat === 'warm' && s.level === warmLevel,
       );
       expect(warmStatLine).toBeDefined();
-      expect(result.soul).toContain(warmStatLine!.line);
+      expect(result.soul, `${entry.id}: warm stat line`).toContain(warmStatLine!.line);
     }
   });
 });
