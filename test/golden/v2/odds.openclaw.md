@@ -180,6 +180,10 @@ These rules load for every agent and sub-agent and outrank SOUL.md.
 ### skills/resolution-read/SKILL.md (Skill: Resolution read, file)
 
 ```md
+---
+name: resolution-read
+description: "Before any bet on a market, and again whenever a market's rules text changes."
+---
 # Resolution read
 
 ## When to use
@@ -209,6 +213,10 @@ none
 ### skills/edge-calc/SKILL.md (Skill: Edge calc, file)
 
 ```md
+---
+name: edge-calc
+description: "After resolution-read returns CLEAR, and before any bet is proposed."
+---
 # Edge calc
 
 ## When to use
@@ -240,6 +248,10 @@ trade: placing a bet needs a yes from the user on the trade approval gate. This 
 ### skills/earnings-prep/SKILL.md (Skill: Earnings prep, file)
 
 ```md
+---
+name: earnings-prep
+description: "A stock I hold or watch reports within 7 days, or I ask for earnings prep on a ticker."
+---
 # Earnings prep
 
 ## When to use
@@ -304,7 +316,7 @@ A scheduled run follows the rules in AGENTS.md like any other run.
 2. Save AGENTS.md beside it, in the same folder.
 3. Save each skill file at the path shown on it (skills/<id>/SKILL.md).
 4. Say the memory sentence.
-5. Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether OpenClaw keeps routines in files or in chat.
+5. Say each routine sentence to your agent in chat, then ask it to read the schedule back.
 
 ## Steps
 
@@ -312,12 +324,13 @@ A scheduled run follows the rules in AGENTS.md like any other run.
 2. Save AGENTS.md beside it, in the same folder. [rules]
 3. Save each skill file at the path shown on it (skills/<id>/SKILL.md). [skills]
 4. Say the memory sentence. [memory]
-5. Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether OpenClaw keeps routines in files or in chat. [routines]
+5. Say each routine sentence to your agent in chat, then ask it to read the schedule back. [routines]
 
 ## Notes
 
-- verify: OpenClaw keeps automations in its own database. Set routines up by chat or with the openclaw CLI, not as files.
 - verify: whether edits to SOUL.md and AGENTS.md apply on the next turn or only in a new session.
+- OpenClaw keeps automations in its own database (OpenClaw docs, 2026-10-01). Set routines up by chat or with the openclaw CLI, not as files.
+- Start a new session to load changes to SOUL.md and AGENTS.md. They may not apply on the next turn.
 
 ## Gates
 

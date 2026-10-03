@@ -23,9 +23,10 @@
 //     the closer renders as "closer: text [shows]".
 //   - The rules path: the v2 brief (docs/Build-a-Bot-v2-Brief.md), verbatim.
 //
-// Retire or re-pin when 4.5b lands (W4 verify cleanup): the byte-identity block compares step text
-// to the pre-tag commit, and four steps (openclaw 6, hermes 5, gpt 9, project 5) embed a
-// "verify:" clause that W4 removes by design.
+// Re-pinned by slice 4.5b (W4 verify cleanup, QUESTIONS W32): the byte-identity block still compares
+// step text to the pre-tag commit, except for the five edits W32 makes by design. Four steps
+// (openclaw 6, hermes 5, gpt 9, project 5) lose the inline " verify: ..." clause, and Hermes step 6 is
+// folded into the reload note and removed, so Hermes has five steps and its step 5 is the last.
 
 import { describe, it, expect } from 'vitest';
 import { execFileSync } from 'node:child_process';
@@ -189,7 +190,8 @@ const TAG_TABLE: Record<string, Tag[]> = {
     { closer: true },
   ],
   openclaw: [{ shows: ['personality'] }, { shows: ['rules'] }, SKILLS, ROLES, { shows: ['memory'] }, ROUTINES],
-  hermes: [{ shows: ['personality'] }, { shows: ['memory', 'rules'] }, SKILLS, ROLES, ROUTINES, NONE],
+  // W32 d1: the old step 6 (restart note) is folded into the reload note, so Hermes ends at step 5.
+  hermes: [{ shows: ['personality'] }, { shows: ['memory', 'rules'] }, SKILLS, ROLES, ROUTINES],
   grok: [
     NONE,
     { shows: ['personality', 'label'] },
@@ -364,9 +366,30 @@ function preTagBaseline(): { profiles: Profile[]; commit: string } | null {
 
 const baseline = preTagBaseline();
 
-describe('step text is byte-identical to the pre-tag library (git)', () => {
+// QUESTIONS W32 edits 1 to 11 and d1: the only step text changes since the pre-tag library. Each step
+// below is the old step with its embedded clause removed; the clause text is the old library's.
+const W32_STEP_EDITS: Record<string, string> = {
+  'profile.openclaw.step.6': ' verify: whether OpenClaw keeps routines in files or in chat.',
+  'profile.hermes.step.5': ' verify: whether Hermes keeps routines in files or in chat.',
+  'profile.chatgpt-gpt.step.9': ' verify: whether your plan includes Tasks.',
+  'profile.chatgpt-project.step.5': ' verify: whether your plan includes Tasks.',
+};
+// W32 d1: removed outright, its text now lives in the Hermes reload note.
+const W32_REMOVED_STEPS = ['profile.hermes.step.6'];
+
+describe('step text is byte-identical to the pre-tag library (git), except the W32 edits', () => {
   it.skipIf(baseline === null)('found a pre-tag profiles.json in git with the eight profiles', () => {
     expect(baseline?.profiles.map((p) => p.id)).toEqual(PROFILE_IDS);
+  });
+
+  it.skipIf(baseline === null)('the old clauses are in the pre-tag text, so the edit table is read against the right commit', () => {
+    for (const [stepId, clause] of Object.entries(W32_STEP_EDITS)) {
+      const old = baseline?.profiles.flatMap((p) => p.installSteps).find((s) => s.id === stepId);
+      expect(old?.line, stepId).toContain(clause);
+    }
+    for (const stepId of W32_REMOVED_STEPS) {
+      expect(baseline?.profiles.flatMap((p) => p.installSteps).some((s) => s.id === stepId), stepId).toBe(true);
+    }
   });
 
   for (const id of PROFILE_IDS) {
@@ -374,11 +397,14 @@ describe('step text is byte-identical to the pre-tag library (git)', () => {
       const before = baseline?.profiles.find((p) => p.id === id);
       expect(before, `${id} missing from the baseline`).toBeDefined();
       const after = profileOf(id);
-      expect(after.installSteps.map((s) => s.id)).toEqual((before?.installSteps ?? []).map((s) => s.id));
-      (before?.installSteps ?? []).forEach((b, i) => {
+      const kept = (before?.installSteps ?? []).filter((b) => !W32_REMOVED_STEPS.includes(b.id));
+      expect(after.installSteps.map((s) => s.id)).toEqual(kept.map((s) => s.id));
+      kept.forEach((b, i) => {
         const a = after.installSteps[i];
         expect(a?.id).toBe(b.id);
-        expect(Buffer.from(a?.line ?? '', 'utf8').equals(Buffer.from(b.line, 'utf8')), `${b.id} text bytes`).toBe(true);
+        const clause = W32_STEP_EDITS[b.id];
+        const expected = clause === undefined ? b.line : b.line.replace(clause, '');
+        expect(Buffer.from(a?.line ?? '', 'utf8').equals(Buffer.from(expected, 'utf8')), `${b.id} text bytes`).toBe(true);
       });
     });
   }

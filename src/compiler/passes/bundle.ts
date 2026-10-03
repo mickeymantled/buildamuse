@@ -246,7 +246,7 @@ function stepsOf(ctx: CompileContext, has: Delivered): BundleStep[] {
 
 // Verify lines, the profile's own notes, the reload note, each pack's venue note, role notes,
 // then (custom GPT) the Actions note. A verify line with a `when` shows only if the bundle
-// delivers one of those artifacts.
+// delivers one of those artifacts, except that `roles` means the build picked roles.
 // Grok, Project and GPT deliver role artifacts with no install step of their own, only a role
 // fallback note that says what to do with them. When role files ship and no step shows roles, that
 // note becomes the step that shows them, so a role's gate block always sits under a step (wave 2
@@ -281,8 +281,11 @@ function noteItemsOf(ctx: CompileContext, roleNotes: RoleNote[], has: Delivered)
     kind,
   });
   const notes: BundleNote[] = [];
+  // On a verify line `roles` means the build picked roles, even where the profile cannot deliver
+  // them. Skills and routines keep the delivered reading (QUESTIONS W31, W32).
+  const verifyHas: Delivered = { ...has, roles: (ctx.build.roles ?? []).length > 0 };
   for (const line of profile.verify) {
-    if (shown(line.when, has)) {
+    if (shown(line.when, verifyHas)) {
       notes.push(note(line, 'verify'));
     }
   }

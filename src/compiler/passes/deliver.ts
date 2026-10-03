@@ -69,19 +69,31 @@ export function packDelivers(pack: WorkflowPack, profile: ProfileId): boolean {
 
 const nameKey = (name: string): string => name.trim().toLowerCase();
 
+// OpenClaw and Hermes skill folders must match ^[a-z][a-z0-9]*(-[a-z0-9]+)*$ and stay within 64
+// characters, so underscores in record ids become hyphens there. Other profiles name files, not
+// skill folders, and keep the record id as it is.
+const DIR_MAX = 64;
+const SKILL_FOLDER_PROFILES: readonly ProfileId[] = ['openclaw', 'hermes'];
+
 // Chip skills first in tap order, then pack skills in pack order. A chip skill whose name a
 // selected pack skill also carries is dropped, so the six-field pack skill is the only copy.
 // A directory name that is already taken (two packs can share a skill id) gets the pack id in front.
 function collectSkills(ctx: CompileContext): Entry[] {
   const used = new Set<string>();
+  const folders = SKILL_FOLDER_PROFILES.includes(ctx.profile.id);
+  const tidy = (s: string): string => (folders ? s.replace(/_/g, '-') : s);
   const claim = (dir: string, packId?: string): string => {
-    let name = dir;
+    let name = tidy(dir);
     if (used.has(name) && packId !== undefined) {
-      name = `${packId}-${dir}`;
+      name = tidy(`${packId}-${dir}`);
     }
-    const base = name;
+    // Cut to the length limit and any trailing hyphen the cut leaves, leaving room for a suffix.
+    const fit = (s: string, room: number): string => (folders ? s.slice(0, room).replace(/-+$/, '') : s);
+    const base = fit(name, DIR_MAX);
+    name = base;
     for (let n = 2; used.has(name); n++) {
-      name = `${base}-${n}`;
+      const suffix = `-${n}`;
+      name = `${fit(base, DIR_MAX - suffix.length)}${suffix}`;
     }
     used.add(name);
     return name;
@@ -112,6 +124,17 @@ function collectSkills(ctx: CompileContext): Entry[] {
     }
   }
   return entries;
+}
+
+// A skill's one-line description for the SKILL.md frontmatter, escaped for a YAML double-quoted
+// string: backslash and double quote are escaped and newlines become spaces.
+function frontmatterDescription(e: Entry): string {
+  const text = e.src === 'pack' ? e.skill.whenToUse : e.skill.detail;
+  return text
+    .replace(/\s*[\r\n]+\s*/g, ' ')
+    .trim()
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"');
 }
 
 function varsOf(e: Entry): Record<string, string> {
@@ -231,14 +254,20 @@ function skillPath(ctx: CompileContext, e: Entry): string {
   }
 }
 
-// One file per skill. Pack skills render their profile template; chip skills render a
-// heading and the library detail text.
+// One file per skill. Pack skills render their profile template; chip skills render the profile's
+// chipFile template (openclaw, hermes) or a heading and the library detail text. The frontmatter
+// lines of a SKILL.md come from the template, so they trace to its id.
 function skillFile(ctx: CompileContext, e: Entry): BundleFile {
   const withFileTemplate = ctx.profile.id === 'openclaw' || ctx.profile.id === 'hermes';
+  const vars = { ...varsOf(e), dir: e.dir, description: frontmatterDescription(e) };
   let text: string;
   let id: string;
   if (e.src === 'pack') {
-    const t = filled(ctx, withFileTemplate ? 'skill.file' : 'knowledge.file', varsOf(e));
+    const t = filled(ctx, withFileTemplate ? 'skill.file' : 'knowledge.file', vars);
+    text = t.text;
+    id = t.id;
+  } else if (withFileTemplate) {
+    const t = filled(ctx, 'skill.chipFile', vars);
     text = t.text;
     id = t.id;
   } else {

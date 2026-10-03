@@ -188,17 +188,25 @@ These rules load for every agent and sub-agent and outrank SOUL.md.
 - The hard part right now is too much at once.
 ```
 
-### skills/pickup_guard/SKILL.md (Skill: Pickup guard, file)
+### skills/pickup-guard/SKILL.md (Skill: Pickup guard, file)
 
 ```md
+---
+name: pickup-guard
+description: "kid events are locked; anything landing on them gets flagged, not booked"
+---
 # Pickup guard
 
 kid events are locked; anything landing on them gets flagged, not booked
 ```
 
-### skills/whats_for_dinner/SKILL.md (Skill: What's for dinner, file)
+### skills/whats-for-dinner/SKILL.md (Skill: What's for dinner, file)
 
 ```md
+---
+name: whats-for-dinner
+description: "ingredients in: three options, one line each"
+---
 # What's for dinner
 
 ingredients in: three options, one line each
@@ -207,6 +215,10 @@ ingredients in: three options, one line each
 ### skills/inbox-triage/SKILL.md (Skill: Inbox triage, file)
 
 ```md
+---
+name: inbox-triage
+description: "I say 'triage my inbox', or unread mail has piled up since the last triage."
+---
 # Inbox triage
 
 ## When to use
@@ -236,6 +248,10 @@ send: every reply waits for my yes by number. delete: every archive or delete wa
 ### skills/conflict-scan/SKILL.md (Skill: Conflict scan, file)
 
 ```md
+---
+name: conflict-scan
+description: "An invite, booking request or reschedule arrives, or I ask 'does this fit' before agreeing to a time."
+---
 # Conflict scan
 
 ## When to use
@@ -284,22 +300,20 @@ A scheduled run follows the rules in AGENTS.md like any other run.
 1. Save SOUL.md at ~/.hermes/SOUL.md.
 2. Save USER.md at ~/.hermes/memories/USER.md, and AGENTS.md in the folder you run Hermes from.
 3. Save each skill file at the path shown on it (skills/<id>/SKILL.md).
-4. Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether Hermes keeps routines in files or in chat.
-5. Restart or start a new session. When testing, avoid --ignore-rules and --safe-mode; they skip SOUL.md.
+4. Say each routine sentence to your agent in chat, then ask it to read the schedule back.
 
 ## Steps
 
 1. Save SOUL.md at ~/.hermes/SOUL.md. [personality]
 2. Save USER.md at ~/.hermes/memories/USER.md, and AGENTS.md in the folder you run Hermes from. [memory, rules]
 3. Save each skill file at the path shown on it (skills/<id>/SKILL.md). [skills]
-4. Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether Hermes keeps routines in files or in chat. [routines]
-5. Restart or start a new session. When testing, avoid --ignore-rules and --safe-mode; they skip SOUL.md. [none]
+4. Say each routine sentence to your agent in chat, then ask it to read the schedule back. [routines]
 
 ## Notes
 
-- verify: Hermes loads AGENTS.md from the folder it runs in, not from ~/.hermes or a profile folder.
-- verify: whether a delegated agent loads its role profile's SOUL.md.
-- Restart Hermes or start a new session to load changes. When testing, avoid --ignore-rules and --safe-mode.
+- verify: whether Hermes keeps routines in files or in chat.
+- Hermes loads AGENTS.md from the folder it runs in, not from ~/.hermes or a profile folder (Hermes docs, 2026-10-01).
+- Restart Hermes or start a new session to load changes. When testing, avoid --ignore-rules and --safe-mode; they skip SOUL.md.
 
 ## Gates
 

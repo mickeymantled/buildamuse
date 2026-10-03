@@ -322,7 +322,7 @@ If the task can't ask me, it stops and tells me instead.
 2. Open the Project's Instructions and paste your personality. Treat 8,000 characters as the limit.
 3. Upload each skill file to the Project's files.
 4. Say the memory sentence in a chat inside the Project.
-5. Say each routine sentence in a chat inside the Project. verify: whether your plan includes Tasks.
+5. Say each routine sentence in a chat inside the Project.
 
 ## Steps
 
@@ -330,11 +330,12 @@ If the task can't ask me, it stops and tells me instead.
 2. Open the Project's Instructions and paste your personality. Treat 8,000 characters as the limit. [personality]
 3. Upload each skill file to the Project's files. [skills]
 4. Say the memory sentence in a chat inside the Project. [memory]
-5. Say each routine sentence in a chat inside the Project. verify: whether your plan includes Tasks. [routines]
+5. Say each routine sentence in a chat inside the Project. [routines]
 
 ## Notes
 
 - verify: the Project instructions limit (8,000 assumed, per the brief).
+- verify: whether your plan includes Tasks.
 
 ## Gates
 

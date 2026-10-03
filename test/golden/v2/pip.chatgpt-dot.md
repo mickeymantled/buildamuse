@@ -188,7 +188,6 @@ Set up what's for dinner (ingredients in: three options, one line each). Save th
 
 - verify: whether dots read the custom instructions fields.
 - verify: whether a rule added mid-task applies to that task.
-- verify: when teams of dots arrive (flips supportsRoles).
 - verify: Teams access for dots is an invite-only alpha, and dots can't call you at launch.
 - ChatGPT has no block setting; Hand off means it stops and gives the step to you.
 

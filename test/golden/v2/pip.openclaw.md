@@ -159,14 +159,22 @@ These rules load for every agent and sub-agent and outrank SOUL.md.
 ### skills/log/SKILL.md (Skill: Log, file)
 
 ```md
+---
+name: log
+description: "on \"logged X\": record it; on \"how's the month,\" summarize"
+---
 # Log
 
 on "logged X": record it; on "how's the month," summarize
 ```
 
-### skills/whats_for_dinner/SKILL.md (Skill: What's for dinner, file)
+### skills/whats-for-dinner/SKILL.md (Skill: What's for dinner, file)
 
 ```md
+---
+name: whats-for-dinner
+description: "ingredients in: three options, one line each"
+---
 # What's for dinner
 
 ingredients in: three options, one line each
@@ -196,8 +204,9 @@ Remember that I train, I cook, I have a dog, I'm mostly on my phone. The hard pa
 
 ## Notes
 
-- verify: OpenClaw keeps automations in its own database. Set routines up by chat or with the openclaw CLI, not as files.
 - verify: whether edits to SOUL.md and AGENTS.md apply on the next turn or only in a new session.
+- OpenClaw keeps automations in its own database (OpenClaw docs, 2026-10-01). Set routines up by chat or with the openclaw CLI, not as files.
+- Start a new session to load changes to SOUL.md and AGENTS.md. They may not apply on the next turn.
 
 ## Gates
 

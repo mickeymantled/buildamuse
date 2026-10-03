@@ -202,6 +202,10 @@ These rules load for every agent and sub-agent and outrank SOUL.md.
 ### skills/resolution-read/SKILL.md (Skill: Resolution read, file)
 
 ```md
+---
+name: resolution-read
+description: "Before any bet on a market, and again whenever a market's rules text changes."
+---
 # Resolution read
 
 ## When to use
@@ -231,6 +235,10 @@ none
 ### skills/edge-calc/SKILL.md (Skill: Edge calc, file)
 
 ```md
+---
+name: edge-calc
+description: "After resolution-read returns CLEAR, and before any bet is proposed."
+---
 # Edge calc
 
 ## When to use
@@ -262,6 +270,10 @@ trade: placing a bet needs a yes from the user on the trade approval gate. This 
 ### skills/earnings-prep/SKILL.md (Skill: Earnings prep, file)
 
 ```md
+---
+name: earnings-prep
+description: "A stock I hold or watch reports within 7 days, or I ask for earnings prep on a ticker."
+---
 # Earnings prep
 
 ## When to use
@@ -319,22 +331,20 @@ A scheduled run follows the rules in AGENTS.md like any other run.
 1. Save SOUL.md at ~/.hermes/SOUL.md.
 2. Save USER.md at ~/.hermes/memories/USER.md, and AGENTS.md in the folder you run Hermes from.
 3. Save each skill file at the path shown on it (skills/<id>/SKILL.md).
-4. Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether Hermes keeps routines in files or in chat.
-5. Restart or start a new session. When testing, avoid --ignore-rules and --safe-mode; they skip SOUL.md.
+4. Say each routine sentence to your agent in chat, then ask it to read the schedule back.
 
 ## Steps
 
 1. Save SOUL.md at ~/.hermes/SOUL.md. [personality]
 2. Save USER.md at ~/.hermes/memories/USER.md, and AGENTS.md in the folder you run Hermes from. [memory, rules]
 3. Save each skill file at the path shown on it (skills/<id>/SKILL.md). [skills]
-4. Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether Hermes keeps routines in files or in chat. [routines]
-5. Restart or start a new session. When testing, avoid --ignore-rules and --safe-mode; they skip SOUL.md. [none]
+4. Say each routine sentence to your agent in chat, then ask it to read the schedule back. [routines]
 
 ## Notes
 
-- verify: Hermes loads AGENTS.md from the folder it runs in, not from ~/.hermes or a profile folder.
-- verify: whether a delegated agent loads its role profile's SOUL.md.
-- Restart Hermes or start a new session to load changes. When testing, avoid --ignore-rules and --safe-mode.
+- verify: whether Hermes keeps routines in files or in chat.
+- Hermes loads AGENTS.md from the folder it runs in, not from ~/.hermes or a profile folder (Hermes docs, 2026-10-01).
+- Restart Hermes or start a new session to load changes. When testing, avoid --ignore-rules and --safe-mode; they skip SOUL.md.
 
 ## Gates
 

@@ -182,8 +182,7 @@ Also put these hard rules in the skill's approval field: Payments: forbidden. Ne
 
 ## Notes
 
-- verify: group chats hold 2 to 6 Bots and the Bots decide who answers; the coordinator is a convention, not a setting.
-- Profile changes apply to new messages. verify: whether a running routine picks up a profile edit.
+- Profile changes apply to new messages. A routine that is already running may not pick up a profile edit.
 
 ## Gates
 

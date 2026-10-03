@@ -178,8 +178,8 @@ closer: Then say hi. [none]
 
 ## Notes
 
-- verify: Meta has not published the default Soul.md text; these opening lines come from the Build-a-Bot brief.
-- verify: Muse skills are built in (Meta help, How Muse works with skills). A skill sentence you say becomes a standing instruction or a reminder, not an installed skill.
+- Meta has not published the default Soul text (Meta help, 2026-10-01); these opening lines come from Build-a-Bot.
+- Muse skills are built in (Meta help, How Muse works with skills, 2026-10-01). A skill sentence you say becomes a standing instruction or a reminder, not an installed skill.
 
 ## Gates
 

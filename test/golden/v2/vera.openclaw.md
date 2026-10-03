@@ -146,25 +146,37 @@ These rules load for every agent and sub-agent and outrank SOUL.md.
 - Payments: forbidden. Never pay, transfer or authorize money out. Give me the details to pay myself.
 ```
 
-### skills/second_look/SKILL.md (Skill: Second look, file)
+### skills/second-look/SKILL.md (Skill: Second look, file)
 
 ```md
+---
+name: second-look
+description: "before anything goes out: names, dates, numbers, tone, who's cc'd; say clean or list what's off"
+---
 # Second look
 
 before anything goes out: names, dates, numbers, tone, who's cc'd; say clean or list what's off
 ```
 
-### skills/deadline_capture/SKILL.md (Skill: Deadline capture, file)
+### skills/deadline-capture/SKILL.md (Skill: Deadline capture, file)
 
 ```md
+---
+name: deadline-capture
+description: "any date in a message or file gets logged with the rule it comes from; weekly, what's due in 14 days"
+---
 # Deadline capture
 
 any date in a message or file gets logged with the rule it comes from; weekly, what's due in 14 days
 ```
 
-### skills/matter_brief/SKILL.md (Skill: Matter brief, file)
+### skills/matter-brief/SKILL.md (Skill: Matter brief, file)
 
 ```md
+---
+name: matter-brief
+description: "when I name a matter, the last three things that happened on it"
+---
 # Matter brief
 
 when I name a matter, the last three things that happened on it
@@ -194,8 +206,9 @@ Remember that I'm a lawyer, my days are meetings. The hard part right now is I n
 
 ## Notes
 
-- verify: OpenClaw keeps automations in its own database. Set routines up by chat or with the openclaw CLI, not as files.
 - verify: whether edits to SOUL.md and AGENTS.md apply on the next turn or only in a new session.
+- OpenClaw keeps automations in its own database (OpenClaw docs, 2026-10-01). Set routines up by chat or with the openclaw CLI, not as files.
+- Start a new session to load changes to SOUL.md and AGENTS.md. They may not apply on the next turn.
 
 ## Gates
 

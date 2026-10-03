@@ -195,9 +195,13 @@ These rules load for every agent and sub-agent and outrank SOUL.md.
 - The hard part right now is I forget things.
 ```
 
-### skills/wallet_glance/SKILL.md (Skill: Wallet glance, file)
+### skills/wallet-glance/SKILL.md (Skill: Wallet glance, file)
 
 ```md
+---
+name: wallet-glance
+description: "on \"what's in the bag\": holdings, rough value, anything that moved 20% today"
+---
 # Wallet glance
 
 on "what's in the bag": holdings, rough value, anything that moved 20% today
@@ -206,6 +210,10 @@ on "what's in the bag": holdings, rough value, anything that moved 20% today
 ### skills/rug-check/SKILL.md (Skill: Rug check, file)
 
 ```md
+---
+name: rug-check
+description: "Before any buy proposal on a token, and whenever I ask if a token is safe or a rug."
+---
 # Rug check
 
 ## When to use
@@ -235,6 +243,10 @@ none
 ### skills/position-log/SKILL.md (Skill: Position log, file)
 
 ```md
+---
+name: position-log
+description: "When I say I'm in, when I say I'm out, and when I ask where I am."
+---
 # Position log
 
 ## When to use
@@ -265,6 +277,10 @@ none
 ### skills/edge-gone-exit/SKILL.md (Skill: Edge-gone exit, file)
 
 ```md
+---
+name: edge-gone-exit
+description: "When my kill line breaks, when I ask whether to get out, or when a logged thesis stops being true."
+---
 # Edge-gone exit
 
 ## When to use
@@ -314,22 +330,20 @@ A scheduled run follows the rules in AGENTS.md like any other run.
 1. Save SOUL.md at ~/.hermes/SOUL.md.
 2. Save USER.md at ~/.hermes/memories/USER.md, and AGENTS.md in the folder you run Hermes from.
 3. Save each skill file at the path shown on it (skills/<id>/SKILL.md).
-4. Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether Hermes keeps routines in files or in chat.
-5. Restart or start a new session. When testing, avoid --ignore-rules and --safe-mode; they skip SOUL.md.
+4. Say each routine sentence to your agent in chat, then ask it to read the schedule back.
 
 ## Steps
 
 1. Save SOUL.md at ~/.hermes/SOUL.md. [personality]
 2. Save USER.md at ~/.hermes/memories/USER.md, and AGENTS.md in the folder you run Hermes from. [memory, rules]
 3. Save each skill file at the path shown on it (skills/<id>/SKILL.md). [skills]
-4. Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether Hermes keeps routines in files or in chat. [routines]
-5. Restart or start a new session. When testing, avoid --ignore-rules and --safe-mode; they skip SOUL.md. [none]
+4. Say each routine sentence to your agent in chat, then ask it to read the schedule back. [routines]
 
 ## Notes
 
-- verify: Hermes loads AGENTS.md from the folder it runs in, not from ~/.hermes or a profile folder.
-- verify: whether a delegated agent loads its role profile's SOUL.md.
-- Restart Hermes or start a new session to load changes. When testing, avoid --ignore-rules and --safe-mode.
+- verify: whether Hermes keeps routines in files or in chat.
+- Hermes loads AGENTS.md from the folder it runs in, not from ~/.hermes or a profile folder (Hermes docs, 2026-10-01).
+- Restart Hermes or start a new session to load changes. When testing, avoid --ignore-rules and --safe-mode; they skip SOUL.md.
 
 ## Gates
 

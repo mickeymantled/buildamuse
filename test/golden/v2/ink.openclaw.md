@@ -152,17 +152,25 @@ These rules load for every agent and sub-agent and outrank SOUL.md.
 - Payments: forbidden. Never pay, transfer or authorize money out. Give me the details to pay myself.
 ```
 
-### skills/draft_read/SKILL.md (Skill: Draft read, file)
+### skills/draft-read/SKILL.md (Skill: Draft read, file)
 
 ```md
+---
+name: draft-read
+description: "on a draft: the one line that's best, the one that's weakest, and whether the ending earns it"
+---
 # Draft read
 
 on a draft: the one line that's best, the one that's weakest, and whether the ending earns it
 ```
 
-### skills/idea_bank/SKILL.md (Skill: Idea bank, file)
+### skills/idea-bank/SKILL.md (Skill: Idea bank, file)
 
 ```md
+---
+name: idea-bank
+description: "when I say \"bank this,\" log it with the date; when I say \"what's in the bank,\" read it back"
+---
 # Idea bank
 
 when I say "bank this," log it with the date; when I say "what's in the bank," read it back
@@ -192,8 +200,9 @@ Remember that I do creative work, I'm into music. The hard part right now is get
 
 ## Notes
 
-- verify: OpenClaw keeps automations in its own database. Set routines up by chat or with the openclaw CLI, not as files.
 - verify: whether edits to SOUL.md and AGENTS.md apply on the next turn or only in a new session.
+- OpenClaw keeps automations in its own database (OpenClaw docs, 2026-10-01). Set routines up by chat or with the openclaw CLI, not as files.
+- Start a new session to load changes to SOUL.md and AGENTS.md. They may not apply on the next turn.
 
 ## Gates
 

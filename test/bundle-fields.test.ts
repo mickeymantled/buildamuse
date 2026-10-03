@@ -421,11 +421,14 @@ describe.each(GOLDEN_SPECS)('bundle fields: $id', (spec) => {
     });
 
     it('verify ids are profile.<pid>.verify.<n>, and are the profile verify records that apply', () => {
-      expect(result.verify.length).toBeGreaterThan(0);
+      // A profile may have no verify line to show (W32 moved the settled ones to notes), so the list can be empty.
       for (const v of result.verify) {
         expect(v.id).toMatch(new RegExp(`^profile\\.${result.profile}\\.verify\\.[0-9]+$`));
       }
-      const expected = visible(profile.verify, deliveredOf(result, profile));
+      // On a verify line `roles` means the build picked roles, even where the profile delivers none
+      // (W32 Q3); skills and routines keep the delivered reading.
+      const has: Delivered = { ...deliveredOf(result, profile), roles: result.roles.length > 0 };
+      const expected = visible(profile.verify, has);
       expect(result.verify).toEqual(expected.map((v) => ({ id: v.id, text: v.line, kind: 'verify' })));
     });
 
@@ -1197,7 +1200,13 @@ describe('the role fallback line as an install step (W33)', () => {
       expect(result.installSteps).toEqual(result.steps.map((s) => s.text));
       expect(result.noteItems.filter((n) => n.id === record.id || n.kind === 'role')).toEqual([]);
       expect(result.notes).not.toContain(step?.text);
-      expect(result.notes).toEqual(baselineOf(target, mode).notes);
+      // The roles add no note either, except a role-only verify line (W32: Grok verify.1 shows when
+      // the build picked roles), which is a note of kind verify and not the promoted line.
+      const roleVerify = ((library.targets.profiles.find((p) => p.id === id) as Profile).verify)
+        .filter((v) => (v.when ?? []).includes('roles'))
+        .map((v) => v.line);
+      expect(result.notes.filter((n) => !roleVerify.includes(n))).toEqual(baselineOf(target, mode).notes);
+      expect(result.notes.filter((n) => roleVerify.includes(n))).toEqual(roleVerify);
     });
 
     it('puts the promoted step before a closer on a copy of the library whose last shown install step is a closer', () => {
@@ -1461,11 +1470,12 @@ describe('step and verify tags', () => {
           const { when: _when, closer: _closer, shows: _shows, ...bare } = step;
           return { ...bare, ...(STEP_TAGS[i + 1] ?? {}) };
         }),
-        verify: p.verify.map((v, i) => {
-          const { when: _when, ...bare } = v;
-          // The first verify line is a role-only line.
-          return i === 0 ? { ...bare, when: ['roles'] as StepWhen[] } : bare;
-        }),
+        // Two fixture verify lines on every profile, so the tests do not depend on which verify lines
+        // the real library has (W32 moved several out): the first is role-only, the second always shows.
+        verify: [
+          { id: `profile.${p.id}.verify.1`, line: 'verify: fixture role-only line.', when: ['roles'] as StepWhen[] },
+          { id: `profile.${p.id}.verify.2`, line: 'verify: fixture line with no tag.' },
+        ],
       })),
     },
   };
@@ -1572,6 +1582,22 @@ describe('step and verify tags', () => {
     expect(verifyIds(without)).toEqual(['2']);
     const withR = compile(withRoles, taggedLib);
     expect(verifyIds(withR)).toEqual(['1', '2']);
+  });
+
+  // W32 Q3: on a verify line `roles` means the build picked roles, so the line shows even where the
+  // profile cannot deliver them. A step with the same tag still hides (see the Muse step test above).
+  it('a role-only verify line shows when roles are picked on a profile that does not deliver them', () => {
+    const muse: Build = { ...base, target: 'muse', roles: ['scout'] };
+    delete (muse as { mode?: ChatgptMode }).mode;
+    const result = compile(muse, taggedLib);
+    expect(result.undelivered.some((u) => u.kind === 'roles')).toBe(true);
+    expect(verifyIds(result)).toEqual(['1', '2']);
+    const dot = compile({ ...base, target: 'chatgpt', mode: 'dot', roles: ['scout'] }, taggedLib);
+    expect(verifyIds(dot)).toEqual(['1', '2']);
+    // Without roles the line stays hidden on those profiles too.
+    const noRoles: Build = { ...muse };
+    delete (noRoles as { roles?: unknown }).roles;
+    expect(verifyIds(compile(noRoles, taggedLib))).toEqual(['2']);
   });
 
   it('a hidden verify line is hidden in noteItems and notes too, so notes still equal noteItems text', () => {

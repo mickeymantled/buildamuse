@@ -154,25 +154,37 @@ These rules load for every agent and sub-agent and outrank SOUL.md.
 - The hard part right now is I need my work checked.
 ```
 
-### skills/second_look/SKILL.md (Skill: Second look, file)
+### skills/second-look/SKILL.md (Skill: Second look, file)
 
 ```md
+---
+name: second-look
+description: "before anything goes out: names, dates, numbers, tone, who's cc'd; say clean or list what's off"
+---
 # Second look
 
 before anything goes out: names, dates, numbers, tone, who's cc'd; say clean or list what's off
 ```
 
-### skills/deadline_capture/SKILL.md (Skill: Deadline capture, file)
+### skills/deadline-capture/SKILL.md (Skill: Deadline capture, file)
 
 ```md
+---
+name: deadline-capture
+description: "any date in a message or file gets logged with the rule it comes from; weekly, what's due in 14 days"
+---
 # Deadline capture
 
 any date in a message or file gets logged with the rule it comes from; weekly, what's due in 14 days
 ```
 
-### skills/matter_brief/SKILL.md (Skill: Matter brief, file)
+### skills/matter-brief/SKILL.md (Skill: Matter brief, file)
 
 ```md
+---
+name: matter-brief
+description: "when I name a matter, the last three things that happened on it"
+---
 # Matter brief
 
 when I name a matter, the last three things that happened on it
@@ -183,20 +195,17 @@ when I name a matter, the last three things that happened on it
 1. Save SOUL.md at ~/.hermes/SOUL.md.
 2. Save USER.md at ~/.hermes/memories/USER.md, and AGENTS.md in the folder you run Hermes from.
 3. Save each skill file at the path shown on it (skills/<id>/SKILL.md).
-4. Restart or start a new session. When testing, avoid --ignore-rules and --safe-mode; they skip SOUL.md.
 
 ## Steps
 
 1. Save SOUL.md at ~/.hermes/SOUL.md. [personality]
 2. Save USER.md at ~/.hermes/memories/USER.md, and AGENTS.md in the folder you run Hermes from. [memory, rules]
 3. Save each skill file at the path shown on it (skills/<id>/SKILL.md). [skills]
-4. Restart or start a new session. When testing, avoid --ignore-rules and --safe-mode; they skip SOUL.md. [none]
 
 ## Notes
 
-- verify: Hermes loads AGENTS.md from the folder it runs in, not from ~/.hermes or a profile folder.
-- verify: whether a delegated agent loads its role profile's SOUL.md.
-- Restart Hermes or start a new session to load changes. When testing, avoid --ignore-rules and --safe-mode.
+- Hermes loads AGENTS.md from the folder it runs in, not from ~/.hermes or a profile folder (Hermes docs, 2026-10-01).
+- Restart Hermes or start a new session to load changes. When testing, avoid --ignore-rules and --safe-mode; they skip SOUL.md.
 
 ## Gates
 

@@ -148,17 +148,25 @@ These rules load for every agent and sub-agent and outrank SOUL.md.
 - Payments: forbidden. Never pay, transfer or authorize money out. Give me the details to pay myself.
 ```
 
-### skills/study_plan/SKILL.md (Skill: Study plan, file)
+### skills/study-plan/SKILL.md (Skill: Study plan, file)
 
 ```md
+---
+name: study-plan
+description: "exam date in: what to cover each day until then"
+---
 # Study plan
 
 exam date in: what to cover each day until then
 ```
 
-### skills/flashcard_pass/SKILL.md (Skill: Flashcard pass, file)
+### skills/flashcard-pass/SKILL.md (Skill: Flashcard pass, file)
 
 ```md
+---
+name: flashcard-pass
+description: "topic in: ten questions, ask me, mark what I miss"
+---
 # Flashcard pass
 
 topic in: ten questions, ask me, mark what I miss
@@ -188,8 +196,9 @@ Remember that I'm a student, I'm into music. The hard part right now is I need t
 
 ## Notes
 
-- verify: OpenClaw keeps automations in its own database. Set routines up by chat or with the openclaw CLI, not as files.
 - verify: whether edits to SOUL.md and AGENTS.md apply on the next turn or only in a new session.
+- OpenClaw keeps automations in its own database (OpenClaw docs, 2026-10-01). Set routines up by chat or with the openclaw CLI, not as files.
+- Start a new session to load changes to SOUL.md and AGENTS.md. They may not apply on the next turn.
 
 ## Gates
 

@@ -461,6 +461,15 @@ function notesMatching(template: string, notes: string[]): string[] {
   return notes.filter((n) => n.length >= head.length + tail.length && n.startsWith(head) && n.endsWith(tail));
 }
 
+// The verify lines a profile shows only when the build picked roles (QUESTIONS W32 Q3: on a verify
+// line, "roles" means the build picked roles, whether or not the profile delivers them). They are
+// the one kind of note a team adds besides the profile's fallback line.
+function roleOnlyVerifyLines(profileId: string): string[] {
+  return (library.targets.profiles.find((p) => p.id === profileId)?.verify ?? [])
+    .filter((v) => (v.when ?? []).includes('roles'))
+    .map((v) => v.line);
+}
+
 function wildcardOf(template: string, note: string): string {
   const [head, tail] = template.split('{roles}');
   return note.slice(head.length, note.length - tail.length);
@@ -957,11 +966,14 @@ for (const c of CASES) {
             expect(result().noteItems.filter((n) => n.id === templateId)).toEqual([]);
           });
 
-          it('the only step the roles add is that fallback.roles step, and they add no note', () => {
+          it('the only step the roles add is that fallback.roles step, and the only notes they add are role-only verify lines', () => {
             const added = result().installSteps.filter((s) => !baseline().installSteps.includes(s));
             expect(added).toEqual(notesMatching(template, result().installSteps));
             expect(added.length).toBe(1);
-            expect(result().notes).toEqual(baseline().notes);
+            // W32: Grok verify.1 (group chats) shows once the build picked roles. No other note is added.
+            const roleVerify = roleOnlyVerifyLines(pc.id);
+            expect(result().notes.filter((n) => !baseline().notes.includes(n))).toEqual(roleVerify);
+            expect(result().notes.filter((n) => !roleVerify.includes(n))).toEqual(baseline().notes);
           });
 
           it('the fallback.roles step has the template id, shows roles, follows the other steps and precedes any closer', () => {
@@ -1111,11 +1123,15 @@ for (const c of CASES) {
             expect(notesMatching(template, baseline().notes)).toEqual([]);
           });
 
-          it('the only note the roles add is that fallback.roles note', () => {
+          it('the only notes the roles add are that fallback.roles note and the role-only verify line', () => {
             const template = profile().templates['fallback.roles'].line;
+            // W32 Q3: the dot teams line shows when the build picked roles, though dot delivers none.
+            const roleVerify = roleOnlyVerifyLines(pc.id);
+            expect(roleVerify.length).toBe(1);
             const added = result().notes.filter((n) => !baseline().notes.includes(n));
-            expect(added).toEqual(notesMatching(template, result().notes));
-            expect(added.length).toBe(1);
+            expect(added.filter((n) => !roleVerify.includes(n))).toEqual(notesMatching(template, result().notes));
+            expect(added.filter((n) => !roleVerify.includes(n)).length).toBe(1);
+            expect(added.filter((n) => roleVerify.includes(n))).toEqual(roleVerify);
           });
 
           // The dot emits no role files, so the note stays a note (W33).
@@ -1139,7 +1155,9 @@ for (const c of CASES) {
 
           it('the only note the roles add is that fallback.none note', () => {
             const template = profile().templates['fallback.none'].line;
-            const added = result().notes.filter((n) => !baseline().notes.includes(n));
+            // Role-only verify lines (none today on this profile) would show too; the helper keeps this exact.
+            const roleVerify = roleOnlyVerifyLines(pc.id);
+            const added = result().notes.filter((n) => !baseline().notes.includes(n) && !roleVerify.includes(n));
             expect(added).toEqual(notesMatching(template, result().notes));
             expect(added.length).toBe(1);
           });

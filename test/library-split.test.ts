@@ -9,11 +9,18 @@
 // Expected values come from the plan and from the files on disk (and from git history for the
 // pre-split baseline), never from compiler output.
 //
-// The pre-split baseline block is a migration check. M4 slice 4.4 (W3 step tags) re-pinned it: the
-// profile comparisons now strip the keys 4.4 added (`shows`, `when` and `closer` on install steps,
-// and the `rulesPath` line on chatgpt-dot) before comparing, so any other change to a profile still
-// fails. It is valid until the next M4 content edit to profiles.json (W4 verify cleanup, W21 SKILL.md
-// frontmatter); re-pin or retire it in the slice that makes that edit. The structural blocks stay.
+// The pre-split baseline block is a migration check. M4 slice 4.4 (W3 step tags) re-pinned it to strip
+// the keys 4.4 added (`shows`, `when` and `closer` on install steps, and the `rulesPath` line on
+// chatgpt-dot). M4 slice 4.5b (W31 SKILL.md frontmatter, W32 verify cleanup) re-pinned it again: that
+// slice edited records by design, so the comparison now strips them from both sides and checks
+// everything else. The stripped records are pinned in their own tests:
+//   - installSteps text and tags: test/step-tags.test.ts (only the step ids are compared here, less
+//     the removed Hermes step 6),
+//   - verify, notes and reloadNote: test/verify-cleanup.test.ts,
+//   - the skill.file, skill.chipFile and actions.consequential templates: test/skill-frontmatter.test.ts
+//     and test/verify-cleanup.test.ts.
+// It is valid until the next M4 content edit to another profile record; re-pin or retire it in the
+// slice that makes that edit. The structural blocks stay.
 
 import { describe, it, expect } from 'vitest';
 import { execFileSync } from 'node:child_process';
@@ -106,6 +113,23 @@ function withoutStepTags(p: Profile): Profile {
     delete step.when;
     delete step.closer;
   }
+  return copy;
+}
+
+// Records slice 4.5b edited by design (W31, W32), removed from both sides of the baseline comparison.
+// The install steps keep their ids, so a lost or reordered step still fails here; the removed Hermes
+// step 6 (W32 d1) is left out of both lists.
+const REMOVED_STEP_IDS = ['profile.hermes.step.6'];
+const EDITED_TEMPLATES = ['skill.file', 'skill.chipFile', 'actions.consequential'];
+
+function comparable(p: Profile): Record<string, unknown> {
+  const copy = withoutStepTags(p) as unknown as Record<string, unknown>;
+  copy.installSteps = p.installSteps.map((s) => s.id).filter((id) => !REMOVED_STEP_IDS.includes(id));
+  delete copy.verify;
+  delete copy.notes;
+  delete copy.reloadNote;
+  const templates = copy.templates as Record<string, unknown>;
+  for (const key of EDITED_TEMPLATES) delete templates[key];
   return copy;
 }
 
@@ -224,7 +248,7 @@ describe('library/index.ts reassembles the split', () => {
   });
 });
 
-describe('pre-split baseline (migration check, step tags and rulesPath stripped; re-pin at the next profiles.json content edit)', () => {
+describe('pre-split baseline (migration check; step tags, rulesPath and the records 4.5b edited are stripped; re-pin at the next profiles.json content edit)', () => {
   it.skipIf(baseline === null)('found a pre-split targets.json in git', () => {
     expect(baseline).not.toBeNull();
     expect(baseline?.targets).toHaveLength(5);
@@ -235,24 +259,25 @@ describe('pre-split baseline (migration check, step tags and rulesPath stripped;
     expect(cards).toEqual(baseline?.targets);
   });
 
-  it.skipIf(baseline === null)('profiles equal the old profiles array once the step tags and rulesPath are stripped', () => {
-    expect(profiles.map(withoutStepTags)).toEqual(baseline?.profiles);
+  it.skipIf(baseline === null)('profiles equal the old profiles array once the step tags, rulesPath and the 4.5b edited records are stripped', () => {
+    expect(profiles.map(comparable)).toEqual((baseline?.profiles ?? []).map(comparable));
   });
 
   it.skipIf(baseline === null)('serialize to the same text once stripped, so key order is unchanged too', () => {
     expect(JSON.stringify(cards)).toBe(JSON.stringify(baseline?.targets));
-    expect(JSON.stringify(profiles.map(withoutStepTags))).toBe(JSON.stringify(baseline?.profiles));
+    expect(JSON.stringify(profiles.map(comparable))).toBe(JSON.stringify((baseline?.profiles ?? []).map(comparable)));
   });
 
   for (const id of PROFILE_IDS) {
-    it.skipIf(baseline === null)(`profile ${id} matches its pre-split record (tags stripped)`, () => {
+    it.skipIf(baseline === null)(`profile ${id} matches its pre-split record (tags and 4.5b edited records stripped)`, () => {
       const before = baseline?.profiles.find((p) => p.id === id);
       const after = library.targets.profiles.find((p) => p.id === id);
       expect(before, `${id} missing from the pre-split file`).toBeDefined();
       expect(after, `${id} missing from the library`).toBeDefined();
-      const stripped = after ? withoutStepTags(after) : undefined;
-      expect(stripped).toEqual(before);
-      expect(JSON.stringify(stripped)).toBe(JSON.stringify(before));
+      const stripped = after ? comparable(after) : undefined;
+      const expected = before ? comparable(before) : undefined;
+      expect(stripped).toEqual(expected);
+      expect(JSON.stringify(stripped)).toBe(JSON.stringify(expected));
     });
   }
 

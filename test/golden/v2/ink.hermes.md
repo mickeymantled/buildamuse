@@ -160,17 +160,25 @@ These rules load for every agent and sub-agent and outrank SOUL.md.
 - The hard part right now is getting started.
 ```
 
-### skills/draft_read/SKILL.md (Skill: Draft read, file)
+### skills/draft-read/SKILL.md (Skill: Draft read, file)
 
 ```md
+---
+name: draft-read
+description: "on a draft: the one line that's best, the one that's weakest, and whether the ending earns it"
+---
 # Draft read
 
 on a draft: the one line that's best, the one that's weakest, and whether the ending earns it
 ```
 
-### skills/idea_bank/SKILL.md (Skill: Idea bank, file)
+### skills/idea-bank/SKILL.md (Skill: Idea bank, file)
 
 ```md
+---
+name: idea-bank
+description: "when I say \"bank this,\" log it with the date; when I say \"what's in the bank,\" read it back"
+---
 # Idea bank
 
 when I say "bank this," log it with the date; when I say "what's in the bank," read it back
@@ -181,20 +189,17 @@ when I say "bank this," log it with the date; when I say "what's in the bank," r
 1. Save SOUL.md at ~/.hermes/SOUL.md.
 2. Save USER.md at ~/.hermes/memories/USER.md, and AGENTS.md in the folder you run Hermes from.
 3. Save each skill file at the path shown on it (skills/<id>/SKILL.md).
-4. Restart or start a new session. When testing, avoid --ignore-rules and --safe-mode; they skip SOUL.md.
 
 ## Steps
 
 1. Save SOUL.md at ~/.hermes/SOUL.md. [personality]
 2. Save USER.md at ~/.hermes/memories/USER.md, and AGENTS.md in the folder you run Hermes from. [memory, rules]
 3. Save each skill file at the path shown on it (skills/<id>/SKILL.md). [skills]
-4. Restart or start a new session. When testing, avoid --ignore-rules and --safe-mode; they skip SOUL.md. [none]
 
 ## Notes
 
-- verify: Hermes loads AGENTS.md from the folder it runs in, not from ~/.hermes or a profile folder.
-- verify: whether a delegated agent loads its role profile's SOUL.md.
-- Restart Hermes or start a new session to load changes. When testing, avoid --ignore-rules and --safe-mode.
+- Hermes loads AGENTS.md from the folder it runs in, not from ~/.hermes or a profile folder (Hermes docs, 2026-10-01).
+- Restart Hermes or start a new session to load changes. When testing, avoid --ignore-rules and --safe-mode; they skip SOUL.md.
 
 ## Gates
 

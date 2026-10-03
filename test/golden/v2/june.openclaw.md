@@ -171,17 +171,25 @@ These rules load for every agent and sub-agent and outrank SOUL.md.
 - A yes covers only the numbered items I named; anything new goes back through its gate.
 ```
 
-### skills/pickup_guard/SKILL.md (Skill: Pickup guard, file)
+### skills/pickup-guard/SKILL.md (Skill: Pickup guard, file)
 
 ```md
+---
+name: pickup-guard
+description: "kid events are locked; anything landing on them gets flagged, not booked"
+---
 # Pickup guard
 
 kid events are locked; anything landing on them gets flagged, not booked
 ```
 
-### skills/whats_for_dinner/SKILL.md (Skill: What's for dinner, file)
+### skills/whats-for-dinner/SKILL.md (Skill: What's for dinner, file)
 
 ```md
+---
+name: whats-for-dinner
+description: "ingredients in: three options, one line each"
+---
 # What's for dinner
 
 ingredients in: three options, one line each
@@ -190,6 +198,10 @@ ingredients in: three options, one line each
 ### skills/inbox-triage/SKILL.md (Skill: Inbox triage, file)
 
 ```md
+---
+name: inbox-triage
+description: "I say 'triage my inbox', or unread mail has piled up since the last triage."
+---
 # Inbox triage
 
 ## When to use
@@ -219,6 +231,10 @@ send: every reply waits for my yes by number. delete: every archive or delete wa
 ### skills/conflict-scan/SKILL.md (Skill: Conflict scan, file)
 
 ```md
+---
+name: conflict-scan
+description: "An invite, booking request or reschedule arrives, or I ask 'does this fit' before agreeing to a time."
+---
 # Conflict scan
 
 ## When to use
@@ -274,7 +290,7 @@ A scheduled run follows the rules in AGENTS.md like any other run.
 2. Save AGENTS.md beside it, in the same folder.
 3. Save each skill file at the path shown on it (skills/<id>/SKILL.md).
 4. Say the memory sentence.
-5. Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether OpenClaw keeps routines in files or in chat.
+5. Say each routine sentence to your agent in chat, then ask it to read the schedule back.
 
 ## Steps
 
@@ -282,12 +298,13 @@ A scheduled run follows the rules in AGENTS.md like any other run.
 2. Save AGENTS.md beside it, in the same folder. [rules]
 3. Save each skill file at the path shown on it (skills/<id>/SKILL.md). [skills]
 4. Say the memory sentence. [memory]
-5. Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether OpenClaw keeps routines in files or in chat. [routines]
+5. Say each routine sentence to your agent in chat, then ask it to read the schedule back. [routines]
 
 ## Notes
 
-- verify: OpenClaw keeps automations in its own database. Set routines up by chat or with the openclaw CLI, not as files.
 - verify: whether edits to SOUL.md and AGENTS.md apply on the next turn or only in a new session.
+- OpenClaw keeps automations in its own database (OpenClaw docs, 2026-10-01). Set routines up by chat or with the openclaw CLI, not as files.
+- Start a new session to load changes to SOUL.md and AGENTS.md. They may not apply on the next turn.
 
 ## Gates
 

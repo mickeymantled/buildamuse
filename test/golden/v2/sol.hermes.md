@@ -156,17 +156,25 @@ These rules load for every agent and sub-agent and outrank SOUL.md.
 - The hard part right now is I need to talk things through.
 ```
 
-### skills/study_plan/SKILL.md (Skill: Study plan, file)
+### skills/study-plan/SKILL.md (Skill: Study plan, file)
 
 ```md
+---
+name: study-plan
+description: "exam date in: what to cover each day until then"
+---
 # Study plan
 
 exam date in: what to cover each day until then
 ```
 
-### skills/flashcard_pass/SKILL.md (Skill: Flashcard pass, file)
+### skills/flashcard-pass/SKILL.md (Skill: Flashcard pass, file)
 
 ```md
+---
+name: flashcard-pass
+description: "topic in: ten questions, ask me, mark what I miss"
+---
 # Flashcard pass
 
 topic in: ten questions, ask me, mark what I miss
@@ -177,20 +185,17 @@ topic in: ten questions, ask me, mark what I miss
 1. Save SOUL.md at ~/.hermes/SOUL.md.
 2. Save USER.md at ~/.hermes/memories/USER.md, and AGENTS.md in the folder you run Hermes from.
 3. Save each skill file at the path shown on it (skills/<id>/SKILL.md).
-4. Restart or start a new session. When testing, avoid --ignore-rules and --safe-mode; they skip SOUL.md.
 
 ## Steps
 
 1. Save SOUL.md at ~/.hermes/SOUL.md. [personality]
 2. Save USER.md at ~/.hermes/memories/USER.md, and AGENTS.md in the folder you run Hermes from. [memory, rules]
 3. Save each skill file at the path shown on it (skills/<id>/SKILL.md). [skills]
-4. Restart or start a new session. When testing, avoid --ignore-rules and --safe-mode; they skip SOUL.md. [none]
 
 ## Notes
 
-- verify: Hermes loads AGENTS.md from the folder it runs in, not from ~/.hermes or a profile folder.
-- verify: whether a delegated agent loads its role profile's SOUL.md.
-- Restart Hermes or start a new session to load changes. When testing, avoid --ignore-rules and --safe-mode.
+- Hermes loads AGENTS.md from the folder it runs in, not from ~/.hermes or a profile folder (Hermes docs, 2026-10-01).
+- Restart Hermes or start a new session to load changes. When testing, avoid --ignore-rules and --safe-mode; they skip SOUL.md.
 
 ## Gates
 

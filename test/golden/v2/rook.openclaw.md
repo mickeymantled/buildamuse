@@ -186,9 +186,13 @@ These rules load for every agent and sub-agent and outrank SOUL.md.
 - Never run tests, scripts or migrations against a shared or production database.
 ```
 
-### skills/decision_log/SKILL.md (Skill: Decision log, file)
+### skills/decision-log/SKILL.md (Skill: Decision log, file)
 
 ```md
+---
+name: decision-log
+description: "when I decide something, record it with the why; when I revisit, read it back"
+---
 # Decision log
 
 when I decide something, record it with the why; when I revisit, read it back
@@ -197,6 +201,10 @@ when I decide something, record it with the why; when I revisit, read it back
 ### skills/pr-review/SKILL.md (Skill: PR review, file)
 
 ```md
+---
+name: pr-review
+description: "When I ask you to review a pull request, a branch or a diff before it merges."
+---
 # PR review
 
 ## When to use
@@ -228,6 +236,10 @@ send: posting review comments or a review status on the PR needs a yes (send gat
 ### skills/break-check/SKILL.md (Skill: Break check, file)
 
 ```md
+---
+name: break-check
+description: "When I say a change is done, or ask whether it holds, before I merge or ship it."
+---
 # Break check
 
 ## When to use
@@ -301,7 +313,7 @@ A scheduled run follows the rules in AGENTS.md like any other run.
 2. Save AGENTS.md beside it, in the same folder.
 3. Save each skill file at the path shown on it (skills/<id>/SKILL.md).
 4. Say the memory sentence.
-5. Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether OpenClaw keeps routines in files or in chat.
+5. Say each routine sentence to your agent in chat, then ask it to read the schedule back.
 
 ## Steps
 
@@ -309,12 +321,13 @@ A scheduled run follows the rules in AGENTS.md like any other run.
 2. Save AGENTS.md beside it, in the same folder. [rules]
 3. Save each skill file at the path shown on it (skills/<id>/SKILL.md). [skills]
 4. Say the memory sentence. [memory]
-5. Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether OpenClaw keeps routines in files or in chat. [routines]
+5. Say each routine sentence to your agent in chat, then ask it to read the schedule back. [routines]
 
 ## Notes
 
-- verify: OpenClaw keeps automations in its own database. Set routines up by chat or with the openclaw CLI, not as files.
 - verify: whether edits to SOUL.md and AGENTS.md apply on the next turn or only in a new session.
+- OpenClaw keeps automations in its own database (OpenClaw docs, 2026-10-01). Set routines up by chat or with the openclaw CLI, not as files.
+- Start a new session to load changes to SOUL.md and AGENTS.md. They may not apply on the next turn.
 
 ## Gates
 

@@ -53,20 +53,21 @@
       }
     ],
     "reloadNote": null,
-    "verify": [
-      {
-        "id": "profile.muse.verify.1",
-        "line": "verify: Meta has not published the default Soul.md text; these opening lines come from the Build-a-Bot brief."
-      },
-      {
-        "id": "profile.muse.verify.2",
-        "line": "verify: Muse skills are built in (Meta help, How Muse works with skills). A skill sentence you say becomes a standing instruction or a reminder, not an installed skill."
-      }
-    ],
+    "verify": [],
     "supportsRoles": false,
     "roleFallback": "none",
     "lengthCap": 4000,
     "skillLabel": "Standing instruction",
+    "notes": [
+      {
+        "id": "profile.muse.note.1",
+        "line": "Meta has not published the default Soul text (Meta help, 2026-10-01); these opening lines come from Build-a-Bot."
+      },
+      {
+        "id": "profile.muse.note.2",
+        "line": "Muse skills are built in (Meta help, How Muse works with skills, 2026-10-01). A skill sentence you say becomes a standing instruction or a reminder, not an installed skill."
+      }
+    ],
     "templates": {
       "memory.sentence": {
         "id": "profile.muse.memory.sentence",
@@ -172,7 +173,7 @@
       },
       {
         "id": "profile.openclaw.step.6",
-        "line": "Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether OpenClaw keeps routines in files or in chat.",
+        "line": "Say each routine sentence to your agent in chat, then ask it to read the schedule back.",
         "shows": [
           "routines"
         ],
@@ -181,12 +182,11 @@
         ]
       }
     ],
-    "reloadNote": null,
+    "reloadNote": {
+      "id": "profile.openclaw.reload",
+      "line": "Start a new session to load changes to SOUL.md and AGENTS.md. They may not apply on the next turn."
+    },
     "verify": [
-      {
-        "id": "profile.openclaw.verify.1",
-        "line": "verify: OpenClaw keeps automations in its own database. Set routines up by chat or with the openclaw CLI, not as files."
-      },
       {
         "id": "profile.openclaw.verify.2",
         "line": "verify: whether edits to SOUL.md and AGENTS.md apply on the next turn or only in a new session."
@@ -195,6 +195,12 @@
     "supportsRoles": true,
     "roleFallback": "workspaces",
     "lengthCap": 3600,
+    "notes": [
+      {
+        "id": "profile.openclaw.note.1",
+        "line": "OpenClaw keeps automations in its own database (OpenClaw docs, 2026-10-01). Set routines up by chat or with the openclaw CLI, not as files."
+      }
+    ],
     "templates": {
       "memory.sentence": {
         "id": "profile.openclaw.memory.sentence",
@@ -218,7 +224,11 @@
       },
       "skill.file": {
         "id": "profile.openclaw.skill.file",
-        "line": "# {name}\n\n## When to use\n{whenToUse}\n\n## Inputs\n{inputs}\n\n## Steps\n{steps}\n\n## Validate\n{validate}\n\n## Returns\n{returns}\n\n## Requires approval\n{requiresApproval}"
+        "line": "---\nname: {dir}\ndescription: \"{description}\"\n---\n# {name}\n\n## When to use\n{whenToUse}\n\n## Inputs\n{inputs}\n\n## Steps\n{steps}\n\n## Validate\n{validate}\n\n## Returns\n{returns}\n\n## Requires approval\n{requiresApproval}"
+      },
+      "skill.chipFile": {
+        "id": "profile.openclaw.skill.chipFile",
+        "line": "---\nname: {dir}\ndescription: \"{description}\"\n---\n# {name}\n\n{detail}"
       },
       "routine.sentence": {
         "id": "profile.openclaw.routine.sentence",
@@ -285,36 +295,44 @@
       },
       {
         "id": "profile.hermes.step.5",
-        "line": "Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether Hermes keeps routines in files or in chat.",
+        "line": "Say each routine sentence to your agent in chat, then ask it to read the schedule back.",
         "shows": [
           "routines"
         ],
         "when": [
           "routines"
         ]
-      },
-      {
-        "id": "profile.hermes.step.6",
-        "line": "Restart or start a new session. When testing, avoid --ignore-rules and --safe-mode; they skip SOUL.md."
       }
     ],
     "reloadNote": {
       "id": "profile.hermes.reload",
-      "line": "Restart Hermes or start a new session to load changes. When testing, avoid --ignore-rules and --safe-mode."
+      "line": "Restart Hermes or start a new session to load changes. When testing, avoid --ignore-rules and --safe-mode; they skip SOUL.md."
     },
     "verify": [
       {
-        "id": "profile.hermes.verify.1",
-        "line": "verify: Hermes loads AGENTS.md from the folder it runs in, not from ~/.hermes or a profile folder."
+        "id": "profile.hermes.verify.2",
+        "line": "verify: whether a delegated agent loads its role profile's SOUL.md.",
+        "when": [
+          "roles"
+        ]
       },
       {
-        "id": "profile.hermes.verify.2",
-        "line": "verify: whether a delegated agent loads its role profile's SOUL.md."
+        "id": "profile.hermes.verify.3",
+        "line": "verify: whether Hermes keeps routines in files or in chat.",
+        "when": [
+          "routines"
+        ]
       }
     ],
     "supportsRoles": true,
     "roleFallback": "profiles",
     "lengthCap": 4000,
+    "notes": [
+      {
+        "id": "profile.hermes.note.1",
+        "line": "Hermes loads AGENTS.md from the folder it runs in, not from ~/.hermes or a profile folder (Hermes docs, 2026-10-01)."
+      }
+    ],
     "templates": {
       "memory.sentence": {
         "id": "profile.hermes.memory.sentence",
@@ -342,7 +360,11 @@
       },
       "skill.file": {
         "id": "profile.hermes.skill.file",
-        "line": "# {name}\n\n## When to use\n{whenToUse}\n\n## Inputs\n{inputs}\n\n## Steps\n{steps}\n\n## Validate\n{validate}\n\n## Returns\n{returns}\n\n## Requires approval\n{requiresApproval}"
+        "line": "---\nname: {dir}\ndescription: \"{description}\"\n---\n# {name}\n\n## When to use\n{whenToUse}\n\n## Inputs\n{inputs}\n\n## Steps\n{steps}\n\n## Validate\n{validate}\n\n## Returns\n{returns}\n\n## Requires approval\n{requiresApproval}"
+      },
+      "skill.chipFile": {
+        "id": "profile.hermes.skill.chipFile",
+        "line": "---\nname: {dir}\ndescription: \"{description}\"\n---\n# {name}\n\n{detail}"
       },
       "memory.file.heading": {
         "id": "profile.hermes.memory.file.heading",
@@ -433,12 +455,22 @@
     ],
     "reloadNote": {
       "id": "profile.grok.reload",
-      "line": "Profile changes apply to new messages. verify: whether a running routine picks up a profile edit."
+      "line": "Profile changes apply to new messages. A routine that is already running may not pick up a profile edit."
     },
     "verify": [
       {
         "id": "profile.grok.verify.1",
-        "line": "verify: group chats hold 2 to 6 Bots and the Bots decide who answers; the coordinator is a convention, not a setting."
+        "line": "verify: group chats hold 2 to 6 Bots and the Bots decide who answers; the coordinator is a convention, not a setting.",
+        "when": [
+          "roles"
+        ]
+      },
+      {
+        "id": "profile.grok.verify.2",
+        "line": "verify: whether a running routine picks up a profile edit.",
+        "when": [
+          "routines"
+        ]
       }
     ],
     "supportsRoles": true,
@@ -661,7 +693,10 @@
       },
       {
         "id": "profile.chatgpt-dot.verify.3",
-        "line": "verify: when teams of dots arrive (flips supportsRoles)."
+        "line": "verify: when teams of dots arrive.",
+        "when": [
+          "roles"
+        ]
       },
       {
         "id": "profile.chatgpt-dot.verify.4",
@@ -800,7 +835,7 @@
       },
       {
         "id": "profile.chatgpt-gpt.step.9",
-        "line": "Say each routine sentence. verify: whether your plan includes Tasks.",
+        "line": "Say each routine sentence.",
         "shows": [
           "routines"
         ],
@@ -816,21 +851,37 @@
     "reloadNote": null,
     "verify": [
       {
-        "id": "profile.chatgpt-gpt.verify.1",
-        "line": "verify: custom GPTs retire on Dec 11, 2026, and new GPT creation is off on personal plans (OpenAI help, 2026-10-01)."
-      },
-      {
         "id": "profile.chatgpt-gpt.verify.2",
         "line": "verify: the 8,000-character Instructions limit and 300-character Description limit are community-reported, not in OpenAI's docs."
       },
       {
         "id": "profile.chatgpt-gpt.verify.3",
-        "line": "verify: scheduled tasks by plan (Free: 3 active, at most once a day)."
+        "line": "verify: scheduled tasks by plan (Free: 3 active, at most once a day).",
+        "when": [
+          "routines"
+        ]
+      },
+      {
+        "id": "profile.chatgpt-gpt.verify.4",
+        "line": "verify: whether your plan includes Tasks.",
+        "when": [
+          "routines"
+        ]
+      },
+      {
+        "id": "profile.chatgpt-gpt.verify.5",
+        "line": "verify: the exact name of the consequential flag, x-openai-isConsequential, before you rely on it."
       }
     ],
     "supportsRoles": false,
     "roleFallback": "separate-bundles",
     "lengthCap": 8000,
+    "notes": [
+      {
+        "id": "profile.chatgpt-gpt.note.1",
+        "line": "New GPT creation is off on personal plans (OpenAI help, 2026-10-01)."
+      }
+    ],
     "templates": {
       "memory.sentence": {
         "id": "profile.chatgpt-gpt.memory.sentence",
@@ -874,7 +925,7 @@
       },
       "actions.consequential": {
         "id": "profile.chatgpt-gpt.actions.consequential",
-        "line": "If you add Actions, mark every action that writes, sends or deletes as consequential by setting x-openai-isConsequential: true in its schema. verify: the exact flag name before you rely on it."
+        "line": "If you add Actions, mark every action that writes, sends or deletes as consequential by setting x-openai-isConsequential: true in its schema. Check the exact flag name before you rely on it."
       }
     }
   },
@@ -1041,7 +1092,7 @@
       },
       {
         "id": "profile.chatgpt-project.step.5",
-        "line": "Say each routine sentence in a chat inside the Project. verify: whether your plan includes Tasks.",
+        "line": "Say each routine sentence in a chat inside the Project.",
         "shows": [
           "routines"
         ],
@@ -1055,6 +1106,13 @@
       {
         "id": "profile.chatgpt-project.verify.1",
         "line": "verify: the Project instructions limit (8,000 assumed, per the brief)."
+      },
+      {
+        "id": "profile.chatgpt-project.verify.2",
+        "line": "verify: whether your plan includes Tasks.",
+        "when": [
+          "routines"
+        ]
       }
     ],
     "supportsRoles": false,
