@@ -134,6 +134,12 @@ export const copy = {
     counterLabel: (n: number, max: number) => `${n} of ${max} chosen`,
   },
 
+  // Packs screen. Pack labels and their skill names come from the library.
+  packs: {
+    none: 'No packs picked. Your bot will still work without them.',
+    counterLabel: (n: number, max: number) => `${n} of ${max} packs chosen`,
+  },
+
   heart: {
     question: 'What is the hard part for you?',
     d1: 'It wants this first',
