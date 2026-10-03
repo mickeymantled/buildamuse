@@ -1,27 +1,29 @@
 import library from '../../library/index.js';
-import { FOCUS, cx } from '../components/cx';
+import { Card, CardList } from '../components/Card';
 import { copy } from '../copy.js';
 import { useBuilder } from '../store.js';
 import { Station } from './Station.js';
 
-// Stub for slice 3.6. Next needs a base, so the stub offers one placeholder pick to keep the flow running.
+// Station 1. Required, no Skip. Tapping a base resets the stats to its defaults.
 export function Base() {
+  const base = useBuilder((s) => s.draft.base);
   const setBase = useBuilder((s) => s.setBase);
+
   return (
-    <Station screen="base">
-      <p className="rounded-2xl border border-dashed border-border bg-surface p-4 text-sm text-muted">
-        {copy.todo('3.6')}
-      </p>
-      <button
-        type="button"
-        onClick={() => setBase(library.bases[0].id)}
-        className={cx(
-          'min-h-[44px] rounded-xl border border-border bg-surface px-4 text-sm font-semibold text-text',
-          FOCUS,
-        )}
-      >
-        {copy.stub.fill}
-      </button>
+    <Station screen="base" hint={copy.base.required}>
+      <CardList label={copy.screens.base.title}>
+        {library.bases.map((b) => (
+          <Card
+            key={b.id}
+            title={b.label}
+            selected={b.id === base}
+            // Tapping the picked base again must not reset a remixed starter's stats.
+            onSelect={() => {
+              if (b.id !== base) setBase(b.id);
+            }}
+          />
+        ))}
+      </CardList>
     </Station>
   );
 }

@@ -123,6 +123,11 @@ export const copy = {
     paidSteer: 'This many rules will not fit well on the free plan. The paid plan has room for all of them.',
   },
 
+  // Base screen. The eight labels come from the library.
+  base: {
+    required: 'Pick one to continue.',
+  },
+
   heart: {
     question: 'What is the hard part for you?',
     d1: 'It wants this first',
