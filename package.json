@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit",
-    "golden": "tsx tools/golden.ts"
+    "golden": "tsx tools/golden.ts",
+    "check:bundle": "tsx tools/check-bundle.ts"
   },
   "dependencies": {
     "react": "^19.3.0",
