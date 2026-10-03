@@ -119,7 +119,9 @@ export function retarget(
 }
 
 // One step per version. Key n upgrades a v(n) build to v(n+1).
-export const MIGRATIONS: Record<number, (b: unknown) => unknown> = {
+export type MigrationSteps = Record<number, (b: unknown) => unknown>;
+
+export const MIGRATIONS: MigrationSteps = {
   1: (b) => {
     if (
       !isRecord(b) ||
@@ -138,21 +140,27 @@ function isVersion(v: unknown): v is number {
   return typeof v === 'number' && Number.isInteger(v);
 }
 
-// Applies steps until the build is at LIBRARY_VERSION. Throws on a bad or newer version.
-export function migrateToLatest(raw: unknown): Build {
+// Applies steps until the build is at `target` (the library version). Throws on a bad or newer version.
+// `steps` is a parameter so a test can add a synthetic step without a real version bump.
+export function migrateToLatest(
+  raw: unknown,
+  target: number = LIBRARY_VERSION,
+  steps: MigrationSteps = MIGRATIONS,
+): Build {
   if (!isRecord(raw)) throw new Error('migrate: build is not an object');
   let cur: unknown = raw;
   if (!isVersion(raw.v)) throw new Error('migrate: build.v must be an integer');
   let v: number = raw.v;
-  if (v > LIBRARY_VERSION) {
-    throw new Error(`migrate: build version ${v} is newer than library version ${LIBRARY_VERSION}`);
+  if (v > target) {
+    throw new Error(`migrate: build version ${v} is newer than library version ${target}`);
   }
-  while (v < LIBRARY_VERSION) {
-    const step = MIGRATIONS[v];
+  while (v < target) {
+    const step = Object.hasOwn(steps, v) ? steps[v] : undefined;
     if (!step) throw new Error(`migrate: no migration from version ${v}`);
     cur = step(cur);
     const next = isRecord(cur) ? cur.v : undefined;
     if (!isVersion(next) || next <= v) throw new Error(`migrate: step ${v} did not advance the version`);
+    if (next > target) throw new Error(`migrate: step ${v} went past version ${target}`);
     v = next;
   }
   return cur as Build;

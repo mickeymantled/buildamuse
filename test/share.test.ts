@@ -216,12 +216,25 @@ describe('Share: migration map per chip', () => {
 
   for (const chip of library.chips) {
     const expected = CHIP_TO_PACKS[chip.id] ?? [];
+    // Vera's v1 build has no risk stat. Plan 2a (W8, U1): decode repairs a Markets chip that has no risk
+    // by adding risk at the U1 level (2, the budget has room), and says so in one warning and one drop.
+    // Every other chip leaves the build alone. A chip's group comes from the library chip table.
+    const markets = chip.group === 'Markets';
     it(`chip ${chip.id} -> ${expected.length === 0 ? 'none' : expected.join(', ')}`, () => {
-      // Decode never validates cross-field rules, so one chip on Vera's build is enough.
+      // One chip on Vera's build is enough. Decode runs the compiler's validation, which is why the
+      // Markets chips need their risk repair to decode at all.
       const v1: BuildV1 = { ...rosterV1('vera'), chips: [chip.id] };
-      const { build, warnings } = fromShareHash(toShareHash(v1), library);
-      expect(warnings).toEqual([]);
+      const { build, warnings, drops } = fromShareHash(toShareHash(v1), library);
       expect(build.packs).toEqual(expected);
+      if (markets) {
+        expect(build.stats.risk).toBe(2);
+        expect(warnings).toEqual(['share: risk added at the default level']);
+        expect(drops).toEqual([{ field: 'stats', id: 'risk', reason: 'fallback' }]);
+      } else {
+        expect(build.stats.risk).toBeUndefined();
+        expect(warnings).toEqual([]);
+        expect(drops).toEqual([]);
+      }
     });
   }
 
@@ -377,15 +390,17 @@ describe('Share: the hash never uses a query string', () => {
 
 // --- Unknown ids drop with a warning ---------------------------------------
 
-describe('Share: unknown ids are dropped with a "share: dropped unknown" warning', () => {
+describe('Share: unknown ids are dropped and counted in a "share: dropped unknown" warning', () => {
+  // W8 and plan 2a: an unknown chip, peeve, pack or role is dropped. The warning is one line per field with
+  // the count, "share: dropped unknown <field> (N)", and it never echoes an id from the link.
   it('an unknown chip id in a v2 payload is dropped, the known chips stay in order', () => {
     const build: Build = { ...martyV2(), chips: ['memecoins', 'not_a_chip', 'solana', 'nba'] };
-    const { build: decoded, warnings } = decodeBuild(badPayload(build), library);
+    const { build: decoded, warnings, drops } = decodeBuild(badPayload(build), library);
 
     expect(decoded.chips).toEqual(['memecoins', 'solana', 'nba']);
-    expect(warnings.length).toBe(1);
-    expect(warnings[0]).toMatch(/^share: dropped unknown/);
-    expect(warnings[0]).toContain('not_a_chip');
+    expect(warnings).toEqual(['share: dropped unknown chips (1)']);
+    expect(warnings.join('\n')).not.toContain('not_a_chip');
+    expect(drops).toEqual([{ field: 'chips', id: 'not_a_chip', reason: 'unknown' }]);
     expect(() => compile(decoded)).not.toThrow();
   });
 
@@ -396,23 +411,21 @@ describe('Share: unknown ids are dropped with a "share: dropped unknown" warning
     expect(build.v).toBe(2);
     expect(build.chips).toEqual(['memecoins', 'nba']);
     expect(build.packs).toEqual(['memecoins']);
-    expect(warnings.some((w) => w.startsWith('share: dropped unknown') && w.includes('not_a_chip'))).toBe(
-      true,
-    );
+    expect(warnings).toContain('share: dropped unknown chips (1)');
+    expect(warnings.join('\n')).not.toContain('not_a_chip');
     expect(() => compile(build)).not.toThrow();
   });
 
-  it('several unknown ids give one warning each', () => {
+  it('several unknown ids in one field give one count line, not one warning each', () => {
     const build: Build = { ...martyV2(), chips: ['nope_one', 'memecoins', 'nope_two'] };
     const { build: decoded, warnings } = decodeBuild(badPayload(build), library);
     expect(decoded.chips).toEqual(['memecoins']);
-    expect(warnings.length).toBe(2);
-    expect(warnings.every((w) => w.startsWith('share: dropped unknown'))).toBe(true);
-    expect(warnings.some((w) => w.includes('nope_one'))).toBe(true);
-    expect(warnings.some((w) => w.includes('nope_two'))).toBe(true);
+    expect(warnings).toEqual(['share: dropped unknown chips (2)']);
+    expect(warnings.join('\n')).not.toContain('nope_one');
+    expect(warnings.join('\n')).not.toContain('nope_two');
   });
 
-  it('an unknown peeve, pack or role is dropped with a warning too', () => {
+  it('an unknown peeve, pack or role is dropped with a count line per field too', () => {
     const build: Build = {
       ...migrate(rosterV1('rook'), { target: 'hermes' }),
       peeves: ['asks_permission', 'not_a_peeve'],
@@ -424,9 +437,16 @@ describe('Share: unknown ids are dropped with a "share: dropped unknown" warning
     expect(decoded.peeves).toEqual(['asks_permission']);
     expect(decoded.packs).toEqual(['coding']);
     expect(decoded.roles).toEqual(['planner']);
-    expect(warnings.length).toBe(3);
+    expect(warnings).toHaveLength(3);
+    expect(warnings).toEqual(
+      expect.arrayContaining([
+        'share: dropped unknown peeves (1)',
+        'share: dropped unknown packs (1)',
+        'share: dropped unknown roles (1)',
+      ]),
+    );
     for (const id of ['not_a_peeve', 'not_a_pack', 'not_a_role']) {
-      expect(warnings.some((w) => w.startsWith('share: dropped unknown') && w.includes(id))).toBe(true);
+      expect(warnings.join('\n')).not.toContain(id);
     }
   });
 
@@ -439,12 +459,12 @@ describe('Share: unknown ids are dropped with a "share: dropped unknown" warning
 // V2-DESIGN validation: a gates key is "pay or an action some selected pack exposes in gatesDefault";
 // a limits key is "in some selected pack's limitChips". Spec: "A missing or unknown id after migration
 // is dropped with a warning ..., never a crash." Two drop reasons, two warnings:
-//   unknown to the library registry -> 'share: dropped unknown <field> "<id>"'
+//   unknown to the library registry -> 'share: dropped unknown <field> (N)', a count that never echoes the id (W8)
 //   known, but no surviving pack exposes it -> 'share: dropped <field> "<id>": no selected pack exposes it'
 
 describe('Share: gate and limit overrides are dropped with a warning', () => {
-  const unknownWarning = (field: 'gates' | 'limits', id: string) =>
-    `share: dropped unknown ${field} "${id}"`;
+  const unknownWarning = (field: 'gates' | 'limits' | 'packs', count = 1) =>
+    `share: dropped unknown ${field} (${count})`;
   const unexposedWarning = (field: 'gates' | 'limits', id: string) =>
     `share: dropped ${field} "${id}": no selected pack exposes it`;
 
@@ -485,7 +505,8 @@ describe('Share: gate and limit overrides are dropped with a warning', () => {
       const { build: decoded, warnings } = decodeBuild(badPayload(build), library);
 
       expect(decoded.gates).toEqual({ trade: 'forbid' });
-      expect(warnings).toEqual([unknownWarning('gates', 'not_a_gate')]);
+      expect(warnings).toEqual([unknownWarning('gates')]);
+      expect(warnings.join('\n')).not.toContain('not_a_gate');
       expect(() => compile(decoded)).not.toThrow();
     });
 
@@ -494,7 +515,8 @@ describe('Share: gate and limit overrides are dropped with a warning', () => {
       const { build: decoded, warnings } = decodeBuild(badPayload(build), library);
 
       expect(decoded.limits).toEqual({ per_trade_pct: 0.5 });
-      expect(warnings).toEqual([unknownWarning('limits', 'not_a_limit')]);
+      expect(warnings).toEqual([unknownWarning('limits')]);
+      expect(warnings.join('\n')).not.toContain('not_a_limit');
       expect(() => compile(decoded)).not.toThrow();
     });
 
@@ -508,10 +530,9 @@ describe('Share: gate and limit overrides are dropped with a warning', () => {
 
       expect(decoded.gates).toEqual({});
       expect(decoded.limits).toEqual({});
-      expect(warnings).toEqual([
-        unknownWarning('gates', 'removed_gate'),
-        unknownWarning('limits', 'removed_limit'),
-      ]);
+      expect(warnings).toEqual([unknownWarning('gates'), unknownWarning('limits')]);
+      expect(warnings.join('\n')).not.toContain('removed_gate');
+      expect(warnings.join('\n')).not.toContain('removed_limit');
       expect(() => compile(decoded)).not.toThrow();
     });
 
@@ -522,7 +543,8 @@ describe('Share: gate and limit overrides are dropped with a warning', () => {
 
       expect(decoded.gates).toEqual({ trade: 'forbid' });
       expect(Object.getPrototypeOf(decoded.gates)).toBe(Object.prototype);
-      expect(warnings).toEqual([unknownWarning('gates', '__proto__')]);
+      expect(warnings).toEqual([unknownWarning('gates')]);
+      expect(warnings.join('\n')).not.toContain('__proto__');
     });
 
     it('a v1 link carries no gates or limits, so it can never warn about them', () => {
@@ -586,12 +608,14 @@ describe('Share: gate and limit overrides are dropped with a warning', () => {
       expect(decoded.packs).toEqual([]);
       expect(decoded.gates).toEqual({});
       expect(decoded.limits).toEqual({});
-      // Pack warning first (packs are filtered before gates and limits), then gates, then limits.
+      // Pack count line first (packs are filtered before gates and limits), then gates, then limits.
+      // The unexposed lines name library ids (trade, per_trade_pct); the unknown pack id is never echoed.
       expect(warnings).toEqual([
-        'share: dropped unknown packs "not_a_pack"',
+        unknownWarning('packs'),
         unexposedWarning('gates', 'trade'),
         unexposedWarning('limits', 'per_trade_pct'),
       ]);
+      expect(warnings.join('\n')).not.toContain('not_a_pack');
       expect(() => compile(decoded)).not.toThrow();
     });
 
@@ -610,10 +634,11 @@ describe('Share: gate and limit overrides are dropped with a warning', () => {
       expect(decoded.gates).toEqual({ send: 'forbid' });
       expect(decoded.limits).toEqual({ max_sends_per_day: 10 });
       expect(warnings).toEqual([
-        'share: dropped unknown packs "not_a_pack"',
+        unknownWarning('packs'),
         unexposedWarning('gates', 'trade'),
         unexposedWarning('limits', 'per_trade_pct'),
       ]);
+      expect(warnings.join('\n')).not.toContain('not_a_pack');
       expect(() => compile(decoded)).not.toThrow();
     });
 
@@ -698,76 +723,111 @@ describe('Share: garbage and a v3 payload throw ShareDecodeError', () => {
     expect(() => decodeBuild(badPayload(build), library)).toThrow(ShareDecodeError);
   });
 
-  describe('an unknown scalar id fails the whole decode', () => {
-    // Spec: "A missing or unknown id after migration is dropped with a warning". A scalar (base,
-    // outfit, hard part, drive) cannot be dropped from a build, so decode throws a typed
-    // ShareDecodeError (never a bare Error, never a silent partial build). This pins that choice.
-    // QUESTIONS.md records no decision on it, so it is flagged in the slice report.
-    const scalarCases: { field: string; id: string; mutate: (b: Record<string, unknown>) => void }[] = [
-      { field: 'base', id: 'not_a_base', mutate: (b) => (b.base = 'not_a_base') },
-      { field: 'outfit', id: 'not_an_outfit', mutate: (b) => (b.outfit = 'not_an_outfit') },
+  describe('an unknown scalar id falls back to the default and warns', () => {
+    // W8 (replaces the M2 pin that threw): a scalar (base, outfit, hard part, d1, d2) cannot be dropped
+    // from a build, so an unknown one is replaced by its default and recorded in `drops` with reason
+    // 'fallback'. Defaults: base chaos (U2), hard part calmer and outfit has_it_together (U3), d1 the
+    // hard part's own drive, d2 the d2 drive for the link's blunt level. The warning names the field and
+    // never echoes the id from the link. Depth is in test/share-hardening.test.ts.
+    const ownD1 = (hardPart: string) => library.heart.hardParts.find((h) => h.id === hardPart)?.d1;
+    const d2For = (blunt: number) =>
+      library.heart.drives.find(
+        (d) =>
+          d.slot === 'd2' && d.when !== undefined && 'stat' in d.when && d.when.stat === 'blunt' && d.when.eq === blunt,
+      )?.id;
+
+    const scalarCases: {
+      field: string;
+      id: string;
+      mutate: (b: Record<string, unknown>) => void;
+      check: (b: Build) => void;
+    }[] = [
+      {
+        field: 'base',
+        id: 'not_a_base',
+        mutate: (b) => (b.base = 'not_a_base'),
+        check: (b) => expect(b.base).toBe('chaos'),
+      },
+      {
+        field: 'outfit',
+        id: 'not_an_outfit',
+        mutate: (b) => (b.outfit = 'not_an_outfit'),
+        check: (b) => expect(b.outfit).toBe('has_it_together'),
+      },
       {
         field: 'heart.hardPart',
         id: 'not_a_hard_part',
         mutate: (b) => (b.heart = { ...(b.heart as object), hardPart: 'not_a_hard_part' }),
+        check: (b) => expect(b.heart.hardPart).toBe('calmer'),
       },
       {
         field: 'heart.d1',
         id: 'not_a_drive_1',
         mutate: (b) => (b.heart = { ...(b.heart as object), d1: 'not_a_drive_1' }),
+        // Marty's hard part is forget, so d1 goes back to that hard part's own drive.
+        check: (b) => expect(b.heart.d1).toBe(ownD1('forget')),
       },
       {
         field: 'heart.d2',
         id: 'not_a_drive_2',
         mutate: (b) => (b.heart = { ...(b.heart as object), d2: 'not_a_drive_2' }),
+        // Marty's blunt is 4.
+        check: (b) => expect(b.heart.d2).toBe(d2For(4)),
       },
     ];
 
-    for (const { field, id, mutate } of scalarCases) {
-      it(`unknown ${field} "${id}" throws ShareDecodeError naming the field and the id`, () => {
+    for (const { field, id, mutate, check } of scalarCases) {
+      it(`unknown ${field} "${id}" falls back, drops with reason fallback and does not echo the id`, () => {
         const raw = structuredClone(martyV2()) as unknown as Record<string, unknown>;
         mutate(raw);
         const payload = badPayload(raw);
 
-        const error = decodeFailure(payload);
-        expect(error.message).toMatch(/^share: /);
-        expect(error.message).toContain(field);
-        expect(error.message).toContain(id);
-        expect(() => fromShareHash(`#b=${payload}`, library)).toThrow(ShareDecodeError);
+        const { build, warnings, drops } = decodeBuild(payload, library);
+        check(build);
+        expect(drops).toContainEqual({ field, id, reason: 'fallback' });
+        expect(warnings.length).toBeGreaterThan(0);
+        for (const w of warnings) {
+          expect(w).toMatch(/^share: /);
+          expect(w).not.toContain(id);
+        }
+        expect(() => compile(build)).not.toThrow();
+        expect(fromShareHash(`#b=${payload}`, library).build).toEqual(build);
       });
     }
 
-    it('the same unknown id in a v1 link throws ShareDecodeError too', () => {
+    it('the same unknown id in a v1 link falls back too', () => {
+      const fallbacks = { base: 'chaos', outfit: 'has_it_together' } as const;
       for (const key of ['base', 'outfit'] as const) {
         const v1: BuildV1 = { ...rosterV1('marty'), [key]: 'not_a_real_id' };
-        const error = (() => {
-          try {
-            fromShareHash(toShareHash(v1), library);
-          } catch (e) {
-            return e;
-          }
-          return undefined;
-        })();
-        expect(error).toBeInstanceOf(ShareDecodeError);
-        expect((error as ShareDecodeError).message).toContain('not_a_real_id');
+        const { build, warnings, drops } = fromShareHash(toShareHash(v1), library);
+        expect(build[key]).toBe(fallbacks[key]);
+        expect(drops).toContainEqual({ field: key, id: 'not_a_real_id', reason: 'fallback' });
+        expect(warnings.length).toBeGreaterThan(0);
+        expect(warnings.join('\n')).not.toContain('not_a_real_id');
+        expect(() => compile(build)).not.toThrow();
       }
     });
 
     it('every known id from the library for these fields decodes', () => {
-      // The guard is "unknown", not "unusual": the first library id of each kind passes.
+      // The guard is "unknown", not "unusual": the first library id of each kind passes. d1 is the
+      // hard part's own drive and d2 is a drive of slot d2, which is what validation asks for.
       const raw = structuredClone(martyV2());
+      const hardPart = library.heart.hardParts[0];
+      const d2 = library.heart.drives.find((d) => d.slot === 'd2');
+      if (!d2) throw new Error('library has no d2 drive');
       const build: Build = {
         ...raw,
         base: library.bases[0].id as Build['base'],
         outfit: library.outfits[0].id,
         heart: {
-          hardPart: library.heart.hardParts[0].id as Build['heart']['hardPart'],
-          d1: library.heart.drives[0].id as Build['heart']['d1'],
-          d2: library.heart.drives[1].id as Build['heart']['d2'],
+          hardPart: hardPart.id as Build['heart']['hardPart'],
+          d1: hardPart.d1 as Build['heart']['d1'],
+          d2: d2.id as Build['heart']['d2'],
         },
       };
-      const { build: decoded, warnings } = decodeBuild(encodeBuild(build), library);
+      const { build: decoded, warnings, drops } = decodeBuild(encodeBuild(build), library);
       expect(warnings).toEqual([]);
+      expect(drops).toEqual([]);
       expect(decoded).toEqual(build);
     });
   });
@@ -925,8 +985,10 @@ describe('Share: garbage and a v3 payload throw ShareDecodeError', () => {
         expect(warnings).toEqual([]);
         expect(build.mode).toBe(mode);
       }
+      // Decode runs validateV2 (plan 2a), which allows a plan only for ChatGPT in instructions mode.
       for (const plan of ['free', 'paid'] as const) {
-        const { build, warnings } = decodeBuild(encodeBuild({ ...marty, plan }), library);
+        const withPlan: Build = { ...marty, target: 'chatgpt', mode: 'instructions', plan };
+        const { build, warnings } = decodeBuild(encodeBuild(withPlan), library);
         expect(warnings).toEqual([]);
         expect(build.plan).toBe(plan);
       }

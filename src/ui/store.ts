@@ -29,6 +29,14 @@ import type {
   TargetId,
 } from '../compiler/types.js';
 import { compile } from '../compiler/compile.js';
+import {
+  FALLBACK_BASE,
+  FALLBACK_HARD_PART,
+  FALLBACK_OUTFIT,
+  addRisk,
+  cleanName,
+  d2ForBlunt,
+} from '../compiler/defaults.js';
 import { effectiveGates, effectiveLimits } from '../compiler/gates.js';
 import { migrate, packsFromChips, retarget } from '../compiler/migrate.js';
 import { capOf as compilerCapOf } from '../compiler/profile.js';
@@ -127,14 +135,6 @@ export function isCompileError(r: CompileResult | CompileError): r is CompileErr
   return 'error' in r;
 }
 
-// Fills for a build with no pick yet (U2, U3), so the preview strip always compiles.
-const FALLBACK_BASE: BaseId = 'chaos';
-const FALLBACK_HARD_PART: HardPartId = 'calmer';
-const FALLBACK_OUTFIT: OutfitId = 'has_it_together';
-
-// The stats shed one point at a time, highest first, when a new risk stat needs room (U1).
-const SHED_ORDER = ['funny', 'chatty', 'proactive'] as const;
-
 const GATE_SETTINGS: readonly GateSetting[] = ['auto', 'approve', 'forbid'];
 
 export function initialState(): BuilderState {
@@ -170,23 +170,6 @@ function withoutRisk(stats: Stats): Stats {
   return { blunt, warm, funny, chatty, proactive };
 }
 
-// U1: risk starts at 2. If that passes the cap it starts at 1, and if that still passes the cap the
-// highest of funny, chatty and proactive drops by 1. Blunt and warm never move.
-export function addRisk(stats: Stats): Stats {
-  const base = withoutRisk(stats);
-  if (statTotal(base) + 2 <= STAT_CAP) return { ...base, risk: 2 };
-  const out: Stats = { ...base, risk: 1 };
-  while (statTotal(out) > STAT_CAP) {
-    const top = SHED_ORDER.reduce<(typeof SHED_ORDER)[number]>(
-      (hi, s) => (out[s] > out[hi] ? s : hi),
-      SHED_ORDER[0],
-    );
-    if (out[top] <= 1) break;
-    out[top] = (out[top] - 1) as Level;
-  }
-  return out;
-}
-
 function baseDefaults(id: BaseId): Stats {
   const base = library.bases.find((b) => b.id === id);
   if (!base) throw new Error(`store: unknown base ${id}`);
@@ -208,19 +191,13 @@ export function statsOf(d: Draft): Stats {
   return hasMarkets(d.chips) ? addRisk(defaults) : defaults;
 }
 
-// ---- Heart ----
-
-export function d2ForBlunt(blunt: Level): DriveId {
-  const drive = library.heart.drives.find(
-    (d) =>
-      d.slot === 'd2' &&
-      d.when !== undefined &&
-      'stat' in d.when &&
-      d.when.stat === 'blunt' &&
-      d.when.eq === blunt,
-  );
-  return drive?.id ?? `d2.blunt.${blunt}`;
+// Caps a name at 24 UTF-16 units without leaving half of a surrogate pair at the end.
+function capName(text: string): string {
+  const cut = text.slice(0, 24);
+  return /[\uD800-\uDBFF]$/.test(cut) ? cut.slice(0, -1) : cut;
 }
+
+// ---- Heart ----
 
 function hardPartOf(id: HardPartId) {
   return library.heart.hardParts.find((h) => h.id === id);
@@ -589,6 +566,10 @@ export const useBuilder = create<BuilderStore>()((set, get) => {
         // Pay is locked at forbid, so no change to it is ever stored.
         if (action === 'pay' || !GATE_SETTINGS.includes(setting)) return null;
         if (!exposedGates(s.draft.packs).includes(action)) return null;
+        // A gate with no auto soul line does not offer auto (treat as approve).
+        if (setting === 'auto' && library.gates.find((g) => g.id === action)?.soulLine.auto === null) {
+          return null;
+        }
         return draftPatch(s, { gates: { ...s.draft.gates, [action]: setting } });
       }),
 
@@ -638,7 +619,7 @@ export const useBuilder = create<BuilderStore>()((set, get) => {
         library.outfits.some((o) => o.id === id) ? draftPatch(s, { outfit: id }) : null,
       ),
 
-    setName: (text) => commit((s) => draftPatch(s, { name: text.slice(0, 24) })),
+    setName: (text) => commit((s) => draftPatch(s, { name: capName(cleanName(text)) })),
 
     setAdvancedRoles: (on) =>
       commit((s) => ({

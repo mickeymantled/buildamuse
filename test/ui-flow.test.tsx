@@ -425,8 +425,10 @@ describe('required screens', () => {
     const box = screen.getByRole('textbox', { name: copy.name.label });
     expect(isBlocked(nextButton())).toBe(true);
 
+    // setName applies cleanName (W24): a run of whitespace collapses to one space, so three typed
+    // spaces leave one. The trimmed name is still empty, so Next stays blocked.
     await user.type(box, '   ');
-    expect((box as HTMLInputElement).value).toBe('   ');
+    expect((box as HTMLInputElement).value).toBe(' ');
     expect(isBlocked(nextButton())).toBe(true);
     await user.click(nextButton());
     expect(currentScreen()).toBe('name');
