@@ -4,6 +4,15 @@
 // delivery profile (muse, openclaw, hermes, grok, chatgpt dot, gpt, project, instructions free and
 // paid). Chassis lines are per-profile variants (omitted, replaced, or short form), so each property
 // below is checked per profile. Run against all nine roster builds plus four constructed builds.
+// The gpt profile is hidden from the picker and deprecated (QUESTIONS B2) and has no goldens, but gpt
+// mode still compiles, so it stays in the profile list here as a compiler check.
+//
+// Chassis form (B1, V29): a profile with a cap of 4,000 or less (not custom instructions) that goes
+// over its cap switches its chassis to short forms (Tier B), and its soul then carries the warning
+// "chassis switched to short forms". The expected chassis form is therefore per compile: 'short' when
+// that warning is present, else the profile's own form. In short form a profile's own short variant
+// wins, then the profile's own full variant (V29: a dot soul keeps its outrank, check and judge
+// wording), then the record's generic `short` text. Every chassis line still ships; none is dropped.
 //
 // Expected texts come from the library tables (src/library/chassis.json, targets.json), the brief and
 // the v2 design, never from compiler output.
@@ -181,6 +190,13 @@ function profileOf(run: Run): Profile {
   return resolveProfile(run.v2, library);
 }
 
+// The chassis form a compile rendered in (B1): 'short' when the result warns that Tier B switched the
+// chassis to short forms, else the form the profile and plan give (chassisFormOf).
+function formOfRun(run: Run): ChassisForm {
+  const switched = compiled(run).warnings.some((w) => w.includes(TIER_B_WARNING));
+  return switched ? 'short' : chassisFormOf(profileOf(run), run.v2);
+}
+
 // A traced line id is the record id, or the record id plus a profile suffix ("@profile" for a
 // variant, "#short" or "#short@profile" for a short form).
 function idIs(lineId: string, recordId: string): boolean {
@@ -211,14 +227,19 @@ const MUSE_RULES_HEADING = profileRecord('muse').templates['rules.heading'];
 if (!MUSE_RULES_HEADING) throw new Error('muse rules.heading template not found in library');
 
 // Chassis lines per profile, from chassis.json and the profile rows in targets.json. For each
-// profile: the form its chassis renders in, the chassis ids it omits (variant null), and the
-// profile's own replacement texts (the short variant on a short form, else the full variant).
-// Every other line renders as its full text, or its `short` text on a short form.
+// profile: the form its chassis renders in before any length tier (`form`), the chassis ids it omits
+// (variant null), the profile's own full replacement texts (`replace`) and its own short replacement
+// texts (`replaceShort`). On a short form a line renders as its profile short text, else (V29) its
+// profile full text, else the record's generic `short` text (or its full text when it has no short).
+// On a full form it renders as its profile full text, else the record's full text.
 interface ChassisExpectation {
   form: 'full' | 'short';
   omit: string[];
   replace: Record<string, string>;
+  replaceShort: Record<string, string>;
 }
+
+type ChassisForm = 'full' | 'short';
 
 const NO_OPENING_NO_REFINE = ['chassis.opening.1', 'chassis.opening.2', 'chassis.memory.refine'];
 const NO_PERSONA_EDIT_RULES = [
@@ -234,13 +255,18 @@ const CHASSIS_EXPECTED: Record<ProfileKey, ChassisExpectation> = {
     form: 'full',
     omit: ['chassis.memory.no_self_edit', 'chassis.rules.outrank'],
     replace: {},
+    replaceShort: {},
   },
-  openclaw: { form: 'full', omit: NO_OPENING_NO_REFINE, replace: {} },
-  hermes: { form: 'full', omit: NO_OPENING_NO_REFINE, replace: {} },
+  openclaw: { form: 'full', omit: NO_OPENING_NO_REFINE, replace: {}, replaceShort: {} },
+  hermes: { form: 'full', omit: NO_OPENING_NO_REFINE, replace: {}, replaceShort: {} },
   grok: {
     form: 'short',
     omit: NO_PERSONA_EDIT_RULES,
     replace: {
+      'chassis.memory.judge':
+        'This description is how you judge. Memory is what you know. Never put a fact here.',
+    },
+    replaceShort: {
       'chassis.memory.judge': 'This description is judgment, memory is facts. No facts here.',
     },
   },
@@ -253,6 +279,8 @@ const CHASSIS_EXPECTED: Record<ProfileKey, ChassisExpectation> = {
       'chassis.memory.judge':
         'This message is how you judge. Memory is what you know. Never put a fact here.',
     },
+    // The dot has no short variants of its own: in short form its own wording wins (V29).
+    replaceShort: {},
   },
   'chatgpt-gpt': {
     form: 'full',
@@ -262,6 +290,7 @@ const CHASSIS_EXPECTED: Record<ProfileKey, ChassisExpectation> = {
       'chassis.memory.judge':
         'These instructions are how you judge. Memory is what you know. Never put a fact here.',
     },
+    replaceShort: {},
   },
   'chatgpt-project': {
     form: 'full',
@@ -271,6 +300,7 @@ const CHASSIS_EXPECTED: Record<ProfileKey, ChassisExpectation> = {
       'chassis.memory.judge':
         'These instructions are how you judge. Memory is what you know. Never put a fact here.',
     },
+    replaceShort: {},
   },
   'chatgpt-instructions-paid': {
     form: 'full',
@@ -280,33 +310,53 @@ const CHASSIS_EXPECTED: Record<ProfileKey, ChassisExpectation> = {
       'chassis.memory.judge':
         'These custom instructions are how you judge. Memory is what you know. Never put a fact here.',
     },
+    replaceShort: {
+      'chassis.act.check': 'Before "I can\'t," check: web, files, code, connected apps.',
+      'chassis.memory.judge': 'These instructions are judgment, memory is facts. No facts here.',
+    },
   },
   'chatgpt-instructions-free': {
     form: 'short',
     omit: NO_PERSONA_EDIT_RULES,
     replace: {
+      'chassis.act.check': ACT_CHECK_FULL,
+      'chassis.memory.judge':
+        'These custom instructions are how you judge. Memory is what you know. Never put a fact here.',
+    },
+    replaceShort: {
       'chassis.act.check': 'Before "I can\'t," check: web, files, code, connected apps.',
       'chassis.memory.judge': 'These instructions are judgment, memory is facts. No facts here.',
     },
   },
 };
 
-// The text a chassis record renders as on a profile, or null when the profile omits it.
-function expectedChassisText(key: ProfileKey, id: string): string | null {
+// Tier B warning text (B1): the compile says so when it switches the chassis to short forms.
+const TIER_B_WARNING = 'chassis switched to short forms';
+
+// Profiles that run the B1 length tiers: a cap of 4,000 or less, not custom instructions.
+const TIERED_PROFILES: ProfileKey[] = ['muse', 'openclaw', 'hermes', 'grok', 'chatgpt-dot'];
+
+// The text a chassis record renders as on a profile in a form, or null when the profile omits it.
+function expectedChassisText(key: ProfileKey, id: string, form: ChassisForm): string | null {
   const expectation = CHASSIS_EXPECTED[key];
   if (expectation.omit.includes(id)) return null;
+  if (form === 'short' && Object.hasOwn(expectation.replaceShort, id)) return expectation.replaceShort[id];
   if (Object.hasOwn(expectation.replace, id)) return expectation.replace[id];
   const record = chassisRecord(id);
-  return expectation.form === 'short' ? (record.short ?? record.line) : record.line;
+  return form === 'short' ? (record.short ?? record.line) : record.line;
 }
 
-// Every chassis text a build's soul must carry on a profile: always-on lines, plus the
+// Every chassis text a build's soul must carry on a profile in a form: always-on lines, plus the
 // drop_bit line when funny >= 2 (the one conditional chassis line).
-function expectedChassisTexts(key: ProfileKey, build: Build): { id: string; text: string }[] {
+function expectedChassisTexts(
+  key: ProfileKey,
+  build: Build,
+  form: ChassisForm,
+): { id: string; text: string }[] {
   const out: { id: string; text: string }[] = [];
   for (const record of library.chassis.lines) {
     if (record.id === DROP_BIT_ID && build.stats.funny < 2) continue;
-    const text = expectedChassisText(key, record.id);
+    const text = expectedChassisText(key, record.id, form);
     if (text !== null) out.push({ id: record.id, text });
   }
   return out;
@@ -544,6 +594,16 @@ describe('Library facts the output tests rely on', () => {
         .map(([id]) => id)
         .sort();
       expect([...expectation.omit].sort(), `${pc.key} omitted chassis ids`).toEqual(nulled);
+
+      // The profile's own replacement texts: full variants, and short variants (a profile with
+      // none keeps its full wording on a short form, V29).
+      const fullVariants = Object.fromEntries(
+        Object.entries(profile.chassisVariants).filter(([, v]) => typeof v === 'string'),
+      );
+      expect(expectation.replace, `${pc.key} full chassis variants`).toEqual(fullVariants);
+      expect(expectation.replaceShort, `${pc.key} short chassis variants`).toEqual(
+        profile.chassisShortVariants ?? {},
+      );
     }
   });
 });
@@ -580,12 +640,7 @@ describe('Chassis', () => {
       '$label soul contains every chassis line applyChassis returns for the profile',
       (run) => {
         const result = compiled(run);
-        const profile = profileOf(run);
-        const applied = applyChassis(
-          resolve(run.v2, library).chassis,
-          profile,
-          chassisFormOf(profile, run.v2),
-        );
+        const applied = applyChassis(resolve(run.v2, library).chassis, profileOf(run), formOfRun(run));
         expect(applied.length, 'no chassis lines resolved').toBeGreaterThan(0);
         for (const line of applied) {
           expect(result.soul.includes(line.line), `chassis ${line.id} missing: ${line.line}`).toBe(
@@ -599,12 +654,7 @@ describe('Chassis', () => {
       '$label renders each applied chassis line exactly once, byte-identical',
       (run) => {
         const result = compiled(run);
-        const profile = profileOf(run);
-        const applied = applyChassis(
-          resolve(run.v2, library).chassis,
-          profile,
-          chassisFormOf(profile, run.v2),
-        );
+        const applied = applyChassis(resolve(run.v2, library).chassis, profileOf(run), formOfRun(run));
         for (const line of applied) {
           const matches = result.soulLines.filter((l) => l.id === line.id);
           expect(matches.length, `expected exactly one rendered line for ${line.id}`).toBe(1);
@@ -619,7 +669,7 @@ describe('Chassis', () => {
       '$label carries the profile variant of every chassis line, from the library tables',
       (run) => {
         const result = compiled(run);
-        for (const { id, text } of expectedChassisTexts(pc.key, run.v2)) {
+        for (const { id, text } of expectedChassisTexts(pc.key, run.v2, formOfRun(run))) {
           expect(result.soul.includes(text), `chassis ${id} missing: ${text}`).toBe(true);
         }
       },
@@ -631,8 +681,13 @@ describe('Chassis', () => {
         const rendered = result.soulLines.filter((l) => idIs(l.id, id));
         expect(rendered.map((l) => l.text), `${id} must be omitted on ${pc.key}`).toEqual([]);
         // Opening lines are skipped by text: openclaw's own opening line quotes one of them.
+        // Both forms are checked: Tier B's short rebuild must not bring an omitted line back.
         if (!id.startsWith('chassis.opening.')) {
-          expect(result.soul.includes(chassisRecord(id).line), `${id} text leaked`).toBe(false);
+          const record = chassisRecord(id);
+          expect(result.soul.includes(record.line), `${id} text leaked`).toBe(false);
+          if (record.short !== undefined) {
+            expect(result.soul.includes(record.short), `${id} short text leaked`).toBe(false);
+          }
         }
       }
     });
@@ -641,9 +696,122 @@ describe('Chassis', () => {
       const result = compiled(run);
       const present = result.soulLines.some((l) => idIs(l.id, DROP_BIT_ID));
       expect(present).toBe(run.v1.stats.funny >= 2);
-      const text = expectedChassisText(pc.key, DROP_BIT_ID);
+      const text = expectedChassisText(pc.key, DROP_BIT_ID, formOfRun(run));
       if (text === null) throw new Error(`${pc.key} omits drop_bit in the expectation table`);
       expect(result.soul.includes(text)).toBe(run.v1.stats.funny >= 2);
+    });
+  });
+});
+
+// --- Chassis form under the length tiers (B1, V29) ---------------------------------------
+
+// The profiles whose chassis starts full and that run the tiers (cap 4,000 or less, not custom
+// instructions): their chassis goes short only when the soul is still over its cap after Tier A.
+const TIER_B_PROFILES: ProfileKey[] = TIERED_PROFILES.filter((k) => CHASSIS_EXPECTED[k].form === 'full');
+
+function switchedToShort(run: Run): boolean {
+  return compiled(run).warnings.some((w) => w.includes(TIER_B_WARNING));
+}
+
+// The traced id a chassis record renders under (design section 4, trace table): the record id,
+// plus "@<profileId>" for the profile's own variant, "#short" for the generic short form, and
+// "#short@<profileId>" for a profile's own short variant.
+function expectedChassisId(pc: ProfileCase, id: string, form: ChassisForm): string {
+  const expectation = CHASSIS_EXPECTED[pc.key];
+  if (form === 'short' && Object.hasOwn(expectation.replaceShort, id)) return `${id}#short@${pc.profileId}`;
+  if (Object.hasOwn(expectation.replace, id)) return `${id}@${pc.profileId}`;
+  if (form === 'short' && chassisRecord(id).short !== undefined) return `${id}#short`;
+  return id;
+}
+
+describe('Chassis form under the length tiers (B1, V29)', () => {
+  it('the profiles that run Tier B are muse, openclaw, hermes and the dot (cap 4,000 or less, full chassis)', () => {
+    for (const key of PROFILE_CASES.map((pc) => pc.key)) {
+      const pc = PROFILE_CASES.find((c) => c.key === key);
+      if (!pc) throw new Error(`profile case ${key} not found`);
+      const profile = profileRecord(pc.profileId);
+      const tiered = typeof profile.lengthCap === 'number' && profile.lengthCap <= 4000;
+      const runsTierB = tiered && profile.id !== 'chatgpt-instructions' && profile.chassisForm === 'full';
+      expect(TIER_B_PROFILES.includes(key), `${key} Tier B membership`).toBe(runsTierB);
+    }
+  });
+
+  describe.each(PROFILE_CASES)('on $key', (pc) => {
+    const tierB = TIER_B_PROFILES.includes(pc.key);
+
+    if (tierB) {
+      it('at least one build in the set goes over its cap and exercises the short chassis', () => {
+        const switched = runsFor(pc).filter(switchedToShort).map((r) => r.label);
+        expect(switched.length, `no build switched ${pc.key} to short forms; add a longer build`).toBeGreaterThan(0);
+      });
+
+      it.each(runsFor(pc))('$label fits its cap unless it switched the chassis to short forms', (run) => {
+        const profile = profileOf(run);
+        const cap = profile.lengthCap;
+        if (typeof cap !== 'number') throw new Error(`${pc.key} has no numeric cap`);
+        if (!switchedToShort(run)) {
+          expect(compiled(run).length, 'soul over cap with the chassis still full').toBeLessThanOrEqual(cap);
+        }
+      });
+    } else {
+      it.each(runsFor(pc))('$label never switches chassis form: it stays the profile form', (run) => {
+        expect(switchedToShort(run)).toBe(false);
+        expect(formOfRun(run)).toBe(CHASSIS_EXPECTED[pc.key].form);
+      });
+    }
+
+    it.each(runsFor(pc))('$label ships every chassis line once, under the id its form gives', (run) => {
+      const result = compiled(run);
+      const form = formOfRun(run);
+      const expected = expectedChassisTexts(pc.key, run.v2, form).map((c) => c.id);
+      const rendered = result.soulLines
+        .filter((l) => l.kind === 'chassis' || l.id.startsWith('chassis.'))
+        .map((l) => l.id);
+      expect(rendered.sort()).toEqual(expected.map((id) => expectedChassisId(pc, id, form)).sort());
+    });
+  });
+
+  // V29: with no short variant of its own, a profile's own wording wins over the generic short form.
+  // The dot has full variants for three records and no short variants, so on a short chassis those
+  // three keep the dot wording and never take the file-target short text.
+  describe('on chatgpt-dot, a short chassis keeps the dot variants (V29)', () => {
+    const dot = PROFILE_CASES.find((pc) => pc.key === 'chatgpt-dot');
+    if (!dot) throw new Error('chatgpt-dot profile case not found');
+    const dotRuns = () => runsFor(dot).filter(switchedToShort);
+    const VARIANT_IDS = ['chassis.rules.outrank', 'chassis.act.check', 'chassis.memory.judge'];
+
+    it('the dot has no short variants of its own and full variants for exactly these records', () => {
+      const profile = profileRecord('chatgpt-dot');
+      expect(profile.chassisShortVariants ?? {}).toEqual({});
+      const strings = Object.entries(profile.chassisVariants)
+        .filter(([, v]) => typeof v === 'string')
+        .map(([id]) => id)
+        .sort();
+      expect(strings).toEqual([...VARIANT_IDS].sort());
+    });
+
+    it('a short-chassis dot soul carries the dot wording and not the generic short text', () => {
+      const runs = dotRuns();
+      expect(runs.length, 'no dot build switched to short forms').toBeGreaterThan(0);
+      for (const run of runs) {
+        const result = compiled(run);
+        for (const id of VARIANT_IDS) {
+          const own = profileRecord('chatgpt-dot').chassisVariants[id];
+          if (typeof own !== 'string') throw new Error(`dot variant for ${id} is not a string`);
+          const generic = chassisRecord(id).short;
+          if (generic === undefined) throw new Error(`${id} has no generic short text`);
+          expect(result.soul.includes(own), `${run.label}: ${id} lost the dot wording`).toBe(true);
+          expect(result.soul.includes(generic), `${run.label}: ${id} took the generic short text`).toBe(false);
+          const ids = result.soulLines.filter((l) => idIs(l.id, id)).map((l) => l.id);
+          expect(ids, `${run.label}: ${id} trace id`).toEqual([`${id}@chatgpt-dot`]);
+        }
+      }
+    });
+
+    it('a short-chassis dot soul never carries the file-target outrank text', () => {
+      for (const run of dotRuns()) {
+        expect(compiled(run).soul).not.toContain('AGENTS.md');
+      }
     });
   });
 });
@@ -788,8 +956,9 @@ describe('Act-vs-ask pair', () => {
       expect(reversible.length, 'reversible line missing').toBe(1);
 
       // The rendered text is the profile's form of each line, from the library tables.
-      const approvalText = expectedChassisText(pc.key, APPROVAL_ID);
-      const reversibleText = expectedChassisText(pc.key, REVERSIBLE_ID);
+      const form = formOfRun(run);
+      const approvalText = expectedChassisText(pc.key, APPROVAL_ID, form);
+      const reversibleText = expectedChassisText(pc.key, REVERSIBLE_ID, form);
       expect(approval[0].text).toBe(`- ${approvalText}`);
       expect(reversible[0].text).toBe(`- ${reversibleText}`);
     });
