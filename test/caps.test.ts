@@ -1,10 +1,15 @@
-// Length caps for the ChatGPT profiles (brief Part F done criterion: "every chatgpt golden fits
-// its mode's cap"; brief line 167: "chatgpt bundles fit their cap"), plus the over-cap warning
-// contract for every golden spec.
+// Length caps for every golden spec (QUESTIONS B1, B2), plus the over-cap warning contract.
 //
-// Caps (brief Part C): chatgpt-dot 3,600; chatgpt-gpt 8,000 with a description under 300;
-// chatgpt-project 8,000; chatgpt-instructions 1,500 free and 5,000 paid, applied to both fields
-// (the first-field memory block and the second-field personality).
+// Caps now (B1): muse 4,000, hermes 4,000, grok 4,000, openclaw 3,600, chatgpt-dot 3,600,
+// chatgpt-project 8,000, chatgpt-instructions 1,500 free and 5,000 paid, applied to both fields
+// (the first-field memory block and the second-field personality). Grok's 4,000 is a quality cap;
+// the product limit is above 5,500.
+//
+// B2: the ChatGPT "gpt" mode stays in the compiler, hidden from the picker and deprecated, but it
+// has no goldens. The ChatGPT goldens are chatgpt-dot for the nine starters, plus Marty and June on
+// instructions free, instructions paid and project, plus the sol.chatgpt-project.roles golden. The
+// last describe block proves the gpt profile still compiles for every starter, fits 8,000 and
+// carries a description under 300.
 //
 // Which files carry a cap. The cap is the length of a pasteable or file personality artifact:
 //   - the main personality file (every spec),
@@ -14,9 +19,10 @@
 // and carry no cap. A bundle file with a label this test does not know fails the
 // "every bundle file is classified" test, so a new kind of file cannot slip past unchecked.
 //
-// QUESTIONS V25 (blocking, Brian): Marty and June on free custom instructions are over 1,500
-// because the short chassis plus the rules block (shown twice) plus drives already exceeds it.
-// Those two personality cap assertions are written with it.fails, so the suite stays green while
+// QUESTIONS V25 / B1 / V29: Marty and June on free custom instructions are still over 1,500 after
+// the bottom repeat block was cut to gate rules lines only (the short chassis plus the rules block
+// plus drives already exceed it). That combination is blocked: the UI steers those builds to Paid.
+// Their two personality cap assertions are written with it.fails, so the suite stays green while
 // they are over and turns red the moment they start to fit (then the marker should be removed).
 
 import { describe, it, expect } from 'vitest';
@@ -27,24 +33,35 @@ import type { GoldenSpec } from '../tools/golden.js';
 import { capOf, resolveProfile } from '../src/compiler/profile.js';
 import type { BundleFile, CompileResult } from '../src/compiler/types.js';
 
-// The cap, in characters, each ChatGPT mode must hold. Written out from the brief so the test
-// does not just echo whatever the library JSON says.
-const BRIEF_CAPS = {
-  dot: 3600,
-  gpt: 8000,
-  project: 8000,
-  'instructions-free': 1500,
-  'instructions-paid': 5000,
+// The cap, in characters, each golden profile must hold. Written out from the decisions so the
+// test does not just echo whatever the library JSON says.
+const EXPECTED_CAPS = {
+  muse: 4000,
+  openclaw: 3600,
+  hermes: 4000,
+  grok: 4000,
+  'chatgpt-dot': 3600,
+  'chatgpt-project': 8000,
+  'chatgpt-instructions-free': 1500,
+  'chatgpt-instructions-paid': 5000,
 } as const;
 
+// The deprecated gpt mode: not a golden, but the compiler keeps it (B2).
+const GPT_CAP = 8000;
 const GPT_DESCRIPTION_LIMIT = 300;
 
-function briefCapKey(spec: GoldenSpec): keyof typeof BRIEF_CAPS {
+function expectedCapKey(spec: GoldenSpec): keyof typeof EXPECTED_CAPS {
+  if (spec.target !== 'chatgpt') {
+    return spec.target;
+  }
   const mode = spec.mode ?? 'dot';
   if (mode === 'instructions') {
-    return spec.plan === 'paid' ? 'instructions-paid' : 'instructions-free';
+    return spec.plan === 'paid' ? 'chatgpt-instructions-paid' : 'chatgpt-instructions-free';
   }
-  return mode;
+  if (mode === 'dot' || mode === 'project') {
+    return `chatgpt-${mode}`;
+  }
+  throw new Error(`${spec.id}: mode ${mode} is not a golden mode (B2)`);
 }
 
 interface Compiled {
@@ -66,7 +83,7 @@ function compiled(spec: GoldenSpec): Compiled {
   return hit;
 }
 
-// V25: the two free custom-instructions goldens known to be over 1,500.
+// V25 / B1 / V29: the two free custom-instructions goldens known to be over 1,500.
 const V25_BLOCKED = new Set(['marty.chatgpt-instructions-free', 'june.chatgpt-instructions-free']);
 
 const chatgptSpecs = GOLDEN_SPECS.filter((s) => s.target === 'chatgpt');
@@ -139,28 +156,36 @@ function cappedTargets(result: CompileResult): CapTarget[] {
 }
 
 // ---------------------------------------------------------------------------------------------
-// ChatGPT goldens fit their mode's cap.
+// Every golden fits its profile's cap.
 // ---------------------------------------------------------------------------------------------
 
-describe('ChatGPT caps: golden specs', () => {
-  it('covers the ChatGPT goldens: nine starters on dot and gpt, Marty and June on three more modes, plus the Sol gpt roles golden', () => {
+describe('Caps: golden specs', () => {
+  it('has the ChatGPT goldens: dot for nine starters, Marty and June on three more modes, and the Sol project roles golden, with no gpt golden (B2)', () => {
     const ids = chatgptSpecs.map((s) => s.id);
     expect(ids.filter((id) => id.endsWith('.chatgpt-dot')).length).toBe(9);
-    expect(ids.filter((id) => id.endsWith('.chatgpt-gpt')).length).toBe(9);
+    expect(ids.filter((id) => id.includes('chatgpt-gpt')).length).toBe(0);
+    expect(GOLDEN_SPECS.filter((s) => s.mode === 'gpt').length).toBe(0);
     for (const starter of ['marty', 'june']) {
       expect(ids).toContain(`${starter}.chatgpt-instructions-free`);
       expect(ids).toContain(`${starter}.chatgpt-instructions-paid`);
       expect(ids).toContain(`${starter}.chatgpt-project`);
     }
-    expect(ids).toContain('sol.chatgpt-gpt.roles');
-    expect(ids.length).toBe(9 + 9 + 6 + 1);
+    expect(ids).toContain('sol.chatgpt-project.roles');
+    expect(ids.length).toBe(9 + 6 + 1);
   });
 
-  it('the library caps match the brief caps for every ChatGPT golden', () => {
-    for (const spec of chatgptSpecs) {
+  it('has the nine starters on each of muse, openclaw, hermes and grok', () => {
+    for (const target of ['muse', 'openclaw', 'hermes', 'grok'] as const) {
+      const ids = GOLDEN_SPECS.filter((s) => s.target === target && s.roles === undefined).map((s) => s.id);
+      expect(ids.length, `${target} goldens`).toBe(9);
+    }
+  });
+
+  it('the library caps match the expected caps for every golden spec', () => {
+    for (const spec of GOLDEN_SPECS) {
       expect({ id: spec.id, cap: compiled(spec).cap }).toEqual({
         id: spec.id,
-        cap: BRIEF_CAPS[briefCapKey(spec)],
+        cap: EXPECTED_CAPS[expectedCapKey(spec)],
       });
     }
   });
@@ -168,7 +193,7 @@ describe('ChatGPT caps: golden specs', () => {
   describe('result.length is the personality length', () => {
     // Kept apart from the cap assertions below so a drift here can never make a V25
     // it.fails case "fail as expected" for the wrong reason.
-    for (const spec of chatgptSpecs) {
+    for (const spec of GOLDEN_SPECS) {
       it(`${spec.id} length equals soul length`, () => {
         const { result } = compiled(spec);
         expect(result.length).toBe(result.soul.length);
@@ -176,14 +201,15 @@ describe('ChatGPT caps: golden specs', () => {
     }
   });
 
-  describe('personality length fits the mode cap', () => {
-    for (const spec of chatgptSpecs) {
+  describe('personality length fits the profile cap', () => {
+    for (const spec of GOLDEN_SPECS) {
       // Compiled at collection time, outside the test body, so a compile error is never
       // swallowed by it.fails. The body is the cap assertion and nothing else.
-      const { result, cap } = compiled(spec);
-      const name = `${spec.id} fits its cap`;
+      const { result } = compiled(spec);
+      const cap = EXPECTED_CAPS[expectedCapKey(spec)];
+      const name = `${spec.id} fits ${cap}`;
       if (V25_BLOCKED.has(spec.id)) {
-        // blocked on QUESTIONS V25: over 1,500 until Brian picks a fix. Flips red when it fits.
+        // blocked on QUESTIONS V25 / B1 / V29: over 1,500 until Brian picks a fix. Flips red when it fits.
         it.fails(`${name} (blocked on QUESTIONS V25)`, () => {
           expect(result.length).toBeLessThanOrEqual(cap);
         });
@@ -198,9 +224,10 @@ describe('ChatGPT caps: golden specs', () => {
   describe('every capped file in the bundle fits the cap', () => {
     // The personality is not the only artifact a bundle ships: role goldens ship one capped file
     // per role, and instructions ships a capped first field.
-    for (const spec of chatgptSpecs) {
+    for (const spec of GOLDEN_SPECS) {
       it(`${spec.id}: personality, memory field and role files are each within the cap`, () => {
-        const { result, cap } = compiled(spec);
+        const { result } = compiled(spec);
+        const cap = EXPECTED_CAPS[expectedCapKey(spec)];
         for (const target of cappedTargets(result)) {
           // The V25 personality is asserted by its it.fails case above; everything else, including
           // the memory field of those same two specs, is asserted here.
@@ -211,17 +238,17 @@ describe('ChatGPT caps: golden specs', () => {
     }
   });
 
-  describe('sol.chatgpt-gpt.roles: every role GPT fits the 8,000 Instructions cap', () => {
-    const spec = chatgptSpecs.find((s) => s.id === 'sol.chatgpt-gpt.roles');
+  describe('sol.chatgpt-project.roles: every role instructions file fits the 8,000 Project cap', () => {
+    const spec = chatgptSpecs.find((s) => s.id === 'sol.chatgpt-project.roles');
 
-    it('is a gpt golden with a role set', () => {
+    it('is a project golden with a role set', () => {
       expect(spec).toBeDefined();
-      expect(spec?.mode).toBe('gpt');
+      expect(spec?.mode).toBe('project');
       expect(spec?.roles?.length).toBeGreaterThan(0);
     });
 
     it('ships exactly one role instructions file per role in the set', () => {
-      if (!spec) throw new Error('sol.chatgpt-gpt.roles is missing from GOLDEN_SPECS');
+      if (!spec) throw new Error('sol.chatgpt-project.roles is missing from GOLDEN_SPECS');
       const { result } = compiled(spec);
       const roleFiles = result.files.filter((f) => kindOf(f) === 'role-soul');
       const expectedLabels = (spec.roles ?? []).map((id) => {
@@ -233,15 +260,15 @@ describe('ChatGPT caps: golden specs', () => {
     });
 
     for (const roleId of ['lead', 'searcher', 'synthesizer', 'fact-checker']) {
-      it(`${roleId} fits ${BRIEF_CAPS.gpt}`, () => {
-        if (!spec) throw new Error('sol.chatgpt-gpt.roles is missing from GOLDEN_SPECS');
+      it(`${roleId} fits ${EXPECTED_CAPS['chatgpt-project']}`, () => {
+        if (!spec) throw new Error('sol.chatgpt-project.roles is missing from GOLDEN_SPECS');
         const role = library.roles.find((r) => r.id === roleId);
         expect(role, `role ${roleId} is in the library`).toBeDefined();
         const { result } = compiled(spec);
         const file = result.files.find((f) => f.label === `Role instructions: ${role?.label}`);
         expect(file, `a role instructions file for ${roleId}`).toBeDefined();
         expect(file?.content.length).toBeGreaterThan(0);
-        expect(file?.content.length).toBeLessThanOrEqual(BRIEF_CAPS.gpt);
+        expect(file?.content.length).toBeLessThanOrEqual(EXPECTED_CAPS['chatgpt-project']);
       });
     }
   });
@@ -257,17 +284,60 @@ describe('ChatGPT caps: golden specs', () => {
       });
     }
   });
+});
 
-  describe('gpt: the description is under 300 characters', () => {
-    for (const spec of chatgptSpecs.filter((s) => s.mode === 'gpt')) {
-      it(`${spec.id} description is under ${GPT_DESCRIPTION_LIMIT}`, () => {
+// ---------------------------------------------------------------------------------------------
+// The deprecated gpt mode (B2): hidden from the picker, no goldens, but the compiler keeps it.
+// ---------------------------------------------------------------------------------------------
+
+describe('gpt mode: still compiles for every starter (deprecated, B2)', () => {
+  // Specs built here, not in GOLDEN_SPECS: gpt has no goldens. buildFor migrates the roster build
+  // to the chatgpt target in gpt mode exactly as it does for a golden.
+  const gptSpecs: GoldenSpec[] = library.roster.map((entry) => ({
+    id: `${entry.id}.chatgpt-gpt`,
+    starter: entry.id,
+    target: 'chatgpt',
+    mode: 'gpt',
+  }));
+
+  it('covers all nine starters', () => {
+    expect(library.roster.length).toBe(9);
+    expect(gptSpecs.length).toBe(9);
+  });
+
+  it('the chatgpt-gpt profile is still in the library with cap 8,000', () => {
+    const profile = library.targets.profiles.find((p) => p.id === 'chatgpt-gpt');
+    expect(profile, 'the compiler keeps the gpt profile').toBeDefined();
+    expect(profile?.target).toBe('chatgpt');
+    expect(profile?.mode).toBe('gpt');
+    expect(profile?.lengthCap).toBe(GPT_CAP);
+  });
+
+  for (const spec of gptSpecs) {
+    describe(spec.id, () => {
+      it('builds in gpt mode and resolves the 8,000 cap', () => {
+        const build = buildFor(spec, library);
+        expect(build.target).toBe('chatgpt');
+        expect(build.mode).toBe('gpt');
+        expect(compiled(spec).cap).toBe(GPT_CAP);
+      });
+
+      it('compiles to a non-empty soul that fits 8,000 with no length warning', () => {
+        const { result } = compiled(spec);
+        expect(result.soul.length).toBeGreaterThan(0);
+        expect(result.length).toBe(result.soul.length);
+        expect(result.length).toBeLessThanOrEqual(GPT_CAP);
+        expect(result.warnings.filter((w) => w.startsWith('length:'))).toEqual([]);
+      });
+
+      it(`has a description under ${GPT_DESCRIPTION_LIMIT} characters`, () => {
         const { result } = compiled(spec);
         expect(result.description).toBeDefined();
         expect(result.description?.length).toBeGreaterThan(0);
         expect(result.description?.length).toBeLessThan(GPT_DESCRIPTION_LIMIT);
       });
-    }
-  });
+    });
+  }
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -319,7 +389,7 @@ describe('Over-cap warning contract: every golden spec', () => {
         'june.grok.roles',
         'marty.openclaw.roles',
         'rook.hermes.roles',
-        'sol.chatgpt-gpt.roles',
+        'sol.chatgpt-project.roles',
       ]);
     });
 
@@ -360,10 +430,10 @@ describe('Over-cap warning contract: every golden spec', () => {
       const result = compile(build, lib);
       const memory = result.files.find((f) => kindOf(f) === 'memory-field');
       expect(memory, 'instructions mode delivers the memory block as its own field').toBeDefined();
-      expect(memory?.content.length).toBeGreaterThan(BRIEF_CAPS['instructions-free']);
+      expect(memory?.content.length).toBeGreaterThan(EXPECTED_CAPS['chatgpt-instructions-free']);
       const rule = overCapWarning(
         { kind: 'memory-field', path: memory?.path ?? '', length: memory?.content.length ?? 0 },
-        BRIEF_CAPS['instructions-free'],
+        EXPECTED_CAPS['chatgpt-instructions-free'],
       );
       expect(result.warnings.some(rule.matches), `no warning reads ${rule.describe}`).toBe(true);
     });
@@ -374,8 +444,8 @@ describe('Over-cap warning contract: every golden spec', () => {
       const result = compile(build, lib);
       const memory = result.files.find((f) => kindOf(f) === 'memory-field');
       expect(memory, 'instructions mode delivers the memory block as its own field').toBeDefined();
-      expect(memory?.content.length).toBeGreaterThan(BRIEF_CAPS['instructions-free']);
-      expect(memory?.content.length).toBeLessThanOrEqual(BRIEF_CAPS['instructions-paid']);
+      expect(memory?.content.length).toBeGreaterThan(EXPECTED_CAPS['chatgpt-instructions-free']);
+      expect(memory?.content.length).toBeLessThanOrEqual(EXPECTED_CAPS['chatgpt-instructions-paid']);
       expect(result.warnings.filter((w) => w.startsWith('length: memory block'))).toEqual([]);
     });
   });
