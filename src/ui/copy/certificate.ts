@@ -1,7 +1,10 @@
 // Certificate screen strings (M4 slice 4.12 owns this file). Spread into copy in src/ui/copy.ts.
-// The first block of keys is the M3 placeholder's; slice 4.12 replaces it.
-// The keys after it are the certificate model's (slice 4.11): summary lines, group and block titles,
-// the skipped lines. Library text (gate, pack, role and limit labels, notes) is never copied here.
+// The summary, group, block and skipped strings are the certificate model's (slice 4.11). The rest
+// are the screen's (slice 4.12): the header, the copy button labels, Show more, the custom rules
+// table, Left out, Still checking, Details and the Mine switch. Library text (gate, pack, role and
+// limit labels, notes, step lines, docs labels) is never copied here.
+// Every function here takes numbers or strings only and builds one template literal, so the copy
+// walker in test/ui-copy.test.ts can call it with sample arguments.
 
 // The screens a user can skip. Each gets a "You skipped <name>." line on the certificate.
 export type SkippedScreen =
@@ -19,16 +22,65 @@ const plural = (n: number, one: string, many: string): string => (n === 1 ? one 
 
 export const certificateCopy = {
   certificate: {
-    name: 'Name',
+    // M3 titles that tests still read. Block titles now come from the bundle labels, which say the
+    // same on the first two blocks.
     soul: 'Personality',
     seed: 'Memory sentence',
-    skills: 'Skills',
-    rules: 'Custom rules',
-    description: 'Description',
-    starters: 'Conversation starters',
     steps: 'Install steps',
     notes: 'Notes',
-    warnings: 'Warnings',
+
+    // Header. The spec's heading is "Meet <Name>".
+    title: (name: string) => `Meet ${name}`,
+    // The radar's text alternative: "<list>" is the stat labels with their levels, joined by the screen.
+    radar: {
+      item: (name: string, level: number) => `${name} ${level} of 4`,
+      label: (list: string) => `Slider levels: ${list}`,
+    },
+
+    // A build that did not compile. The UI never builds one, so this is a safety net.
+    error: 'Something went wrong building this bot. Go back and try again.',
+
+    // Copy button labels, for every block and every custom rule.
+    copyButton: {
+      label: 'Copy',
+      copied: 'Copied',
+      failed: 'Copy it by hand',
+    },
+    showMore: 'Show more',
+
+    // The ChatGPT dot rules table. Each rule is a card: the action text, then its setting.
+    customRules: {
+      setting: 'Setting:',
+    },
+
+    // Page sections that have no heading in the model.
+    sections: {
+      extra: 'Also included',
+      leftOutHint: 'These rules did not fit. Add them by hand if you want them.',
+    },
+
+    // The lines the user is not sure about yet, then where they were read.
+    stillChecking: {
+      heading: 'Still checking',
+      docsRead: (label: string, date: string) => `${label} docs read ${date}`,
+    },
+
+    // The raw compiler warnings, for anyone who wants them.
+    details: {
+      summary: 'Details',
+    },
+
+    // The switch for lines the user pasted on the remix screen. Next to it: their own words, unchecked (W12).
+    mine: {
+      label: 'Keep my edits',
+      note: "These lines are your own words. They aren't checked against your approvals.",
+      found: (n: number) =>
+        `${n} ${plural(n, 'line', 'lines')} from what you pasted ${plural(n, 'is', 'are')} not in this build.`,
+      included: 'Your lines are already in the personality above.',
+      dashes: 'Long dashes in your lines were changed to hyphens.',
+      dropped: (n: number, max: number) =>
+        `${n} ${plural(n, 'line was', 'lines were')} left out. The limit is ${max} lines.`,
+    },
 
     // Summary lines, in plain words. The model fills the slots from the build and the library.
     summary: {

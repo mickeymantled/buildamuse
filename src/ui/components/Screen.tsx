@@ -86,7 +86,7 @@ export function Screen({ title, subtitle, back, skip, progress, primary, footer,
           <h1
             ref={headingRef}
             tabIndex={-1}
-            className="text-2xl font-bold leading-8 text-[color:var(--text)] outline-none"
+            className="text-2xl font-bold leading-8 text-[color:var(--text)] outline-none [overflow-wrap:anywhere]"
           >
             {title}
           </h1>

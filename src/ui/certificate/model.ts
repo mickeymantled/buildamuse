@@ -110,12 +110,11 @@ export interface CertModel {
 
 // Skills and routines show this many blocks before "Show more".
 const SHOW_FIRST = 3;
-// The Hand off note that goes with the Custom Rules table, and the record that carries the
-// creation-off fact for the deprecated summary. Both are profile records. Today the creation-off
-// fact sits in verify.1; if slice 4.5b renames that record, this id must follow it. A missing id is
-// harmless: the summary then shows the retirement line alone and the record stays where it is.
+// The Hand off note that goes with the Custom Rules table, and the note that carries the
+// creation-off fact for the deprecated summary (W32 edit 17). Both are profile records. A missing id
+// is harmless: the summary then shows the retirement line alone and the record stays where it is.
 const DOT_NOTE_ID = 'profile.chatgpt-dot.note.1';
-const GPT_CREATION_NOTE_ID = 'profile.chatgpt-gpt.verify.1';
+const GPT_CREATION_NOTE_ID = 'profile.chatgpt-gpt.note.1';
 // Profiles where a cut pack rule can leave the bundle entirely, so the user can add it back by hand.
 // On Hermes the cut is from SOUL.md only and AGENTS.md still carries the rule, so a rule is listed
 // only when no rules file carries it either.

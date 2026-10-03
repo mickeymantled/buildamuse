@@ -671,10 +671,8 @@ describe('Back on a certificate opened from a link', () => {
     expect(st().screen).toBe('roster');
   });
 
-  // Plan section 3: "Back is hidden there." Station hides Back only on the target screen, and the
-  // Certificate and Station files belong to slice 4.12, so the button still shows. Marked as a known
-  // gap: when 4.12 hides Back for a link's certificate this test passes, and the .fails must go.
-  it.fails('shows no Back button on a link certificate (not wired yet, slice 4.12)', () => {
+  // Plan section 3: "Back is hidden there." The certificate screen hides Back when canGoBack is false.
+  it('shows no Back button on a link certificate', () => {
     openAt(linkTo(original));
     render(<App />);
     expect(shown()).toBe('certificate');

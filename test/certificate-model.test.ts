@@ -46,10 +46,11 @@ const MUSE_STEPS = [
 const PAID_STEER = 'Packs with money or email gates fit better on Paid. Switch to Paid?';
 const DOT_RULES_PATH = 'Settings > Personalization > Permissions > Custom rules';
 const DOT_NOTE_ID = 'profile.chatgpt-dot.note.1';
-// The library record that carries the creation-off fact for mode gpt. Today it is verify.1 (a verify
-// record that also holds the retirement date). A guard test in 'summary: deprecated' fails if the
-// library renames it, so the model's own constant and this one move together.
-const GPT_CREATION_NOTE_ID = 'profile.chatgpt-gpt.verify.1';
+// The library record that carries the creation-off fact for mode gpt. W32 (slice 4.5b) moved it out of
+// verify.1 into a note, profile.chatgpt-gpt.note.1, and left the retirement date on the card. A guard
+// test in 'summary: deprecated' fails if the library renames it, so the model's own constant and this
+// one move together.
+const GPT_CREATION_NOTE_ID = 'profile.chatgpt-gpt.note.1';
 const RETIREMENT_DATE = 'Dec 11, 2026';
 // Plan section 4 summary order, and the engineer's group headings.
 const SUMMARY_ORDER: readonly SummaryKind[] = [
@@ -379,6 +380,9 @@ for (const c of CASES) {
       const consumed = new Set<string>();
       for (const s of c.model.steps) if (s.customRules?.note) consumed.add(s.customRules.note.id);
       for (const g of groupsOf(c.model)) if (g.lead) consumed.add(g.lead.id);
+      // W32 made the creation-off record a note, not a verify line: on a gpt certificate it moves into
+      // the deprecated summary, so it is no longer in the plain notes list either.
+      if (c.build.mode === 'gpt') consumed.add(GPT_CREATION_NOTE_ID);
       const expected = c.result.noteItems
         .filter((n) => n.kind !== 'verify' && !consumed.has(n.id))
         .map((n) => n.id);
@@ -1072,7 +1076,7 @@ describe('summary: deprecated (mode gpt)', () => {
 
   // The library's own creation-off record for mode gpt, and the text a user reads from it.
   const gptProfile = caseOf('june.chatgpt-gpt').profile;
-  const creationRecord = gptProfile.verify.find((v) => v.id === GPT_CREATION_NOTE_ID);
+  const creationRecord = (gptProfile.notes ?? []).find((n) => n.id === GPT_CREATION_NOTE_ID);
   const withoutVerify = (line: string): string => line.replace(/^verify:\s*/i, '');
   const creationVerify = (text: string): BundleNote => ({ id: GPT_CREATION_NOTE_ID, text, kind: 'verify' });
 
