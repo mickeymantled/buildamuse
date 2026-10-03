@@ -168,6 +168,8 @@ export const copy = {
   name: {
     label: 'Name',
     count: (n: number, max: number) => `${n}/${max}`,
+    countLabel: (n: number, max: number) => `${n} of ${max} characters`,
+    required: 'Give it a name to continue.',
   },
 
   // Limits screen. Labels, units and venue notes come from the library.
@@ -236,12 +238,6 @@ export const copy = {
     steps: 'Install steps',
     notes: 'Notes',
     warnings: 'Warnings',
-  },
-
-  // Stub screens until their slice lands. The marker is deliberately visible.
-  todo: (slice: string) => `[TODO: slice ${slice}]`,
-  stub: {
-    fill: 'Use a placeholder for now',
   },
 
   preview: {
