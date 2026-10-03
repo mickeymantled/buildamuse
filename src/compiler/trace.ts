@@ -123,14 +123,17 @@ export function nameWordId(word: NameWord): string {
   return word.level === undefined ? `name.${word.stat}` : `name.${word.stat}.${word.level}`;
 }
 
-function checkSoul(soul: string, soulLines: TracedLine[], ids: Set<string>): void {
+// The one tracing carve-out (QUESTIONS W28): the user's own "## Mine" lines from a remix paste.
+const MINE_ID = /^user\.mine\.(heading|\d+)$/;
+
+function checkSoul(soul: string, soulLines: TracedLine[], ids: Set<string>, allowMine = false): void {
   const rebuilt = soulLines.map((l) => l.text).join('\n');
   if (rebuilt !== soul) {
     throw new Error('Trace: soulLines text does not reconstruct soul');
   }
 
   for (const line of soulLines) {
-    if (!ids.has(line.id)) {
+    if (!ids.has(line.id) && !(allowMine && MINE_ID.test(line.id))) {
       throw new Error(`Trace: line "${line.text}" has unknown id "${line.id}"`);
     }
   }
@@ -142,9 +145,9 @@ export function trace(soul: string, soulLines: TracedLine[], lib: Library): void
   checkSoul(soul, soulLines, libraryIds(lib));
 }
 
-function checkLines(lines: TracedLine[], where: string, ids: Set<string>): void {
+function checkLines(lines: TracedLine[], where: string, ids: Set<string>, allowMine = false): void {
   for (const line of lines) {
-    if (line.kind !== 'blank' && !ids.has(line.id)) {
+    if (line.kind !== 'blank' && !ids.has(line.id) && !(allowMine && MINE_ID.test(line.id))) {
       throw new Error(`Trace: ${where} line "${line.text}" has unknown id "${line.id}"`);
     }
   }
@@ -154,18 +157,21 @@ function checkLines(lines: TracedLine[], where: string, ids: Set<string>): void 
 // item and every id behind a custom rule must be a library id. Throws on the first miss.
 export function traceBundle(result: CompileResult, lib: Library): void {
   const ids = libraryIds(lib);
-  checkSoul(result.soul, result.soulLines, ids);
+  checkSoul(result.soul, result.soulLines, ids, true);
 
   for (const file of result.files) {
     const rebuilt = file.lines.map((l) => l.text).join('\n');
     if (rebuilt !== file.content) {
       throw new Error(`Trace: lines of file "${file.path}" do not reconstruct its content`);
     }
-    checkLines(file.lines, `file "${file.path}"`, ids);
+    // Mine lines may sit only in the main personality artifact (W28).
+    const personality = file.kind === 'personality' && file.role === undefined;
+    checkLines(file.lines, `file "${file.path}"`, ids, personality);
   }
   for (const item of result.spoken) {
+    const personality = item.kind === 'personality' && item.role === undefined;
     for (const id of item.ids) {
-      if (!ids.has(id)) {
+      if (!ids.has(id) && !(personality && MINE_ID.test(id))) {
         throw new Error(`Trace: spoken item "${item.label}" has unknown id "${id}"`);
       }
     }
