@@ -152,7 +152,7 @@ function gateRules(
 function skillSpoken(ctx: CompileContext, e: Entry): SpokenItem {
   const vars = varsOf(e);
   const main = filled(ctx, e.src === 'pack' ? 'skill.sentence' : 'skill.legacy', vars);
-  const label = `Skill: ${e.skill.name}`;
+  const label = `${ctx.profile.skillLabel ?? 'Skill'}: ${e.skill.name}`;
 
   if (ctx.profile.id === 'chatgpt-dot') {
     const suffix = filled(ctx, 'skill.suffix', vars);

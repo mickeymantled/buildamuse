@@ -109,7 +109,8 @@ function spokenItems(
   personalityItems: SpokenItem[],
 ): SpokenItem[] {
   const { memory, delivery } = parts;
-  const skills = delivery.spoken.filter((s) => s.label.startsWith('Skill: '));
+  const skillPrefix = `${ctx.profile.skillLabel ?? 'Skill'}: `;
+  const skills = delivery.spoken.filter((s) => s.label.startsWith(skillPrefix));
   const routines = delivery.spoken.filter((s) => s.label.startsWith('Routine: '));
 
   if (ctx.profile.id === 'chatgpt-dot') {
@@ -151,10 +152,12 @@ function gptExtras(
   };
 }
 
-// Verify lines, the reload note, each pack's venue note, role notes, then (custom GPT) the Actions note.
+// Verify lines, the profile's own notes, the reload note, each pack's venue note, role notes,
+// then (custom GPT) the Actions note.
 function notesOf(ctx: CompileContext, roleNotes: string[]): string[] {
   const { profile } = ctx;
   const notes = profile.verify.map((l) => l.line);
+  notes.push(...(profile.notes ?? []).map((l) => l.line));
   if (profile.reloadNote) {
     notes.push(profile.reloadNote.line);
   }

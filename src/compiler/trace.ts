@@ -61,12 +61,16 @@ function addV2Ids(ids: Set<string>, lib: Library): void {
     addLines(profile.installSteps);
     addLines(profile.verify);
     addOne(profile.reloadNote);
+    addLines(profile.notes);
     for (const template of Object.values(profile.templates)) ids.add(template.id);
   }
 
   for (const target of lib.targets.targets) {
     ids.add(target.promise.id);
-    for (const mode of target.modes ?? []) ids.add(mode.note.id);
+    for (const mode of target.modes ?? []) {
+      ids.add(mode.note.id);
+      addOne(mode.deprecated);
+    }
   }
 
   for (const gate of lib.gates) {

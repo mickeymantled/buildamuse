@@ -1,8 +1,9 @@
 // Layout: ChatGPT Custom Instructions. Paid is the soul layout plus inline skills. Free is the
 // compact variant for the 1,500 character box: it starts from the full compact composition and
 // drops optional lines, lowest value first, until the render fits. Chassis lines, drives, gate soul
-// lines and the top rules block are the floor and are never dropped. Field 1 (the memory block)
-// is built by the caller.
+// lines and the top rules block are the floor and are never dropped. The bottom repeat carries
+// only the gate rules lines; limits and pack rules appear once, in the top block. Field 1 (the
+// memory block) is built by the caller.
 
 import type {
   ChassisLine,
@@ -168,7 +169,7 @@ function exampleTwoItems(ctx: CompileContext): Item[] {
 interface Compact {
   items: Item[]; // the full compact composition, in order
   drops: Item[][]; // drop units, first dropped first; each unit is a subset of items
-  repeat: Item[]; // the rules-bottom block; never dropped
+  repeat: Item[]; // the rules-bottom block (gate rules lines only); never dropped
 }
 
 function compactParts(ctx: CompileContext, inlineSkills: Item[]): Compact {
@@ -179,7 +180,8 @@ function compactParts(ctx: CompileContext, inlineSkills: Item[]): Compact {
   const peeves = peeveItems(ctx);
   const triggers = triggerItems(ctx);
   const example = exampleTwoItems(ctx);
-  const repeat = rulesItems(build, gates, limits, lib, 'rules-bottom');
+  // Free repeats the gates only; limits and pack rules stay in the top block (B1).
+  const repeat = rulesItems(build, gates, limits, lib, 'rules-bottom').filter((it) => it.kind === 'rule');
 
   const items = [
     ...rulesItems(build, gates, limits, lib, 'rules-top'),
@@ -233,7 +235,7 @@ function compactFit(ctx: CompileContext, parts: Compact): PassResult {
     items = without(items, unit);
     warnings.push(`instructions: dropped ${unit[0].id} (${over})`);
   }
-  // The repeated rules block never drops: the gates must sit at the top and the bottom
+  // The repeated gate lines never drop: the gates must sit at the top and the bottom
   // (both-layers rule). A build still over the cap ships over it, with a warning.
   if (size(items) > ctx.cap) {
     warnings.push(`instructions: compact is ${size(items)} characters, over ${ctx.cap} with nothing left to drop`);
