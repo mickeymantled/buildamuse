@@ -125,16 +125,25 @@ describe('"your bot\'s personality" and no SOUL.md', () => {
 
   it('says "Muse" only at the allowed paths', () => {
     const hits = found.filter((f) => /muse/i.test(f.text)).map((f) => f.path);
-    // copy.gatesCopy.muse is Part E verbatim ("Muse's approval cards"). copy.remixWarning is the
-    // spec's remix warning, kept verbatim (QUESTIONS U5). A new "Muse" in copy must fail this list.
-    expect([...new Set(hits)].sort()).toEqual(['gatesCopy.muse', 'remixWarning']);
+    // copy.gatesCopy.muse is Part E verbatim ("Muse's approval cards"). copy.targetNames.muse is the
+    // short name Brian gave for the remix warning (QUESTIONS B12). A new "Muse" in copy must fail this list.
+    expect([...new Set(hits)].sort()).toEqual(['gatesCopy.muse', 'targetNames.muse']);
   });
 
-  it('keeps the two allowed strings word for word', () => {
+  it('keeps the allowed strings and Brian\'s wording word for word (B11, B12)', () => {
     expect(copy.gatesCopy.muse).toBe("these go in your soul and Muse's approval cards do the rest");
-    expect(copy.remixWarning).toBe(
-      "This rebuilds from your picks. Changes you made to the file in Muse won't carry over.",
+    expect(copy.remixWarning(copy.targetNames.muse)).toBe(
+      "This rebuilds from your picks. Changes you made inside Muse won't carry over.",
     );
+    expect(copy.targetNames).toEqual({
+      muse: 'Muse',
+      openclaw: 'OpenClaw',
+      hermes: 'Hermes',
+      grok: 'Grok Bot',
+      chatgpt: 'ChatGPT',
+    });
+    expect(copy.remixPaste).toBe('Paste your current personality to keep your edits.');
+    expect(copy.target.paidSteer).toBe('Packs with money or email gates fit better on Paid. Switch to Paid?');
   });
 
   it('says "bot" where the spec says "Muse" (floor line, chassis label, d3 note)', () => {

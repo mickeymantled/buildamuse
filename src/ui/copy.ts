@@ -3,7 +3,7 @@
 // Strings the spec or brief gives are verbatim. The rest are plain wording for Brian to confirm
 // (QUESTIONS U5). Part E: the UI says "bot", not "SOUL.md" or "Muse", except where a target uses a SOUL.md file.
 
-import type { ChipGroup, GateSetting, Plan, ProfileId, StatId } from '../compiler/types.js';
+import type { ChipGroup, GateSetting, Plan, ProfileId, StatId, TargetId } from '../compiler/types.js';
 import type { ScreenId } from './flow.js';
 
 export const copy = {
@@ -83,8 +83,18 @@ export const copy = {
   // The name given to a build that has none yet, so the preview always compiles (U3).
   defaultName: 'My bot',
 
-  // Remix warning, verbatim from the spec. It names Muse; the UI says "bot" elsewhere (QUESTIONS U5).
-  remixWarning: "This rebuilds from your picks. Changes you made to the file in Muse won't carry over.",
+  // Remix warning and paste-box label (Brian, 2026-10-03, B12). The target's short name fills the slot.
+  remixWarning: (target: string) =>
+    `This rebuilds from your picks. Changes you made inside ${target} won't carry over.`,
+  remixPaste: 'Paste your current personality to keep your edits.',
+  // The short target names Brian gave for the remix warning (B12).
+  targetNames: {
+    muse: 'Muse',
+    openclaw: 'OpenClaw',
+    hermes: 'Hermes',
+    grok: 'Grok Bot',
+    chatgpt: 'ChatGPT',
+  } satisfies Record<TargetId, string>,
 
   // The floor line under Blunt and Warm at level 1. The spec's line names Muse; Part E says bot (U4).
   floorLine: 'every bot comes with a little honesty and a little care already in.',
@@ -129,7 +139,8 @@ export const copy = {
     modeLegend: 'ChatGPT mode',
     planLegend: 'ChatGPT plan',
     plans: { free: 'Free', paid: 'Paid' } satisfies Record<Plan, string>,
-    paidSteer: 'This many rules will not fit well on the free plan. The paid plan has room for all of them.',
+    // B11 (Brian, 2026-10-03).
+    paidSteer: 'Packs with money or email gates fit better on Paid. Switch to Paid?',
   },
 
   // Base screen. The eight labels come from the library.

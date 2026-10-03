@@ -223,3 +223,17 @@ Options for Brian (any mix): (a) raise or drop the 2,000 grok cap (xAI documents
 
 **V30. Grok sources and deliverable from one pack.** Odds on Grok (two packs: prediction-markets and spot) stayed at 4,142 against the 4,000 cap after every B1 tier, because Sources and What you return listed both packs' lines while the job line already came from the first pack only. Picked: Sources and What you return come from the first selected pack that has them, like the job line (one job, one source list, one deliverable). Odds on Grok is now 3,902. The second pack's skills, triggers and rules still ship.
 
+
+## Decided by Brian (2026-10-03): M3 closeout and go for M4
+
+**B11. UI wording (closes U5).** Approved as written, with one swap: the Paid steer reads "Packs with money or email gates fit better on Paid. Switch to Paid?" "What needs your yes?" stays.
+
+**B12. Remix warning and paste box.** Generic warning: "This rebuilds from your picks. Changes you made inside <target label> won't carry over." The slot takes Brian's short names: Muse, OpenClaw, Hermes, Grok Bot, ChatGPT (copy.targetNames; the picker cards keep the library labels "Meta Muse" and "Hermes Agent"). Paste-box label: "Paste your current personality to keep your edits." (the spec's "soul" becomes "personality", per Part E).
+
+**B13. U8, U10, U11 approved.** Starters skip the remix warning; link remixes show it. Gates lines capitalized on screen. Roles switch on the packs screen, kept visible while on.
+
+**B14. Go for M4.** Scope as specced: certificate as bundle, per-target install steps, copy blocks with tap-to-copy and checkmarks, Custom Rules table for dot, Standing instructions section for Muse, zip download for file targets, share link, link-remix flow with the warning and paste-box diff, "Make this for <target> instead" switch. Two additions: (1) split the bundle, lazy-loading the library per target so the first paint isn't the whole JSON; (2) verify lines render on the certificate as a muted "Still checking" list, one line each.
+
+**B15. Deferred.** The Grok "Setup Bot" URL endpoint (Part F's candidate hosted raw endpoint that compiles a profile from the share-link payload) moves to M5 or later. Logged, not built.
+
+**B16. Loop.** Same loop as M3. Stop at the end of M4 with the same report shape plus the first three M5 slices.
