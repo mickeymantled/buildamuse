@@ -5,7 +5,7 @@
       "label": "Meta Muse",
       "promise": {
         "id": "target.muse.promise",
-        "line": "[TODO: promise line]"
+        "line": "A personality to paste, then three things to say."
       }
     },
     {
@@ -13,7 +13,7 @@
       "label": "OpenClaw",
       "promise": {
         "id": "target.openclaw.promise",
-        "line": "[TODO: promise line]"
+        "line": "A zip with SOUL.md, AGENTS.md and skills."
       }
     },
     {
@@ -21,7 +21,7 @@
       "label": "Hermes Agent",
       "promise": {
         "id": "target.hermes.promise",
-        "line": "[TODO: promise line]"
+        "line": "A zip with SOUL.md and skills, ready for a profile."
       }
     },
     {
@@ -29,7 +29,7 @@
       "label": "Grok Bot",
       "promise": {
         "id": "target.grok.promise",
-        "line": "[TODO: promise line]"
+        "line": "A profile to paste, skills and routines to say, then a template link to share."
       }
     },
     {
@@ -37,7 +37,7 @@
       "label": "ChatGPT",
       "promise": {
         "id": "target.chatgpt.promise",
-        "line": "[TODO: promise line]"
+        "line": "Three things to say to your dot, plus rules to add in Settings."
       },
       "modes": [
         {
@@ -49,11 +49,11 @@
           }
         },
         {
-          "id": "gpt",
-          "label": "Custom GPT",
+          "id": "project",
+          "label": "Project",
           "note": {
-            "id": "target.chatgpt.mode.gpt",
-            "line": "Custom GPT"
+            "id": "target.chatgpt.mode.project",
+            "line": "Instructions and files for a Project."
           }
         },
         {
@@ -61,15 +61,20 @@
           "label": "Custom instructions",
           "note": {
             "id": "target.chatgpt.mode.instructions",
-            "line": "Free (1,500 chars) or Paid (5,000)"
+            "line": "Two blocks to paste into Settings."
           }
         },
         {
-          "id": "project",
-          "label": "Project",
+          "id": "gpt",
+          "label": "Custom GPT",
           "note": {
-            "id": "target.chatgpt.mode.project",
-            "line": "Project > Instructions plus files"
+            "id": "target.chatgpt.mode.gpt",
+            "line": "Custom GPT"
+          },
+          "hidden": true,
+          "deprecated": {
+            "id": "target.chatgpt.mode.gpt.deprecated",
+            "line": "Custom GPTs retire on Dec 11, 2026."
           }
         }
       ]
@@ -127,7 +132,8 @@
       ],
       "supportsRoles": false,
       "roleFallback": "none",
-      "lengthCap": 3600,
+      "lengthCap": 4000,
+      "skillLabel": "Standing instruction",
       "templates": {
         "memory.sentence": {
           "id": "profile.muse.memory.sentence",
@@ -135,7 +141,7 @@
         },
         "skill.legacy": {
           "id": "profile.muse.skill.legacy",
-          "line": "Set up {sentence}."
+          "line": "From now on, work this way: {sentence}."
         },
         "routine.legacy": {
           "id": "profile.muse.routine.legacy",
@@ -143,7 +149,7 @@
         },
         "skill.sentence": {
           "id": "profile.muse.skill.sentence",
-          "line": "Set up a skill called {name}.\nUse it when: {whenToUse}\nSteps:\n{steps}\nNeeds my approval first: {requiresApproval}"
+          "line": "From now on, work this way for {name}.\nUse it when: {whenToUse}\nSteps:\n{steps}\nNeeds my approval first: {requiresApproval}\nIf a step needs my approval, stop before it and wait for my yes, every time."
         },
         "routine.sentence": {
           "id": "profile.muse.routine.sentence",
@@ -187,7 +193,7 @@
       "rulesDelivery": "AGENTS.md",
       "rulesInSoul": "none",
       "skillsDelivery": "files",
-      "memoryDelivery": "file",
+      "memoryDelivery": "spoken",
       "routinesDelivery": "spoken",
       "installSteps": [
         {
@@ -196,7 +202,7 @@
         },
         {
           "id": "profile.openclaw.step.2",
-          "line": "Save AGENTS.md and USER.md beside it, in the same folder."
+          "line": "Save AGENTS.md beside it, in the same folder."
         },
         {
           "id": "profile.openclaw.step.3",
@@ -208,6 +214,10 @@
         },
         {
           "id": "profile.openclaw.step.5",
+          "line": "Say the memory sentence."
+        },
+        {
+          "id": "profile.openclaw.step.6",
           "line": "Say each routine sentence to your agent in chat, then ask it to read the schedule back. verify: whether OpenClaw keeps routines in files or in chat."
         }
       ],
@@ -220,10 +230,6 @@
         {
           "id": "profile.openclaw.verify.2",
           "line": "verify: whether edits to SOUL.md and AGENTS.md apply on the next turn or only in a new session."
-        },
-        {
-          "id": "profile.openclaw.verify.3",
-          "line": "verify: OpenClaw's USER.md has its own format (one Always, Never or Prefer directive per entry, 4,000 characters); durable facts may belong in MEMORY.md."
         }
       ],
       "supportsRoles": true,
@@ -253,10 +259,6 @@
         "skill.file": {
           "id": "profile.openclaw.skill.file",
           "line": "# {name}\n\n## When to use\n{whenToUse}\n\n## Inputs\n{inputs}\n\n## Steps\n{steps}\n\n## Validate\n{validate}\n\n## Returns\n{returns}\n\n## Requires approval\n{requiresApproval}"
-        },
-        "memory.file.heading": {
-          "id": "profile.openclaw.memory.file.heading",
-          "line": "# About me"
         },
         "routine.sentence": {
           "id": "profile.openclaw.routine.sentence",
@@ -308,12 +310,12 @@
         },
         {
           "id": "profile.hermes.step.6",
-          "line": "restart or new session; don't test with hermes -z"
+          "line": "Restart or start a new session. When testing, avoid --ignore-rules and --safe-mode; they skip SOUL.md."
         }
       ],
       "reloadNote": {
         "id": "profile.hermes.reload",
-        "line": "Restart Hermes or start a new session to load changes. Don't test with hermes -z."
+        "line": "Restart Hermes or start a new session to load changes. When testing, avoid --ignore-rules and --safe-mode."
       },
       "verify": [
         {
@@ -322,16 +324,12 @@
         },
         {
           "id": "profile.hermes.verify.2",
-          "line": "verify: hermes -z runs the same agent; --ignore-rules and --safe-mode are the modes that skip SOUL.md."
-        },
-        {
-          "id": "profile.hermes.verify.3",
           "line": "verify: whether a delegated agent loads its role profile's SOUL.md."
         }
       ],
       "supportsRoles": true,
       "roleFallback": "profiles",
-      "lengthCap": 3600,
+      "lengthCap": 4000,
       "templates": {
         "memory.sentence": {
           "id": "profile.hermes.memory.sentence",
@@ -435,16 +433,12 @@
       "verify": [
         {
           "id": "profile.grok.verify.1",
-          "line": "verify: xAI's docs do not state a 2,000-character description limit."
-        },
-        {
-          "id": "profile.grok.verify.2",
           "line": "verify: group chats hold 2 to 6 Bots and the Bots decide who answers; the coordinator is a convention, not a setting."
         }
       ],
       "supportsRoles": true,
       "roleFallback": "team",
-      "lengthCap": 2000,
+      "lengthCap": 4000,
       "templates": {
         "memory.sentence": {
           "id": "profile.grok.memory.sentence",
@@ -645,10 +639,6 @@
         },
         {
           "id": "profile.chatgpt-dot.verify.4",
-          "line": "verify: the Custom Rule options read Take action without asking, Take action when you say so, Ask before taking action, Hand off to you; none is named prevent (ChatGPT docs, 2026-10-01)."
-        },
-        {
-          "id": "profile.chatgpt-dot.verify.5",
           "line": "verify: Teams access for dots is an invite-only alpha, and dots can't call you at launch."
         }
       ],
@@ -660,6 +650,12 @@
         "approve": "Ask before taking action",
         "forbid": "Hand off to you"
       },
+      "notes": [
+        {
+          "id": "profile.chatgpt-dot.note.1",
+          "line": "ChatGPT has no block setting; Hand off means it stops and gives the step to you."
+        }
+      ],
       "templates": {
         "memory.sentence": {
           "id": "profile.chatgpt-dot.memory.sentence",
