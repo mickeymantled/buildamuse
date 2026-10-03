@@ -112,6 +112,15 @@ export const copy = {
     } satisfies Record<StatId, string>,
     level: (n: number) => `Level ${n} of 4`,
     riskHint: 'Risk shows up when you tap a Markets chip.',
+    // Stats screen. Sample replies and the risk level names come from the library.
+    budget: 'Points used',
+    counterLabel: (n: number, max: number) => `${n} of ${max} points used`,
+    // Level names for the stats the library gives none for (risk has its own).
+    stops: ['Low', 'Medium', 'High', 'Max'],
+    sampleLabel: 'Sounds like',
+    badgesHeading: 'Badges',
+    noBadges: 'No badges yet. Moving the sliders can light them up.',
+    badgeNew: 'New badge',
   },
 
   // Target screen. The promise lines, mode names and mode notes come from the library.
