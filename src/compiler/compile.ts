@@ -10,6 +10,7 @@ import type {
   Item,
   Library,
   RenderOptions,
+  Trimmed,
   WorkflowPack,
 } from './types.js';
 import { migrate } from './migrate.js';
@@ -28,7 +29,7 @@ import { buildName } from './passes/name.js';
 import { seed, seedIds } from './passes/seed.js';
 import { skills } from './passes/skills.js';
 import { normalizeRoles } from './passes/roles.js';
-import { memoryDelivery, skillsAndRoutines } from './passes/deliver.js';
+import { memoryDelivery, packDelivers, skillsAndRoutines } from './passes/deliver.js';
 import { assembleBundle } from './passes/bundle.js';
 import { traceBundle } from './trace.js';
 import library from '../library/index.js';
@@ -36,26 +37,32 @@ import library from '../library/index.js';
 export { library };
 
 // The personality items and render options for the profile's layout. Instructions on the free
-// plan fit themselves to the cap, so their warnings come back and the length pass is skipped.
+// plan fit themselves to the cap, so their warnings and trims come back and the length pass is skipped.
 function layout(
   ctx: CompileContext,
   delivery: ReturnType<typeof skillsAndRoutines>,
-): { items: Item[]; opts: RenderOptions; fitWarnings: string[] } {
+): { items: Item[]; opts: RenderOptions; fitWarnings: string[]; fitTrimmed: Trimmed[] } {
   switch (ctx.profile.layout) {
     case 'grok':
-      return { items: grokItems(ctx), opts: grokRenderOptions(ctx), fitWarnings: [] };
+      return { items: grokItems(ctx), opts: grokRenderOptions(ctx), fitWarnings: [], fitTrimmed: [] };
     case 'instructions': {
       const fit = instructionsPass(ctx, {
         soulItems: assembleSoul(ctx),
         inlineSkills: delivery.inline,
       });
-      return { items: fit.items, opts: instructionsRenderOptions(ctx), fitWarnings: fit.warnings };
+      return {
+        items: fit.items,
+        opts: instructionsRenderOptions(ctx),
+        fitWarnings: fit.warnings,
+        fitTrimmed: fit.trimmed,
+      };
     }
     case 'soul':
       return {
         items: [...assembleSoul(ctx), ...delivery.pointers],
         opts: soulRenderOptions(ctx),
         fitWarnings: [],
+        fitTrimmed: [],
       };
   }
 }
@@ -73,9 +80,11 @@ export function compile(build: Build | BuildV1, lib: Library = library): Compile
   const form = chassisFormOf(profile, b);
   const cap = capOf(profile, b);
   const resolved = resolve(b, lib);
+  // A pack the profile cannot deliver keeps its gates, limits and rules lines (they come from
+  // the build), but adds nothing else, so the passes only see the packs this profile carries.
   const packs = b.packs
     .map((id) => lib.packs.find((p) => p.id === id))
-    .filter((p): p is WorkflowPack => p !== undefined);
+    .filter((p): p is WorkflowPack => p !== undefined && packDelivers(p, profile.id));
   const ctx: CompileContext = {
     build: b,
     lib,
@@ -104,6 +113,7 @@ export function compile(build: Build | BuildV1, lib: Library = library): Compile
       items: decontradicted.items,
       opts: laid.opts,
       fitWarnings: laid.fitWarnings,
+      fitTrimmed: laid.fitTrimmed,
       warnings: [...deduped.warnings, ...decontradicted.warnings],
     };
   };
@@ -111,12 +121,12 @@ export function compile(build: Build | BuildV1, lib: Library = library): Compile
     cut: (id) => `length: cut ${id} (author pack rule, soul over ${cap})`,
     short: `length: chassis switched to short forms (soul over ${cap})`,
   });
-  const { items, opts, fitWarnings } = tiered.built;
+  const { items, opts, fitWarnings, fitTrimmed } = tiered.built;
 
   // 5. Trim to the profile's cap. Instructions on the free plan already fit themselves.
   const trimmed =
     profile.layout === 'instructions' && form === 'short'
-      ? { items, warnings: fitWarnings }
+      ? { items, warnings: fitWarnings, trimmed: fitTrimmed }
       : length(items, b, lib, cap, opts);
   const { soul, soulLines } = render(trimmed.items, lib, opts);
 
@@ -137,7 +147,15 @@ export function compile(build: Build | BuildV1, lib: Library = library): Compile
 
   // 7 to 12. The bundle: files, spoken sentences, custom rules, notes, roles.
   const name = buildName(b, lib);
-  const bundle = assembleBundle(ctx, { soul, soulLines, buildName: name, memory, delivery });
+  const bundle = assembleBundle(ctx, {
+    soul,
+    soulLines,
+    buildName: name,
+    memory,
+    delivery,
+    items: trimmed.items,
+    trimmed: [...tiered.trimmed, ...trimmed.trimmed],
+  });
   warnings.push(...bundle.warnings);
 
   const result: CompileResult = {
@@ -149,6 +167,16 @@ export function compile(build: Build | BuildV1, lib: Library = library): Compile
     ...(bundle.description !== undefined ? { description: bundle.description } : {}),
     installSteps: bundle.installSteps,
     notes: bundle.notes,
+    steps: bundle.steps,
+    noteItems: bundle.noteItems,
+    verify: bundle.verify,
+    undelivered: bundle.undelivered,
+    trimmed: bundle.trimmed,
+    starterIds: bundle.starterIds,
+    descriptionIds: bundle.descriptionIds,
+    buildNameIds: bundle.buildNameIds,
+    docUrl: profile.docUrl,
+    docReadDate: profile.docReadDate,
     gates: ctx.gates,
     limits: ctx.limits,
     packs: [...b.packs],

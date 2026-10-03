@@ -73,7 +73,7 @@ export type Section =
   | 'return'
   | 'skills';
 
-// The only runtime value in this file: section render order.
+// The runtime values in this file: section render order and artifactKindOf (at the end).
 export const SECTION_ORDER: readonly Section[] = [
   'opening',
   'who',
@@ -347,11 +347,55 @@ export interface PassResult {
   warnings: string[];
 }
 
+// What the length tiers and the fits cut, structured. `text` is the library text of the record.
+export interface Trimmed {
+  kind: 'pack-rule' | 'trigger' | 'peeve' | 'stat' | 'voice' | 'example' | 'chassis-short';
+  id: string;
+  text: string;
+  pack?: PackId; // pack-rule only
+  // Set only on a cut from a role soul that the main soul did not also cut. A cut both souls share
+  // is recorded once, without these.
+  role?: RoleId;
+  path?: string; // the role file the cut came from
+}
+
+export interface FitResult extends PassResult {
+  trimmed: Trimmed[];
+}
+
 // A library line with a record id. The unit of trace for v2 records.
 export interface Line {
   id: string;
   line: string;
   origin?: 'brief' | 'author'; // pack rules lines: 'brief' = Brian's text (never cut for length)
+}
+
+export type ArtifactKind =
+  | 'personality'
+  | 'rules'
+  | 'memory'
+  | 'skills'
+  | 'routines'
+  | 'firstTask'
+  | 'customRules'
+  | 'label'
+  | 'starters'
+  | 'description'
+  | 'roles';
+
+// What a build must deliver for a step or verify line to show (any-of).
+export type StepWhen = 'skills' | 'routines' | 'roles';
+
+// A profile install step: the tags never change its text.
+export interface InstallStep extends Line {
+  shows?: ArtifactKind[]; // artifacts that render under this step
+  when?: StepWhen[]; // the step shows only if the bundle delivers at least one of these
+  closer?: boolean; // unnumbered closing line, rendered last
+}
+
+// A verify record may carry `when` too (role-only verify lines).
+export interface VerifyLine extends Line {
+  when?: StepWhen[];
 }
 
 export interface TargetCard {
@@ -381,13 +425,14 @@ export interface Profile {
   skillsDelivery: 'files' | 'spoken' | 'inline' | 'knowledge';
   memoryDelivery: 'file' | 'spoken' | 'inline';
   routinesDelivery: 'spoken' | 'files' | 'none';
-  installSteps: Line[];
+  installSteps: InstallStep[];
   reloadNote: Line | null;
-  verify: Line[]; // each line text starts "verify: "
+  verify: VerifyLine[]; // each line text starts "verify: "
   supportsRoles: boolean;
   roleFallback: 'workspaces' | 'profiles' | 'team' | 'separate-bundles' | 'single-dot-note' | 'none';
   lengthCap: number | { free: number; paid: number };
   customRuleSettings?: Record<GateSetting, string>; // chatgpt-dot only
+  rulesPath?: Line; // chatgpt-dot only: the Settings path, the caption of the Custom Rules table
   templates: Record<string, Line>;
   notes?: Line[]; // certificate copy shown with the bundle (not verify lines)
   skillLabel?: string; // label for skill sentences on this profile (default "Skill"); Muse: "Standing instruction"
@@ -424,7 +469,7 @@ export interface WorkflowPack {
   sources?: Line[];
   deliverable?: Line;
   firstTask?: Line;
-  profiles?: ProfileId[]; // absent = deliverable on every profile
+  profiles?: ProfileId[]; // absent = deliverable on every profile; a profile outside it keeps the pack's gates, limits and rules lines only
 }
 
 export interface RoleSet {
@@ -507,6 +552,8 @@ export interface BundleFile {
   path: string;
   label: string;
   delivery: 'file' | 'paste';
+  kind: 'personality' | 'memory' | 'rules' | 'skill' | 'knowledge';
+  role?: RoleId; // set on a role's files
   content: string;
   lines: TracedLine[];
 }
@@ -515,6 +562,8 @@ export interface SpokenItem {
   label: string;
   text: string;
   ids: string[];
+  kind: 'personality' | 'memory' | 'skill' | 'routine' | 'firstTask';
+  role?: RoleId;
 }
 
 export interface CustomRule {
@@ -524,6 +573,28 @@ export interface CustomRule {
   ids: string[];
 }
 
+export interface BundleStep {
+  id: string;
+  text: string;
+  shows: ArtifactKind[];
+  closer: boolean;
+}
+
+export type NoteKind = 'verify' | 'note' | 'reload' | 'venue' | 'role' | 'actions';
+
+export interface BundleNote {
+  id: string;
+  text: string;
+  kind: NoteKind;
+}
+
+// Something the build asked for that the profile does not carry. `name` is the library label.
+export interface Undelivered {
+  kind: 'skill' | 'routine' | 'pack' | 'roles';
+  id: string;
+  name: string;
+}
+
 export interface BundleFields {
   profile: ProfileId;
   files: BundleFile[];
@@ -531,8 +602,18 @@ export interface BundleFields {
   customRules: CustomRule[]; // chatgpt-dot only, else []
   conversationStarters?: string[]; // chatgpt-gpt only
   description?: string; // chatgpt-gpt only, < 300 chars
-  installSteps: string[];
-  notes: string[]; // verify lines, reload note, venue notes, fallback warnings
+  installSteps: string[]; // steps.map(text)
+  notes: string[]; // noteItems.map(text)
+  steps: BundleStep[]; // `when` applied; library order, closers last
+  noteItems: BundleNote[]; // same order and text as notes
+  verify: BundleNote[]; // the noteItems of kind 'verify'
+  undelivered: Undelivered[]; // computed after the layout and length fit, from the final items
+  trimmed: Trimmed[]; // what the length tiers, S1 and the instructions fit cut
+  starterIds: string[][]; // per conversation starter; [] off chatgpt-gpt
+  descriptionIds: string[]; // [] off chatgpt-gpt
+  buildNameIds: string[]; // the names.json words behind the build name
+  docUrl: string;
+  docReadDate: string;
   gates: Record<ActionId, GateSetting>;
   limits: Record<LimitId, number>;
   packs: PackId[];
@@ -562,11 +643,33 @@ export interface CompileContext {
   chassis: ChassisLine[]; // resolved.chassis after applyChassis(profile, form)
   gates: Record<ActionId, GateSetting>; // effectiveGates
   limits: Record<LimitId, number>; // effectiveLimits
-  packs: WorkflowPack[]; // selected packs, in build order
+  packs: WorkflowPack[]; // selected packs the profile can deliver, in build order; gates, limits and rules lines come from the build, not from here
   roles: RolePack[]; // normalized roles, set member order; [] when none
 }
 
 export interface RenderOptions {
   order?: readonly Section[]; // section order for this layout; default SECTION_ORDER
   headings?: Partial<Record<Section, { id: string; text: string } | null>>; // override or suppress a section heading
+}
+
+// The artifact a file or spoken item is. A role's files are 'roles' whatever they hold.
+export function artifactKindOf(x: BundleFile | SpokenItem): ArtifactKind {
+  if (x.role !== undefined) {
+    return 'roles';
+  }
+  switch (x.kind) {
+    case 'personality':
+      return 'personality';
+    case 'memory':
+      return 'memory';
+    case 'rules':
+      return 'rules';
+    case 'firstTask':
+      return 'firstTask';
+    case 'routine':
+      return 'routines';
+    case 'skill':
+    case 'knowledge':
+      return 'skills';
+  }
 }

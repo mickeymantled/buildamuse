@@ -236,3 +236,5 @@ Honesty first, then my instructions, then brevity, then jokes.
 - dedupe: dropped chip.memecoins.t1 (pack trigger carries it)
 - dedupe: dropped chip.memecoins.t2 (pack trigger carries it)
 - dedupe: dropped chip.memecoins.t3 (pack trigger carries it)
+- undelivered: pack.memecoins.skill.narrative-watch
+- undelivered: pack.memecoins.skill.edge-gone-exit

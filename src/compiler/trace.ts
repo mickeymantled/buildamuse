@@ -1,7 +1,7 @@
 // Trace pass: every line in a compiled soul maps to exactly one library record id.
 // This module only reads a Library and a list of TracedLine; it does not build the soul.
 
-import type { CompileResult, Library, Line, TracedLine } from './types.js';
+import type { CompileResult, Library, Line, NameWord, TracedLine } from './types.js';
 
 // Every id a TracedLine.id is allowed to reference, gathered from the library.
 export function libraryIds(lib: Library): Set<string> {
@@ -61,6 +61,7 @@ function addV2Ids(ids: Set<string>, lib: Library): void {
     addLines(profile.installSteps);
     addLines(profile.verify);
     addOne(profile.reloadNote);
+    addOne(profile.rulesPath);
     addLines(profile.notes);
     for (const template of Object.values(profile.templates)) ids.add(template.id);
   }
@@ -117,6 +118,11 @@ function addV2Ids(ids: Set<string>, lib: Library): void {
   addLines(lib.probes);
 }
 
+// A names.json word has no id of its own, so the bundle names it by stat and level.
+export function nameWordId(word: NameWord): string {
+  return word.level === undefined ? `name.${word.stat}` : `name.${word.stat}.${word.level}`;
+}
+
 function checkSoul(soul: string, soulLines: TracedLine[], ids: Set<string>): void {
   const rebuilt = soulLines.map((l) => l.text).join('\n');
   if (rebuilt !== soul) {
@@ -171,6 +177,43 @@ export function traceBundle(result: CompileResult, lib: Library): void {
       }
     }
   }
+  traceFields(result, lib, ids);
+}
+
+// The structured fields cite ids too. A base is cited by the description, and a name word by the
+// build name; neither is a soul line id, so they join the set here and not in libraryIds.
+function traceFields(result: CompileResult, lib: Library, libIds: Set<string>): void {
+  const ids = new Set(libIds);
+  for (const base of lib.bases) ids.add(base.id);
+  for (const word of lib.names.words) ids.add(nameWordId(word));
+  const check = (what: string, id: string): void => {
+    if (!ids.has(id)) {
+      throw new Error(`Trace: ${what} has unknown id "${id}"`);
+    }
+  };
+
+  const sameText = (texts: string[], items: { text: string }[]): boolean =>
+    texts.length === items.length && texts.every((text, i) => text === items[i].text);
+  if (!sameText(result.installSteps, result.steps)) {
+    throw new Error('Trace: installSteps do not match steps');
+  }
+  if (!sameText(result.notes, result.noteItems)) {
+    throw new Error('Trace: notes do not match noteItems');
+  }
+  for (const step of result.steps) {
+    check(`step "${step.text}"`, step.id);
+  }
+  for (const note of result.noteItems) {
+    // A marked [TODO: ...] placeholder stands in for a record the library lacks, so it has no id to trace.
+    if (!note.text.startsWith('[TODO:')) {
+      check(`note "${note.text}"`, note.id);
+    }
+  }
+  for (const [i, starter] of result.starterIds.entries()) {
+    for (const id of starter) check(`conversation starter ${i + 1}`, id);
+  }
+  for (const id of result.descriptionIds) check('description', id);
+  for (const id of result.buildNameIds) check('build name', id);
 }
 
 // Given a line of soul text, name the record id that emitted it.

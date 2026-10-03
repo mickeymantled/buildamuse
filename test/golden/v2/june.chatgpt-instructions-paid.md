@@ -225,3 +225,5 @@ Honesty first, then my instructions, then brevity, then jokes.
 - dedupe: dropped chip.kids.t2 (contained in badge)
 - dedupe: dropped heart.too_much.extra (contained in badge)
 - length: dropped chip.dog.voice (soul over 5000)
+- undelivered: pack.personal-ops.skill.conflict-scan
+- undelivered: pack.personal-ops.skill.morning-brief

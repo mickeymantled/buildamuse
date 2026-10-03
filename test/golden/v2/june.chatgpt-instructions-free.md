@@ -147,3 +147,8 @@ Honesty, then my instructions, then brevity, then jokes.
 - instructions: dropped stat.funny.3 (compact over 1500)
 - instructions: compact is 2437 characters, over 1500 with nothing left to drop
 - length: soul is 2437 characters, over 1500
+- undelivered: chip.kids.skill.pickup_guard
+- undelivered: chip.cooking.skill.whats_for_dinner
+- undelivered: pack.personal-ops.skill.inbox-triage
+- undelivered: pack.personal-ops.skill.conflict-scan
+- undelivered: pack.personal-ops.skill.morning-brief

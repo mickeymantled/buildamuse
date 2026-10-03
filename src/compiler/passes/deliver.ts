@@ -11,9 +11,11 @@ import type {
   Item,
   Library,
   Line,
+  ProfileId,
   Skill,
   SpokenItem,
   TracedLine,
+  WorkflowPack,
 } from '../types.js';
 
 type Entry =
@@ -53,9 +55,16 @@ export function fileFromLines(
   path: string,
   label: string,
   delivery: BundleFile['delivery'],
+  kind: BundleFile['kind'],
   lines: TracedLine[],
 ): BundleFile {
-  return { path, label, delivery, content: lines.map((l) => l.text).join('\n'), lines };
+  return { path, label, delivery, kind, content: lines.map((l) => l.text).join('\n'), lines };
+}
+
+// A pack whose `profiles` list leaves this profile out keeps its gates, limits and rules lines,
+// but adds no skills, triggers, seeds, job, sources, deliverable or first task.
+export function packDelivers(pack: WorkflowPack, profile: ProfileId): boolean {
+  return pack.profiles === undefined || pack.profiles.includes(profile);
 }
 
 const nameKey = (name: string): string => name.trim().toLowerCase();
@@ -156,7 +165,7 @@ function skillSpoken(ctx: CompileContext, e: Entry): SpokenItem {
 
   if (ctx.profile.id === 'chatgpt-dot') {
     const suffix = filled(ctx, 'skill.suffix', vars);
-    return { label, text: `${main.text} ${suffix.text}`, ids: [main.id, suffix.id, e.id] };
+    return { label, text: `${main.text} ${suffix.text}`, ids: [main.id, suffix.id, e.id], kind: 'skill' };
   }
 
   if (ctx.profile.id === 'grok') {
@@ -175,10 +184,11 @@ function skillSpoken(ctx: CompileContext, e: Entry): SpokenItem {
       label,
       text: `${main.text}\n${suffix.text}`,
       ids: [main.id, suffix.id, ...rules.ids, e.id],
+      kind: 'skill',
     };
   }
 
-  return { label, text: main.text, ids: [main.id, e.id] };
+  return { label, text: main.text, ids: [main.id, e.id], kind: 'skill' };
 }
 
 function routineSpoken(ctx: CompileContext, e: Entry): SpokenItem {
@@ -193,7 +203,7 @@ function routineSpoken(ctx: CompileContext, e: Entry): SpokenItem {
       const requiresApproval =
         rules.texts.length === 0 ? skill.requiresApproval : rules.texts.join(' ');
       const main = filled(ctx, 'routine.sentence', { ...vars, requiresApproval });
-      return { label, text: main.text, ids: [main.id, ...rules.ids, e.id] };
+      return { label, text: main.text, ids: [main.id, ...rules.ids, e.id], kind: 'routine' };
     }
     const main = filled(ctx, 'routine.legacy', vars);
     const rules = gateRules(ctx, (_action, setting) => setting !== 'auto');
@@ -202,11 +212,12 @@ function routineSpoken(ctx: CompileContext, e: Entry): SpokenItem {
       label,
       text: `${main.text}\n${suffix.text}`,
       ids: [main.id, suffix.id, ...rules.ids, e.id],
+      kind: 'routine',
     };
   }
 
   const main = filled(ctx, e.src === 'pack' ? 'routine.sentence' : 'routine.legacy', vars);
-  return { label, text: main.text, ids: [main.id, e.id] };
+  return { label, text: main.text, ids: [main.id, e.id], kind: 'routine' };
 }
 
 function skillPath(ctx: CompileContext, e: Entry): string {
@@ -239,7 +250,8 @@ function skillFile(ctx: CompileContext, e: Entry): BundleFile {
       ? blankLine(ctx.lib)
       : { text: line, id, kind: 'skill', sources: [e.id] },
   );
-  return fileFromLines(skillPath(ctx, e), `Skill: ${e.skill.name}`, 'file', lines);
+  const kind = ctx.profile.skillsDelivery === 'knowledge' ? 'knowledge' : 'skill';
+  return fileFromLines(skillPath(ctx, e), `Skill: ${e.skill.name}`, 'file', kind, lines);
 }
 
 function pointerItem(ctx: CompileContext, e: Entry): Item {
@@ -272,17 +284,33 @@ function inlineItem(ctx: CompileContext, e: Entry): Item {
   };
 }
 
+// Every skill and routine the build asks for, in delivery order, whether or not the profile
+// ends up carrying it. The undelivered check compares this list with what survived.
+export interface SkillRef {
+  id: string;
+  name: string;
+  kind: 'skill' | 'routine';
+}
+
 export function skillsAndRoutines(ctx: CompileContext): {
   spoken: SpokenItem[];
   files: BundleFile[];
   pointers: Item[];
   inline: Item[];
+  refs: SkillRef[];
 } {
   const spoken: SpokenItem[] = [];
   const files: BundleFile[] = [];
   const pointers: Item[] = [];
   const inline: Item[] = [];
   const entries = collectSkills(ctx);
+  const refs = entries.map(
+    (e): SkillRef => ({
+      id: e.id,
+      name: e.skill.name,
+      kind: e.skill.kind === 'trigger' ? 'skill' : 'routine',
+    }),
+  );
   const id = ctx.profile.id;
 
   if (id === 'chatgpt-instructions') {
@@ -290,7 +318,7 @@ export function skillsAndRoutines(ctx: CompileContext): {
     for (const e of entries.filter((x) => x.skill.kind === 'trigger').slice(0, 3)) {
       inline.push(inlineItem(ctx, e));
     }
-    return { spoken, files, pointers, inline };
+    return { spoken, files, pointers, inline, refs };
   }
 
   for (const e of entries) {
@@ -320,7 +348,7 @@ export function skillsAndRoutines(ctx: CompileContext): {
         break;
     }
   }
-  return { spoken, files, pointers, inline };
+  return { spoken, files, pointers, inline, refs };
 }
 
 export function memoryDelivery(
@@ -332,7 +360,9 @@ export function memoryDelivery(
     case 'spoken': {
       const t = filled(ctx, 'memory.sentence', { seed: seedText });
       return {
-        spoken: [{ label: 'Memory sentence', text: t.text, ids: [t.id, ...seedIdList] }],
+        spoken: [
+          { label: 'Memory sentence', text: t.text, ids: [t.id, ...seedIdList], kind: 'memory' },
+        ],
         files: [],
       };
     }
@@ -366,7 +396,7 @@ export function memoryDelivery(
         id: `heart.${hardPart.id}.seedClause`,
         kind: 'memory',
       });
-      return { spoken: [], files: [fileFromLines('USER.md', 'Memory', 'file', lines)] };
+      return { spoken: [], files: [fileFromLines('USER.md', 'Memory', 'file', 'memory', lines)] };
     }
   }
 }
@@ -399,5 +429,5 @@ export function agentsFile(
   for (const item of rulesItems(ctx.build, ctx.gates, ctx.limits, ctx.lib, 'rules')) {
     lines.push(bulletLine(item));
   }
-  return fileFromLines(path, 'Rules', 'file', lines);
+  return fileFromLines(path, 'Rules', 'file', 'rules', lines);
 }

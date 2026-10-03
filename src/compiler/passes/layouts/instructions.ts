@@ -8,11 +8,12 @@
 import type {
   ChassisLine,
   CompileContext,
+  FitResult,
   Item,
-  PassResult,
   RenderOptions,
   Section,
   StatId,
+  Trimmed,
 } from '../../types.js';
 import { gateSoulItems, rulesItems } from '../../gates.js';
 import { exampleItems } from '../examples.js';
@@ -219,8 +220,27 @@ function compactParts(ctx: CompileContext, inlineSkills: Item[]): Compact {
   return { items, drops, repeat };
 }
 
+// What a dropped unit is called in `trimmed`. Inline skills are not trims: the undelivered
+// list reports them, since a skill that did not fit is a skill the user does not get.
+function trimmedUnit(unit: Item[]): Trimmed | undefined {
+  const first = unit[0];
+  const text = unit.map((item) => item.text).join('\n');
+  switch (first.kind) {
+    case 'example':
+      return { kind: 'example', id: first.id, text };
+    case 'chip-trigger':
+      return { kind: 'trigger', id: first.id, text };
+    case 'peeve':
+      return { kind: 'peeve', id: first.id, text };
+    case 'stat':
+      return { kind: 'stat', id: first.id, text };
+    default:
+      return undefined;
+  }
+}
+
 // Free: drop optional units until the render fits the cap.
-function compactFit(ctx: CompileContext, parts: Compact): PassResult {
+function compactFit(ctx: CompileContext, parts: Compact): FitResult {
   const opts = instructionsRenderOptions(ctx);
   const size = (items: Item[]): number => render(items, ctx.lib, opts).soul.length;
   const without = (items: Item[], unit: Item[]): Item[] => items.filter((it) => !unit.includes(it));
@@ -228,28 +248,33 @@ function compactFit(ctx: CompileContext, parts: Compact): PassResult {
 
   let items = parts.items;
   const warnings: string[] = [];
+  const trimmed: Trimmed[] = [];
   for (const unit of parts.drops) {
     if (size(items) <= ctx.cap) {
       break;
     }
     items = without(items, unit);
     warnings.push(`instructions: dropped ${unit[0].id} (${over})`);
+    const record = trimmedUnit(unit);
+    if (record) {
+      trimmed.push(record);
+    }
   }
   // The repeated gate lines never drop: the gates must sit at the top and the bottom
   // (both-layers rule). A build still over the cap ships over it, with a warning.
   if (size(items) > ctx.cap) {
     warnings.push(`instructions: compact is ${size(items)} characters, over ${ctx.cap} with nothing left to drop`);
   }
-  return { items, warnings };
+  return { items, warnings, trimmed };
 }
 
 // Paid is the soul layout untouched. Warnings list every line the free fit dropped.
 export function instructionsPass(
   ctx: CompileContext,
   parts: { soulItems: Item[]; inlineSkills: Item[] },
-): PassResult {
+): FitResult {
   if (ctx.form === 'full') {
-    return { items: [...parts.soulItems, ...parts.inlineSkills], warnings: [] };
+    return { items: [...parts.soulItems, ...parts.inlineSkills], warnings: [], trimmed: [] };
   }
   return compactFit(ctx, compactParts(ctx, parts.inlineSkills));
 }

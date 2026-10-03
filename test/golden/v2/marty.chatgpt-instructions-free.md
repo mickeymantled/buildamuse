@@ -145,3 +145,8 @@ Honesty, then my instructions, then brevity, then jokes.
 - instructions: dropped stat.funny.3 (compact over 1500)
 - instructions: compact is 2157 characters, over 1500 with nothing left to drop
 - length: soul is 2157 characters, over 1500
+- undelivered: chip.solana.skill.wallet_glance
+- undelivered: pack.memecoins.skill.rug-check
+- undelivered: pack.memecoins.skill.narrative-watch
+- undelivered: pack.memecoins.skill.position-log
+- undelivered: pack.memecoins.skill.edge-gone-exit

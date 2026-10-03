@@ -20,6 +20,7 @@ import type {
   RoleSet,
   Section,
   StatId,
+  Trimmed,
 } from '../types.js';
 import { fitTiers } from './length.js';
 import { render } from './render.js';
@@ -33,6 +34,13 @@ export interface RoleOutputs {
   files: BundleFile[];
   notes: RoleNote[];
   warnings: string[]; // a role soul over the profile's length cap
+  trimmed: Trimmed[]; // what each role soul's length tiers cut, tagged with the role and its path
+}
+
+// Where a role soul reports what its length tiers cut.
+interface Sink {
+  warnings: string[];
+  trimmed: Trimmed[];
 }
 
 const ROLE_ORDER: readonly Section[] = [
@@ -448,14 +456,15 @@ export function roleRenderOptions(ctx: CompileContext, role: RolePack): RenderOp
 
 // A role soul on a cap of 4,000 or less goes through the same length tiers as the main soul (B1):
 // author pack rules lines first, then the short chassis records. Tier warnings go to `warnings`.
-// Role souls carry no chip triggers, so there is no trigger drop after the tiers.
+// Role souls carry no chip triggers, so there is no trigger drop after the tiers. Each cut is also
+// recorded in `trimmed` with its role and path; the bundle pass dedupes it against the main soul.
 function soulFile(
   ctx: CompileContext,
   role: RolePack,
   path: string,
   label: string,
   delivery: BundleFile['delivery'],
-  warnings: string[],
+  sink: Sink,
 ): BundleFile {
   const tiered = fitTiers(
     ctx,
@@ -465,9 +474,10 @@ function soulFile(
       short: `roles: chassis switched to short forms (soul over ${ctx.cap}) in ${path}`,
     },
   );
-  warnings.push(...tiered.warnings);
+  sink.warnings.push(...tiered.warnings);
+  sink.trimmed.push(...tiered.trimmed.map((t): Trimmed => ({ ...t, role: role.id, path })));
   const { soul, soulLines } = render(tiered.built.items, ctx.lib, tiered.built.opts);
-  return { path, label, delivery, content: soul, lines: soulLines };
+  return { path, label, delivery, kind: 'personality', role: role.id, content: soul, lines: soulLines };
 }
 
 // A worker that loads only AGENTS.md keeps the role's never lines and the hard rules.
@@ -496,6 +506,8 @@ function agentsFile(ctx: CompileContext, role: RolePack, path: string): BundleFi
     path,
     label: `Role rules: ${role.label}`,
     delivery: 'file',
+    kind: 'rules',
+    role: role.id,
     content: soul,
     lines: soulLines,
   };
@@ -507,20 +519,28 @@ function rolesNote(ctx: CompileContext): RoleNote {
   const id = `profile.${ctx.profile.id}.${TEAM_NOTE_KEY}`;
   const line = own(ctx.profile.templates, TEAM_NOTE_KEY);
   if (!line) {
-    // TODO: add a "fallback.roles" template to the grok profile in src/library/targets.json.
-    return { text: `[TODO: ${id} is missing from src/library/targets.json]`, ids: [id] };
+    // TODO: add a "fallback.roles" template to this profile in src/library/profiles.json.
+    return { text: `[TODO: ${id} is missing from src/library/profiles.json]`, ids: [id] };
   }
   const roles = ctx.roles.map((r) => r.label).join(', ');
   return { text: fill(line.line, { roles }), ids: [line.id] };
+}
+
+// Whether the profile compiles roles into something the user can use. A single dot only gets a
+// note, and custom instructions have no place for roles at all.
+export function carriesRoles(profile: Profile): boolean {
+  return profile.roleFallback !== 'none' && profile.roleFallback !== 'single-dot-note';
 }
 
 export function roleOutputs(ctx: CompileContext): RoleOutputs {
   const files: BundleFile[] = [];
   const notes: RoleNote[] = [];
   const warnings: string[] = [];
+  const trimmed: Trimmed[] = [];
   if (ctx.roles.length === 0) {
-    return { files, notes, warnings };
+    return { files, notes, warnings, trimmed };
   }
+  const sink: Sink = { warnings, trimmed };
 
   // Role souls obey the profile's length cap like any soul. Past the tiers nothing is dropped
   // here; the overflow is reported so the caller can see it.
@@ -535,14 +555,14 @@ export function roleOutputs(ctx: CompileContext): RoleOutputs {
     case 'workspaces':
       for (const role of ctx.roles) {
         const dir = `workspace-${role.id}`;
-        addSoul(soulFile(ctx, role, `${dir}/SOUL.md`, `Role soul: ${role.label}`, 'file', warnings));
+        addSoul(soulFile(ctx, role, `${dir}/SOUL.md`, `Role soul: ${role.label}`, 'file', sink));
         files.push(agentsFile(ctx, role, `${dir}/AGENTS.md`));
       }
       break;
     case 'profiles':
       for (const role of ctx.roles) {
         addSoul(
-          soulFile(ctx, role, `profiles/${role.id}/SOUL.md`, `Role soul: ${role.label}`, 'file', warnings),
+          soulFile(ctx, role, `profiles/${role.id}/SOUL.md`, `Role soul: ${role.label}`, 'file', sink),
         );
       }
       break;
@@ -555,7 +575,7 @@ export function roleOutputs(ctx: CompileContext): RoleOutputs {
             `${ctx.profile.personalityPath} (${role.label})`,
             `Role description: ${role.label}`,
             'paste',
-            warnings,
+            sink,
           ),
         );
       }
@@ -570,7 +590,7 @@ export function roleOutputs(ctx: CompileContext): RoleOutputs {
             `${ctx.profile.personalityPath} (${role.label})`,
             `Role instructions: ${role.label}`,
             'paste',
-            warnings,
+            sink,
           ),
         );
       }
@@ -585,5 +605,5 @@ export function roleOutputs(ctx: CompileContext): RoleOutputs {
       break;
     }
   }
-  return { files, notes, warnings };
+  return { files, notes, warnings, trimmed };
 }
