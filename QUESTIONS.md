@@ -363,3 +363,11 @@ Marked "for Brian" where the call changes product behavior or bends a rule; the 
 **W35. Roles and packs in the store.** settle() drops roles only when a change takes away the packs their role set fitted. Roles that a link carried without fitting packs stay. The compiler accepts them; the Sol project roles golden is one. Before this fix, any edit after opening such a link silently dropped the team.
 
 **W36. Remix from the certificate and the Mine trace.** The certificate's Remix sets from 'link-remix', so Back on base returns to the remix screen. It also clears any old paste. The W28 trace carve-out applies only to the main personality artifact (a file, the soul or Dot's spoken personality). A user.mine id anywhere else still fails the trace.
+
+**W37. Content question for Brian (found on the certificate, 2026-10-03).** The risk 4 stat line is "Same as 3, plus: the only two words you say against a trade are "chasing" and "rug."" (library doc, stats table, verbatim). The soul carries only one risk line per build, so a risk-4 bot reads "Same as 3" with no level 3 line to refer to. Marty and Odds show it. Suggested fix, for Brian: write the risk 4 line out in full. Not changed: it's library content.
+
+**W38. Wave 3 lead fixes.**
+- 4.5b renamed the GPT creation-off record (verify.1 becomes note.1), so the certificate model now looks it up by its new id. The deprecated summary shows the fact once again.
+- The shared Screen h1 wraps anywhere, so a 24-character name with no spaces never clips at 375px.
+- 4.5b also tagged gpt.verify.3 ("scheduled tasks by plan") as routine-only. Lead accepted this as a W32 Q1 reading.
+- Hyphenated skill folders apply only on OpenClaw and Hermes. Project and GPT file names keep their record ids.
