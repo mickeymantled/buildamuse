@@ -681,8 +681,9 @@ export const useBuilder = create<BuilderStore>()((set, get) => {
 
     togglePack: (id) =>
       commit((s) => {
-        if (!availablePacks(profileOf(s)).some((p) => p.id === id)) return null;
         const has = s.draft.packs.includes(id);
+        // Only adding needs the profile to deliver the pack. A pack already in the build can always come out.
+        if (!has && !availablePacks(profileOf(s)).some((p) => p.id === id)) return null;
         if (!has && s.draft.packs.length >= MAX_PACKS) return null;
         const packs = has ? s.draft.packs.filter((p) => p !== id) : [...s.draft.packs, id];
         return { ...draftPatch(s, { packs }), touched: { ...s.touched, packs: true } };

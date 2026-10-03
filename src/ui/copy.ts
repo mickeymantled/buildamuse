@@ -167,6 +167,8 @@ export const copy = {
   packs: {
     none: 'No packs picked. Your bot will still work without them.',
     counterLabel: (n: number, max: number) => `${n} of ${max} packs chosen`,
+    // Badge on a picked pack this target cannot deliver.
+    notCarried: 'Not carried on this target. Untick to remove.',
   },
 
   // Peeves screen. Chip labels come from the library; "already built in" is copy.alreadyBuiltIn.
@@ -194,6 +196,8 @@ export const copy = {
 
   // Limits screen. Labels, units and venue notes come from the library.
   limits: {
+    // ChatGPT dot keeps only approvals as Custom Rules, so these numbers never reach it (QUESTIONS W40).
+    dotNote: "ChatGPT dot can't carry these numbers. Your certificate lists them so you can add them by hand.",
     none: 'Nothing to set for your picks.',
     lower: (label: string) => `Lower ${label}`,
     raise: (label: string) => `Raise ${label}`,

@@ -1,5 +1,6 @@
 import { useShallow } from 'zustand/react/shallow';
 import { MAX_PACKS } from '../../compiler/passes/validate.js';
+import library from '../../library/index.js';
 import { Card, CardList } from '../components/Card';
 import { FOCUS, cx } from '../components/cx';
 import { copy } from '../copy.js';
@@ -10,10 +11,13 @@ import { Station } from './Station.js';
 // After World. The packs this target can deliver, as toggle cards in library order. They start from
 // the chips and follow them until the user taps one (the store handles that). At the cap the other
 // cards dim, and their tap is refused by the store. Skip is allowed, and so is picking none.
+// A picked pack this target can't deliver (a chip brought it, or the target changed) is listed too,
+// with a note, so it can be unticked. An unpicked one stays hidden.
 // At the bottom, the advanced roles switch, only for a target that supports roles and packs that have a team.
 export function Packs() {
-  const packs = useBuilder(useShallow((s) => availablePacks(profileOf(s))));
+  const deliverable = useBuilder(useShallow((s) => availablePacks(profileOf(s))));
   const chosen = useBuilder(useShallow((s) => s.draft.packs));
+  const packs = library.packs.filter((p) => deliverable.includes(p) || chosen.includes(p.id));
   const togglePack = useBuilder((s) => s.togglePack);
   // Shown while a pack has a team, and kept while on so it can always be turned off (U11).
   const showRoles = useBuilder(
@@ -40,12 +44,15 @@ export function Packs() {
       <CardList label={copy.screens.packs.title} role="group">
         {packs.map((pack) => {
           const on = chosen.includes(pack.id);
+          const carried = deliverable.includes(pack);
           return (
             <Card
               key={pack.id}
               mode="toggle"
               title={pack.label}
               description={pack.skills.map((skill) => skill.name).join(', ')}
+              badge={carried ? undefined : copy.packs.notCarried}
+              badgeTone="muted"
               selected={on}
               onSelect={() => togglePack(pack.id)}
               className={full && !on ? 'opacity-60' : undefined}

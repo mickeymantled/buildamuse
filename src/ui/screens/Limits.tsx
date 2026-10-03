@@ -28,6 +28,9 @@ export function Limits() {
   return (
     <Station screen="limits">
       {rows.length === 0 && <p className="text-sm text-muted">{copy.limits.none}</p>}
+      {rows.length > 0 && profileId === 'chatgpt-dot' && (
+        <p className="text-sm text-muted">{copy.limits.dotNote}</p>
+      )}
 
       {rows.length > 0 && (
         <div className="flex flex-col gap-3">
