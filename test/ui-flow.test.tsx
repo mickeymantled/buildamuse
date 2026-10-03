@@ -126,16 +126,19 @@ function seed(o: Seed = {}): void {
   });
 }
 
-const TITLE_TO_SCREEN = new Map<string, ScreenId>(
-  (Object.keys(copy.screens) as ScreenId[]).map((id) => [copy.screens[id].title, id]),
-);
-
-// Which screen is showing, read from its level 1 heading.
+// Which screen is showing, read from App's data-screen attribute. The certificate's level 1 heading
+// is "Meet <Name>" (QUESTIONS W5), so titles no longer tell the screens apart (M4 plan section 5).
 function currentScreen(): ScreenId {
-  const heading = screen.getByRole('heading', { level: 1 });
-  const id = TITLE_TO_SCREEN.get(heading.textContent ?? '');
-  if (!id) throw new Error(`unknown screen heading "${heading.textContent}"`);
-  return id;
+  const id = document.querySelector('[data-screen]')?.getAttribute('data-screen');
+  if (!id || !Object.hasOwn(copy.screens, id)) throw new Error(`unknown screen "${id}"`);
+  return id as ScreenId;
+}
+
+// A copy block on the certificate, found by the title the bundle gives it. Every block is a group
+// named by its heading, with the text in a pre.
+function blockText(title: string): string {
+  const block = screen.getByRole('group', { name: title });
+  return block.querySelector('pre')?.textContent ?? '';
 }
 
 interface Seen {
@@ -314,9 +317,9 @@ describe('full flow, blank build', () => {
     expect(isBlocked(nextButton())).toBe(false);
     expect(await next(user)).toBe('certificate');
 
-    // The certificate placeholder shows the compiled personality text.
-    const block = screen.getByRole('heading', { name: copy.certificate.soul, level: 2 }).parentElement;
-    const soul = block?.querySelector('pre')?.textContent ?? '';
+    // The certificate opens with "Meet <Name>" and shows the compiled personality as a copy block.
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(copy.certificate.title('Zephyr'));
+    const soul = blockText(copy.certificate.soul);
     expect(soul).toContain('Zephyr');
     // Spec: the name is the first word of Who you are, then the outfit anchor.
     expect(soul).toContain(`Zephyr. ${outfit.anchor}`);
@@ -328,8 +331,7 @@ describe('full flow, blank build', () => {
     const d1 = must(library.heart.drives.find((d) => d.id === hardPart.d1), 'd1 drive').line;
     expect(soul).toContain(d1);
     // The seed block is the memory sentence the user says to Muse.
-    const seedBlock = screen.getByRole('heading', { name: copy.certificate.seed, level: 2 }).parentElement;
-    expect(seedBlock?.querySelector('pre')?.textContent).toMatch(/^Remember that /);
+    expect(blockText(copy.certificate.seed)).toMatch(/^Remember that /);
 
     expect(seen.map((s) => s.screen)).toEqual([
       'target',
@@ -1164,9 +1166,8 @@ describe('roster', () => {
       await user.click(screen.getByRole('button', { name: `${copy.buttons.use} ${name}` }));
       expect(currentScreen()).toBe('certificate');
       const entry = must(library.roster.find((e) => e.id === id), 'roster entry');
-      const soul = screen.getByRole('heading', { name: copy.certificate.soul, level: 2 }).parentElement
-        ?.querySelector('pre')?.textContent;
-      expect(soul).toContain(entry.build.name);
+      expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(copy.certificate.title(entry.build.name));
+      expect(blockText(copy.certificate.soul)).toContain(entry.build.name);
     },
   );
 

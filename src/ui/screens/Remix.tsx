@@ -1,31 +1,54 @@
-import { cx, FOCUS, ON_FILL } from '../components/cx';
-import { useBuilder } from '../store.js';
+import { useId } from 'react';
+import { FOCUS, cx } from '../components/cx';
+import { copy } from '../copy.js';
+import { PASTE_MAX, useBuilder } from '../store.js';
 import { Station } from './Station.js';
 
-// Side screen between the certificate and base. Stub until slice 4.14, which replaces this file and
-// moves the label into copy/remix.ts. Continue goes to base.
-const CONTINUE = 'Continue';
-
+// Side screen between the certificate and base. Station gives it no Skip and no progress dots, Back goes
+// to the certificate and Next goes to base. The paste box is the second and last text input in the app
+// (the name is the first). It is optional, held in memory only and never reaches the link.
 export function Remix() {
-  const next = useBuilder((s) => s.next);
+  const target = useBuilder((s) => s.target);
+  const pasted = useBuilder((s) => s.pasted);
+  const setPasted = useBuilder((s) => s.setPasted);
+  const inputId = useId();
+  const noteId = useId();
+
   return (
-    <Station
-      screen="remix"
-      footer={
-        <button
-          type="button"
-          onClick={next}
+    <Station screen="remix">
+      {target !== null && (
+        <p
+          role="note"
+          className="rounded-xl border border-border bg-surface px-4 py-3 text-base leading-6 text-text"
+        >
+          {copy.remixWarning(copy.targetNames[target])}
+        </p>
+      )}
+      <div className="flex flex-col gap-2">
+        <label htmlFor={inputId} className="text-base font-semibold text-text">
+          {copy.remixPaste}
+        </label>
+        {/* 16px text so iOS Safari does not zoom on focus. */}
+        <textarea
+          id={inputId}
+          value={pasted}
+          onChange={(e) => setPasted(e.target.value)}
+          maxLength={PASTE_MAX}
+          rows={8}
+          autoComplete="off"
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+          aria-describedby={noteId}
           className={cx(
-            'min-h-[48px] w-full rounded-xl bg-[color:var(--accent)] px-4 text-base font-semibold',
-            ON_FILL,
+            'min-h-[44px] w-full resize-y rounded-xl border border-border bg-surface px-4 py-3 text-base leading-6 text-text',
             FOCUS,
           )}
-        >
-          {CONTINUE}
-        </button>
-      }
-    >
-      <p className="text-base text-[color:var(--text)]">[TODO: slice 4.14]</p>
+        />
+        <p id={noteId} className="text-sm text-muted">
+          {copy.remixPasteNote}
+        </p>
+      </div>
     </Station>
   );
 }
