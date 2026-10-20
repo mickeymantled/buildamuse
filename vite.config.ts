@@ -14,5 +14,7 @@ export default defineConfig({
   test: {
     // UI tests opt in to jsdom per file with a `@vitest-environment jsdom` docblock.
     include: ['test/**/*.test.{ts,tsx}'],
+    // proxy/function.ts imports the SDK by its Bun version-pinned specifier; tests use the devDependency.
+    alias: { '@anthropic-ai/sdk@0.135.0': '@anthropic-ai/sdk' },
   },
 });

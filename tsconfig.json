@@ -13,7 +13,9 @@
     "isolatedModules": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["node", "vitest/globals"]
+    "types": ["node", "vitest/globals"],
+    // proxy/function.ts imports the SDK by its Bun version-pinned specifier.
+    "paths": { "@anthropic-ai/sdk@0.135.0": ["./node_modules/@anthropic-ai/sdk"] }
   },
-  "include": ["src", "test", "tools", "vite.config.ts"]
+  "include": ["src", "test", "tools", "proxy", "vite.config.ts"]
 }
