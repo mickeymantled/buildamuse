@@ -158,6 +158,66 @@ describe('"your bot\'s personality" and no SOUL.md', () => {
   });
 });
 
+describe('preview chat strings (M5)', () => {
+  const chat = found.filter((f) => f.path.startsWith('chat.'));
+
+  it('walks the chat copy, functions included', () => {
+    const paths = chat.map((f) => f.path);
+    for (const key of ['heading', 'label', 'chipsHint', 'askLabel', 'askLocked', 'send', 'withheld', 'refused', 'busy', 'unavailable']) {
+      expect(paths, key).toContain(`chat.${key}`);
+    }
+    for (const fn of ['counter()', 'counterLabel()', 'rateLimited()', 'capReached()']) {
+      expect(paths, fn).toContain(`chat.${fn}`);
+    }
+  });
+
+  it('has no empty string', () => {
+    expect(chat.length).toBeGreaterThan(15);
+    expect(chat.filter((f) => f.text.trim() === '')).toEqual([]);
+  });
+
+  it('has the B22 label word for word', () => {
+    expect(copy.chat.label).toBe("Close to what your bot will do. Your real bot also has its runtime's built-in rules.");
+  });
+
+  it('has the plan\'s withheld line word for word', () => {
+    expect(copy.chat.withheld).toBe("That reply repeated your bot's setup, so it was held back.");
+  });
+
+  it('names the cap and the character limit it is given', () => {
+    expect(copy.chat.capReached(20)).toContain('20');
+    expect(copy.chat.counter(5, 200)).toBe('5/200');
+    expect(copy.chat.counterLabel(5, 200)).toContain('5');
+    expect(copy.chat.counterLabel(5, 200)).toContain('200');
+  });
+
+  it('says how long to wait, and has a line for when the proxy gives no time', () => {
+    expect(copy.chat.rateLimited(3)).toContain('3 seconds');
+    expect(copy.chat.rateLimitedNoTime).not.toMatch(/\d/);
+  });
+});
+
+describe('text inputs in the UI source', () => {
+  // QUESTIONS B22 and B23: the allowed text inputs are exactly three. The name field, the remix paste
+  // box and the preview chat's ask-your-own box. A fourth would be a new file in this list.
+  const FIELD = /<(input|textarea|select)\b|contentEditable/gi;
+  const fieldCounts = new Map(
+    files
+      .map((f) => [path.relative(UI_DIR, f), (readFileSync(f, 'utf8').match(FIELD) ?? []).length] as const)
+      .filter(([, n]) => n > 0),
+  );
+
+  it('are in the name screen, the remix screen and the preview chat, and nowhere else', () => {
+    expect([...fieldCounts.keys()].sort()).toEqual(
+      [path.join('certificate', 'PreviewChat.tsx'), path.join('screens', 'Name.tsx'), path.join('screens', 'Remix.tsx')].sort(),
+    );
+  });
+
+  it('are one field each', () => {
+    expect([...fieldCounts.values()]).toEqual([1, 1, 1]);
+  });
+});
+
 describe('screen strings', () => {
   it('names the same screens as the plan and the flow, plus the remix side screen', () => {
     // The flow order is the plan's order. The side screen is not in it.

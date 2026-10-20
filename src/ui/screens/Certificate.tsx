@@ -5,6 +5,7 @@ import type { MineSlot } from '../certificate/Block';
 import { Header } from '../certificate/Header';
 import { MineSwitch } from '../certificate/MineSwitch';
 import { Details, Notes, Skipped, StillChecking } from '../certificate/Notes';
+import { PreviewChat } from '../certificate/PreviewChat';
 import { Steps, mineAnchorOf } from '../certificate/Steps';
 import { Summary } from '../certificate/Summary';
 import { certificateInput, certificateModelOf } from '../certificate/input.js';
@@ -82,6 +83,7 @@ export function Certificate() {
         {model.leftOut !== undefined && (
           <Group group={model.leftOut} hint={model.leftOutHint ?? copy.certificate.sections.leftOutHint} />
         )}
+        <PreviewChat />
         <Notes notes={model.notes} />
         <StillChecking items={model.stillChecking} docs={model.docs} />
         <Skipped lines={model.skipped} />

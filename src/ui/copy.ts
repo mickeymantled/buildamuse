@@ -7,6 +7,7 @@ import type { ChipGroup, GateSetting, Plan, ProfileId, StatId, TargetId } from '
 import type { ScreenId } from './flow.js';
 import { actionsCopy } from './copy/actions.js';
 import { certificateCopy } from './copy/certificate.js';
+import { chatCopy } from './copy/chat.js';
 import { linksCopy } from './copy/links.js';
 import { loadCopy } from './copy/load.js';
 import { remixCopy } from './copy/remix.js';
@@ -196,8 +197,6 @@ export const copy = {
 
   // Limits screen. Labels, units and venue notes come from the library.
   limits: {
-    // ChatGPT dot keeps only approvals as Custom Rules, so these numbers never reach it (QUESTIONS W40).
-    dotNote: "ChatGPT dot can't carry these numbers. Your certificate lists them so you can add them by hand.",
     none: 'Nothing to set for your picks.',
     lower: (label: string) => `Lower ${label}`,
     raise: (label: string) => `Raise ${label}`,
@@ -264,6 +263,7 @@ export const copy = {
 
   // M4 areas live in src/ui/copy/, one file per slice so parallel slices never share a writer.
   ...certificateCopy,
+  ...chatCopy,
   ...actionsCopy,
   ...remixCopy,
   ...linksCopy,

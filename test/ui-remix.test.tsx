@@ -128,6 +128,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
   st().reset();
   openAt('/');
 });
@@ -611,7 +612,10 @@ describe('the paste is memory only', () => {
 
 // ---- 7. Tap-only: the only text inputs in the app ----
 
-describe('across every screen, the only text inputs are the name field and the remix paste box', () => {
+// QUESTIONS B22 and B23: the allowed text inputs are exactly three. The name field, the remix paste
+// box, and the preview chat's ask-your-own box, which shows on the certificate only when the preview
+// is configured (VITE_PREVIEW_URL).
+describe('across every screen, the only text inputs are the name field, the remix paste box and the ask-your-own box', () => {
   // Fields a person types words into. Checkboxes, radios and buttons are taps, not typing.
   const TAP_INPUT_TYPES = ['checkbox', 'radio', 'button', 'submit', 'reset', 'image', 'file', 'range', 'color', 'hidden'];
 
@@ -639,7 +643,8 @@ describe('across every screen, the only text inputs are the name field and the r
     'remix',
   ];
 
-  it('has a text input only on name (one input) and remix (one textarea)', () => {
+  // Visits every screen of a build that shows them all, and reads the text fields on each.
+  function scanEveryScreen(): Array<{ screen: ScreenId; tags: string[]; textboxes: number }> {
     // A build that shows every screen: OpenClaw (roles), a Markets chip (limits and gates, Risk).
     const chips = (group: string) => library.chips.filter((c) => c.group === group).map((c) => c.id);
     store((s) => {
@@ -668,6 +673,36 @@ describe('across every screen, the only text inputs are the name field and the r
           screen.queryAllByRole('spinbutton').length,
       });
     }
+    return seen;
+  }
+
+  it('has a text input only on name (one input), certificate (the ask box) and remix (one textarea), with the preview on', () => {
+    vi.stubEnv('VITE_PREVIEW_URL', 'https://preview.example.test');
+    const seen = scanEveryScreen();
+
+    for (const s of seen) {
+      if (s.screen === 'name') {
+        expect(s.tags, 'text inputs on name').toEqual(['INPUT']);
+        expect(s.textboxes, 'text boxes on name').toBe(1);
+      } else if (s.screen === 'certificate') {
+        expect(s.tags, 'text inputs on certificate').toEqual(['INPUT']);
+        expect(s.textboxes, 'text boxes on certificate').toBe(1);
+      } else if (s.screen === 'remix') {
+        expect(s.tags, 'text inputs on remix').toEqual(['TEXTAREA']);
+        expect(s.textboxes, 'text boxes on remix').toBe(1);
+      } else {
+        expect(s.tags, `text inputs on ${s.screen}`).toEqual([]);
+        expect(s.textboxes, `text boxes on ${s.screen}`).toBe(0);
+      }
+    }
+    expect(seen.filter((s) => s.tags.length > 0).map((s) => s.screen)).toEqual(['name', 'certificate', 'remix']);
+    // Exactly three text inputs in the whole app: one per screen above, each a different kind of field.
+    expect(seen.reduce((n, s) => n + s.tags.length, 0)).toBe(3);
+  });
+
+  it('has a text input only on name and remix when the preview is off', () => {
+    vi.stubEnv('VITE_PREVIEW_URL', '');
+    const seen = scanEveryScreen();
 
     for (const s of seen) {
       if (s.screen === 'name') {
@@ -682,6 +717,15 @@ describe('across every screen, the only text inputs are the name field and the r
       }
     }
     expect(seen.filter((s) => s.tags.length > 0).map((s) => s.screen)).toEqual(['name', 'remix']);
+  });
+
+  it('names the ask box by its own label, apart from the name field and the remix box', () => {
+    vi.stubEnv('VITE_PREVIEW_URL', 'https://preview.example.test');
+    scanEveryScreen();
+    store((s) => s.go('certificate'));
+    expect(screen.getByRole('textbox', { name: copy.chat.askLabel }).tagName).toBe('INPUT');
+    expect(screen.queryByRole('textbox', { name: copy.name.label })).toBeNull();
+    expect(screen.queryByRole('textbox', { name: PASTE_LABEL })).toBeNull();
   });
 
   it('names the remix box by its label, and the name field by its own', () => {

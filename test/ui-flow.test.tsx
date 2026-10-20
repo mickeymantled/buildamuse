@@ -94,6 +94,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
   useBuilder.getState().reset();
 });
 
@@ -361,10 +362,35 @@ describe('full flow, blank build', () => {
 // ---- 2. Tap-only ----
 
 describe('tap-only', () => {
-  it('renders exactly one textbox across every screen, and only on the name screen', async () => {
+  // The allowed text inputs are exactly three (QUESTIONS B22, B23): the name field, the remix paste
+  // box and the preview chat's ask-your-own box. This flow reaches two of them. The remix box is
+  // covered by test/ui-remix.test.tsx, and the ask box by test/ui-preview-chat.test.tsx.
+  const PREVIEW_URL = 'https://preview.example.test';
+
+  it('renders a textbox only on the name screen and, with the preview on, the ask-your-own box on the certificate', async () => {
+    vi.stubEnv('VITE_PREVIEW_URL', PREVIEW_URL);
     const user = userEvent.setup();
     render(<App />);
     // OpenClaw supports roles; memecoins has limits, a gate and a role set. Roles on adds the roles screen.
+    await runFullFlow(user, { target: 'openclaw', roles: true });
+
+    expect(new Set(seen.map((s) => s.screen))).toEqual(new Set(ALL_SCREENS));
+    for (const s of seen) {
+      const expected = s.screen === 'name' || s.screen === 'certificate' ? 1 : 0;
+      expect(s.textboxes, `textboxes on ${s.screen}`).toBe(expected);
+      expect(s.fields, `input fields on ${s.screen}`).toBe(expected);
+    }
+    expect(seen.filter((s) => s.textboxes > 0).map((s) => s.screen)).toEqual(['name', 'certificate']);
+    // The name field is gone again on the certificate. The one text field there is the ask box.
+    expect(screen.queryByRole('textbox', { name: copy.name.label })).toBeNull();
+    expect(screen.getAllByRole('textbox')).toHaveLength(1);
+    expect(screen.getByRole('textbox', { name: copy.chat.askLabel })).toBeTruthy();
+  });
+
+  it('renders exactly one textbox across every screen, and only on the name screen, with the preview off', async () => {
+    vi.stubEnv('VITE_PREVIEW_URL', '');
+    const user = userEvent.setup();
+    render(<App />);
     await runFullFlow(user, { target: 'openclaw', roles: true });
 
     expect(new Set(seen.map((s) => s.screen))).toEqual(new Set(ALL_SCREENS));
