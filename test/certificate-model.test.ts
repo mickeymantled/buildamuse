@@ -52,6 +52,20 @@ const DOT_NOTE_ID = 'profile.chatgpt-dot.note.1';
 // one move together.
 const GPT_CREATION_NOTE_ID = 'profile.chatgpt-gpt.note.1';
 const RETIREMENT_DATE = 'Dec 11, 2026';
+// B19: the tagline of a build that is not an unmodified starter, worked by hand per starter from the
+// roster's base and chips (tap order), bases.json nouns and chips.json labels: "Your <first Work or
+// Markets chip label> <base noun>." in lowercase, or "Your <base noun>." with no such chip.
+const GENERATED_TAGLINE: Record<string, string> = {
+  marty: 'Your memecoins trench companion.',
+  june: 'Your playmaker.',
+  rook: 'Your engineering reviewer.',
+  vera: 'Your law second chair.',
+  sol: 'Your student study partner.',
+  dash: 'Your founder chief of staff.',
+  pip: 'Your fixer.',
+  ink: 'Your creative editor.',
+  odds: 'Your prediction markets trench companion.',
+};
 // Plan section 4 summary order, and the engineer's group headings.
 const SUMMARY_ORDER: readonly SummaryKind[] = [
   'auto',
@@ -183,12 +197,14 @@ interface LeftOutLine {
   text: string;
 }
 
-// F3a: a profile whose rulesDelivery is custom-rules (the ChatGPT dot) carries only gates, so every
-// limit line and every pack rules line of the build is left out. Derived from the library tables:
-// limit lines are the packs' limitsDefault merged by each limit's `stricter` direction with the build's
-// own limits on top, in the library's limit order, filled into the limit's rulesTemplate and titled with
-// its label. Pack rule lines are each pack's rulesLines in build pack order.
-function dotLeftOutLines(build: Build): LeftOutLine[] {
+// F3a, reworked for B17 and K3: a profile whose rulesDelivery is custom-rules (the ChatGPT dot) puts the
+// build's limit lines and pack rules lines in its personality message (the Hard rules section), so its
+// Left out holds only the lines whose text is missing from that message (a rule cut to fit the cap).
+// Derived from the library tables: limit lines are the packs' limitsDefault merged by each limit's
+// `stricter` direction with the build's own limits on top, in the library's limit order, filled into the
+// limit's rulesTemplate and titled with its label. Pack rule lines are each pack's rulesLines in build
+// pack order. `soul` is the compiled personality message; a line it contains is not left out.
+function dotLeftOutLines(build: Build, soul: string): LeftOutLine[] {
   const values = new Map<string, number>();
   for (const packId of build.packs) {
     const pack = library.packs.find((p) => p.id === packId);
@@ -206,24 +222,28 @@ function dotLeftOutLines(build: Build): LeftOutLine[] {
       id: `limit.${l.id}`,
       title: l.label,
       text: l.rulesTemplate.replaceAll('{value}', String(values.get(l.id))),
-    }));
-  const ruleIds = build.packs.flatMap(
-    (id) => library.packs.find((p) => p.id === id)?.rulesLines.map((l) => l.id) ?? [],
-  );
+    }))
+    .filter((l) => !soul.includes(l.text));
+  const textOfRule = (id: string): string =>
+    library.packs.flatMap((p) => p.rulesLines).find((l) => l.id === id)?.line ?? '';
+  const ruleIds = build.packs
+    .flatMap((id) => library.packs.find((p) => p.id === id)?.rulesLines.map((l) => l.id) ?? [])
+    .filter((id) => !soul.includes(textOfRule(id)));
   const titles = packRuleTitles(ruleIds);
   const rules: LeftOutLine[] = ruleIds.map((id, i) => ({
     id,
     title: titles[i] ?? id,
-    text: library.packs.flatMap((p) => p.rulesLines).find((l) => l.id === id)?.line ?? '',
+    text: textOfRule(id),
   }));
   return [...limits, ...rules];
 }
 
 const isCustomRules = (c: Case): boolean => c.profile.rulesDelivery === 'custom-rules';
 
-// How many "Not included on ChatGPT: your limits and N pack rules" lines a case shows: one when the
-// profile is custom-rules and the build has any limit or pack rules line, else none.
-const dotSummaryCount = (c: Case): number => (isCustomRules(c) && dotLeftOutLines(c.build).length > 0 ? 1 : 0);
+// How many "Not included on ChatGPT: ..." lines a case shows: one when the profile is custom-rules and
+// some limit or pack rules line of the build is missing from its personality message, else none.
+const dotSummaryCount = (c: Case): number =>
+  isCustomRules(c) && dotLeftOutLines(c.build, c.result.soul).length > 0 ? 1 : 0;
 
 // ---------------------------------------------------------------------------
 // The case list itself
@@ -466,7 +486,7 @@ for (const c of CASES) {
       expect(summaryOf(m, 'trimmed').length > 0).toBe(c.result.trimmed.length > 0);
       expect(summaryOf(m, 'dropped')).toEqual([]);
       // One line for what the profile could not deliver (result.undelivered), plus, on the dot, one
-      // for the limit and pack rules lines it cannot carry (F3a, the summary-undelivered-dot item).
+      // for the limit and pack rules lines missing from its message (F3a, the summary-undelivered-dot item).
       expect(summaryOf(m, 'undelivered').length).toBe(
         (c.result.undelivered.length > 0 ? 1 : 0) + dotSummaryCount(c),
       );
@@ -515,18 +535,20 @@ for (const c of CASES) {
       expect(c.model.header.tagline).toBe(library.roster.find((r) => r.id === starter)?.tagline);
     });
 
-    it('shows no tagline once the name changes', () => {
+    it('shows the generated tagline once the name changes (B19)', () => {
       const build: Build = { ...c.build, name: `${c.build.name}2` };
       expect(starterIdOf(build)).toBeUndefined();
       const m = certificateModel(inputFor(build));
-      expect(m.header.tagline).toBeUndefined();
+      expect(m.header.tagline).toBe(GENERATED_TAGLINE[c.id.split('.')[0] as string]);
+      expect(m.header.tagline).not.toBe(library.roster.find((r) => r.id === c.id.split('.')[0])?.tagline);
       expect(m.header.name).toBe(build.name);
     });
 
-    it('shows the left out list on Muse and Grok (one block per cut pack rule) and on the dot (its limits and pack rules)', () => {
+    it('shows the left out list on Muse and Grok (one block per cut pack rule) and on the dot (the lines missing from its message)', () => {
       if (isCustomRules(c)) {
-        // A dot carries only gates, so Left out holds every limit line and pack rules line of the build.
-        const want = dotLeftOutLines(c.build);
+        // A dot's message holds the limit lines and pack rules lines (B17), so Left out holds only the
+        // ones missing from it.
+        const want = dotLeftOutLines(c.build, c.result.soul);
         if (want.length === 0) {
           expect(c.model.leftOut).toBeUndefined();
           expect(c.model.leftOutHint).toBeUndefined();
@@ -1351,7 +1373,7 @@ describe('skipped lines', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Tagline (W5) and starterIdOf
+// Tagline (W5, B19) and starterIdOf
 // ---------------------------------------------------------------------------
 
 describe('starterIdOf', () => {
@@ -1425,23 +1447,24 @@ describe('tagline', () => {
     }
   });
 
-  it('is gone after the name changes, on every target', () => {
+  it('becomes the generated line after the name changes, on every target (B19)', () => {
     for (const id of ['june.muse', 'june.openclaw', 'june.hermes', 'june.grok', 'june.chatgpt-dot']) {
       const c = caseOf(id);
       const build: Build = { ...c.build, name: 'Juniper' };
-      expect(certificateModel(inputFor(build)).header.tagline, id).toBeUndefined();
+      // June is the parent base with kids, cooking, dog, phone: no Work or Markets chip.
+      expect(certificateModel(inputFor(build)).header.tagline, id).toBe('Your playmaker.');
     }
   });
 
-  it('is gone after a chip is added', () => {
+  it('follows the chips after a chip is added: the first Work or Markets chip leads', () => {
     const c = caseOf('june.muse');
     const build: Build = { ...c.build, chips: [...c.build.chips, 'law'] };
-    expect(certificateModel(inputFor(build)).header.tagline).toBeUndefined();
+    expect(certificateModel(inputFor(build)).header.tagline).toBe('Your law playmaker.');
   });
 
-  it('is empty when the caller passes no starter id', () => {
+  it('is the generated line, not empty, when the caller passes no starter id', () => {
     const c = caseOf('june.muse');
-    expect(modelWith(c, { starterId: undefined }).header.tagline).toBeUndefined();
+    expect(modelWith(c, { starterId: undefined }).header.tagline).toBe('Your playmaker.');
   });
 
   it('keeps the header name as typed', () => {
@@ -1824,7 +1847,9 @@ describe('fuzz: random packs, gates and roles', () => {
       expect(summaryOf(c.model, 'undelivered').length, label).toBe(
         (r.undelivered.length > 0 ? 1 : 0) + dotSummaryCount(c),
       );
-      if (isCustomRules(c)) expect(c.model.leftOut !== undefined, label).toBe(dotLeftOutLines(build).length > 0);
+      if (isCustomRules(c)) {
+        expect(c.model.leftOut !== undefined, label).toBe(dotLeftOutLines(build, r.soul).length > 0);
+      }
       expect(c.model.zip !== undefined, label).toBe(r.files.some((f) => f.delivery === 'file'));
       expect(JSON.stringify(certificateModel(c.input)), label).toBe(JSON.stringify(c.model));
     }

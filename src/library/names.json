@@ -9,5 +9,9 @@
     { "stat": "risk", "level": 1, "word": "Risk-Off" },
     { "stat": "risk", "level": 3, "word": "Risk-On" },
     { "stat": "risk", "level": 4, "word": "Degen" }
-  ]
+  ],
+  "taglines": {
+    "chip": { "id": "tagline.chip", "line": "Your {chip} {noun}." },
+    "base": { "id": "tagline.base", "line": "Your {noun}." }
+  }
 }

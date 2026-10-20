@@ -57,8 +57,8 @@ export const certificateCopy = {
     sections: {
       extra: 'Also included',
       leftOutHint: 'These rules did not fit. Add them by hand if you want them.',
-      // A dot's Custom rules hold only the approvals, so its limits and pack rules are left out.
-      leftOutDotHint: "A dot's Custom rules hold only your approvals. Add these by hand if you want them.",
+      // A dot's message carries its limits and pack rules (B17), so a line here was cut or left out of it.
+      leftOutDotHint: "These rules are not in your dot's message. Add them by hand if you want them.",
     },
 
     // The length meter's caption when the personality is close to the limit (library doc: "drop a chip to shorten").
@@ -111,12 +111,13 @@ export const certificateCopy = {
       droppedDriveReset: 'What it wants first was reset to match the hard part.',
       droppedNameCleaned: 'The name was tidied up.',
       undelivered: (target: string) => `Not included on ${target}:`,
-      // The dot carries only approvals as rules. `limits` and `rules` are counts; either may be 0.
-      // A dot with an auto gate and limits that cannot reach it (QUESTIONS W40).
+      // A dot with an auto gate and a limit line missing from its message (QUESTIONS W40, B17).
       dotAutoNoLimits: (n: number) =>
         n === 1
           ? 'This one runs on auto, and your dot has no limits to check it against. Set it to Ask before taking action, or add your limits by hand first:'
           : 'These run on auto, and your dot has no limits to check them against. Set them to Ask before taking action, or add your limits by hand first:',
+      // The limit and pack rules lines absent from a dot's message. `limits` and `rules` are counts;
+      // either may be 0, never both. Reads "your limits", "N pack rules" or "your limits and N pack rules".
       undeliveredDot: (target: string, limits: number, rules: number) => {
         const what = [
           ...(limits > 0 ? ['your limits'] : []),

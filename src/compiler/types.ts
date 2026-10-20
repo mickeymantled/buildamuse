@@ -286,6 +286,13 @@ export interface NameWord {
   word: string;
 }
 
+// names.json: the stat words for build names and the two generated tagline templates (B19).
+export interface Names {
+  order: StatId[];
+  words: NameWord[];
+  taglines: { chip: Line; base: Line }; // slots {chip} and {noun}; base is the fallback with no Work or Markets chip
+}
+
 export interface RosterEntry {
   id: string;
   build: BuildV1; // starters are target-agnostic; migrate() adds a target
@@ -530,7 +537,7 @@ export interface Library {
   heart: { hardParts: HardPart[]; drives: Drive[] };
   outfits: Outfit[];
   examples: { greetingMe: Template; greetings: ExampleGreeting[]; domains: ExampleDomain[] };
-  names: { order: StatId[]; words: NameWord[] };
+  names: Names;
   roster: RosterEntry[];
   contradictions: Contradiction[];
   targets: { targets: TargetCard[]; profiles: Profile[] };

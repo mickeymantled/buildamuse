@@ -828,8 +828,10 @@ describe('Meter, component', () => {
 describe('Meter, on the certificate', () => {
   const hint = copy.certificate.meter.hint;
 
-  it('shows the hint on a personality close to the cap (Marty on Muse)', () => {
-    open(golden('marty.muse'));
+  // B18: Marty on Muse used to sit 29 under its cap; the full risk 4 line moved it to Tier B and 305 under.
+  // Marty on Hermes (3,956 of 4,000) is the golden that still sits just under its cap.
+  it('shows the hint on a personality close to the cap (Marty on Hermes)', () => {
+    open(golden('marty.hermes'));
     // Precondition: this build sits just under its cap.
     expect(meterValue()).toBeLessThanOrEqual(meterMax());
     expect(meterMax() - meterValue()).toBeLessThanOrEqual(200);
@@ -901,7 +903,7 @@ describe('Left out hint', () => {
     expect(hintAfterHeading()).toBe(copy.certificate.sections.leftOutHint);
   });
 
-  it('reads the dot hint on the ChatGPT dot, which holds only approvals as rules', () => {
+  it('reads the dot hint on the ChatGPT dot, whose message lacks the listed rules', () => {
     open(golden('marty.chatgpt-dot'));
     expect(hintAfterHeading()).toBe(copy.certificate.sections.leftOutDotHint);
     expect(screen.queryByText(copy.certificate.sections.leftOutHint)).toBeNull();

@@ -20,6 +20,7 @@ import type {
 } from '../../compiler/types.js';
 import { artifactKindOf } from '../../compiler/types.js';
 import { rulesItems } from '../../compiler/gates.js';
+import { taglineOf } from '../../compiler/passes/tagline.js';
 import library from '../../library/index.js';
 import type { Drop, DropField } from '../../share/encode.js';
 import { zipFilename } from '../../share/zip.js';
@@ -92,7 +93,7 @@ export interface CertModel {
   header: {
     name: string;
     buildName: string;
-    tagline?: string;
+    tagline?: string; // a roster starter's own line, else the generated one (B19); set on every build
     stats: Build['stats'];
     badges: { id: string; name: string }[];
   };
@@ -120,8 +121,9 @@ const DOT_NOTE_ID = 'profile.chatgpt-dot.note.1';
 const GPT_CREATION_NOTE_ID = 'profile.chatgpt-gpt.note.1';
 // Profiles where a rule can leave the bundle entirely, so the user can add it back by hand.
 // On Hermes the cut is from SOUL.md only and AGENTS.md still carries the rule, so a rule is listed
-// only when no rules file carries it either. A dot (rulesDelivery custom-rules) carries only gates,
-// so there every limit line and every pack rules line is left out.
+// only when no rules file carries it either. A dot (rulesDelivery custom-rules) has no rules file:
+// its limit lines and pack rules lines ride in the personality message (B17), so a line is listed
+// only when its text is missing from that message.
 const LEFT_OUT_PROFILES: readonly ProfileId[] = ['muse', 'grok', 'chatgpt-dot'];
 // The meter turns "near" this many characters under the cap (library doc: amber at 3,200 of 3,600).
 export const NEAR_CAP = 400;
@@ -486,8 +488,11 @@ function leftOutGroup(
   };
 }
 
-// What a custom-rules profile (the ChatGPT dot) cannot carry: the build's limit lines, then every pack
-// rules line. The text comes from rulesItems, the builder the other profiles use, so it is identical.
+// What a custom-rules profile (the ChatGPT dot) does not carry: the build's limit lines, then every
+// pack rules line, whose text is absent from the personality message (result.soul). The dot message
+// holds them in its Hard rules section (B17), so what remains is a line cut to fit. Testing the text
+// keeps this right whatever the compiler puts in that section. The text comes from rulesItems, the
+// builder the other profiles use, so it is identical.
 interface DotLeftOut {
   group?: CertGroup;
   limits: number;
@@ -508,6 +513,7 @@ function dotLeftOut(build: Build, result: CompileResult, lib: Library): DotLeftO
   let limits = 0;
   let rules = 0;
   for (const item of items) {
+    if ((item.kind === 'limit' || item.kind === 'pack-rule') && result.soul.includes(item.text)) continue;
     let title: string;
     if (item.kind === 'limit') {
       limits += 1;
@@ -640,8 +646,9 @@ export function certificateModel(input: CertInput, lib: Library = library): Cert
       text: c.summary.undeliveredDot(target, dot.limits, dot.rules),
     });
   }
-  // A dot enforces an auto gate as "Take action without asking", and its limits never reach it, so the
-  // two facts are tied together in one line (final safety review advisory; QUESTIONS W40).
+  // A dot enforces an auto gate as "Take action without asking", so a limit line missing from its
+  // message leaves nothing to check it against. The two facts are tied in one line, shown only when a
+  // limit line is absent (final safety review advisory; QUESTIONS W40, B17).
   if (dot !== undefined && dot.limits > 0 && autoLabels.length > 0) {
     summary.push({
       key: 'summary-dot-auto',
@@ -676,8 +683,10 @@ export function certificateModel(input: CertInput, lib: Library = library): Cert
   const zipFiles = result.files
     .filter((f) => f.delivery === 'file')
     .map((f) => ({ path: f.path, content: f.content }));
+  // A starter keeps its hand-written tagline; every other build gets the generated one (B19).
   const tagline =
-    input.starterId === undefined ? undefined : lib.roster.find((r) => r.id === input.starterId)?.tagline;
+    (input.starterId === undefined ? undefined : lib.roster.find((r) => r.id === input.starterId)?.tagline) ??
+    taglineOf(build, lib).text;
   const leftOut = !LEFT_OUT_PROFILES.includes(profile.id)
     ? undefined
     : dot !== undefined
@@ -689,7 +698,7 @@ export function certificateModel(input: CertInput, lib: Library = library): Cert
     header: {
       name: build.name,
       buildName: result.buildName,
-      ...(tagline !== undefined ? { tagline } : {}),
+      tagline,
       stats: build.stats,
       badges: result.badges.flatMap((id) => {
         const badge = lib.badges.find((b) => b.id === id);

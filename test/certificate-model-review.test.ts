@@ -1,15 +1,17 @@
 // Certificate model review (M4 fix slice F3a): src/ui/certificate/model.ts after the review fixes.
 //
 // Three behaviors, plus a guard:
-//   1. The ChatGPT dot cannot carry limit lines or pack rules lines (rulesDelivery custom-rules), so
-//      the certificate says so in the summary and lists each one under Left out, once.
+//   1. The ChatGPT dot (rulesDelivery custom-rules) carries its limit lines and pack rules lines in the
+//      Hard rules section of its message (B17), so the certificate lists under Left out, and counts in
+//      the summary, only the lines whose text is missing from that message (K3), each once.
 //   2. On Muse and Grok the Left out blocks are titled "<pack label>, rule n" and the titles are unique.
 //   3. The length meter turns "near" within 400 characters under the cap, with the library's hint.
 //   4. No copyable block carries a "verify:" line.
 //
 // Expected text comes from the library tables (limits, packs, gates, roster) and the library doc,
 // never from running the model and copying what it printed. The strings that are not library text
-// (the summary sentence, the two Left out hints) are the fixed lines from the F3a engineer report.
+// (the summary sentence, the two Left out hints) are the fixed lines from the F3a engineer report; the dot
+// hint was reworded in K3 (the old one explained a cause that is no longer true).
 // Where a test needs a situation the goldens do not reach, it hands the model a synthetic input:
 // the compiled result with one field replaced, or a library copy with fewer pack rules.
 
@@ -22,6 +24,7 @@ import { migrate } from '../src/compiler/migrate.js';
 import { capOf, resolveProfile } from '../src/compiler/profile.js';
 import type { Build, CompileResult, Library, Profile, Trimmed } from '../src/compiler/types.js';
 import { certificateModel, starterIdOf } from '../src/ui/certificate/model.js';
+import { copy } from '../src/ui/copy.js';
 import type { CertGroup, CertInput, CertModel, SummaryKind } from '../src/ui/certificate/model.js';
 import { GOLDEN_SPECS, buildFor } from '../tools/golden.js';
 
@@ -39,7 +42,7 @@ const AMBER_LINE = 3200; // the doc's threshold on the dot's 3,600 cap
 const NEAR = 400; // the engineer's reading: the doc's 3,200 is 400 under the 3,600 cap
 
 // F3a engineer report: the two hints under the Left out heading.
-const DOT_LEFT_OUT_HINT = "A dot's Custom rules hold only your approvals. Add these by hand if you want them.";
+const DOT_LEFT_OUT_HINT = "These rules are not in your dot's message. Add them by hand if you want them.";
 const PACK_LEFT_OUT_HINT = 'These rules did not fit. Add them by hand if you want them.';
 
 const DOT_KEY = 'summary-undelivered-dot';
@@ -121,13 +124,13 @@ function summaryByKey(m: CertModel, key: string) {
 const isDot = (c: Case): boolean => c.profile.id === 'chatgpt-dot';
 
 // ---------------------------------------------------------------------------
-// What the dot cannot carry, derived from the library tables
+// What the dot's message should hold, derived from the library tables
 // ---------------------------------------------------------------------------
 
 interface Line {
   id: string; // limit.<id> or the pack rule id
   text: string;
-  title: string; // the expected block title
+  title: string; // a limit's label, or "<pack label>, rule n" by the rule's place in its pack
 }
 
 // The build's effective limit lines: pack defaults merged by each limit's `stricter` direction, the
@@ -167,6 +170,44 @@ function packRuleLines(build: Build, lib: Library = library): Line[] {
 }
 
 const countOf = (list: readonly string[], value: string): number => list.filter((x) => x === value).length;
+const isLimit = (l: Line): boolean => l.id.startsWith('limit.');
+
+// B17 and K3: the dot message carries the limit lines and the pack rules lines in its Hard rules
+// section, so a line is left out only when its text is missing from the message (result.soul).
+function missingFrom(lines: readonly Line[], soul: string): Line[] {
+  return lines.filter((l) => !soul.includes(l.text));
+}
+
+// The title a Left out block shows: a limit keeps its label, a pack rule is numbered within its pack
+// in the order shown, from 1 (the same numbering Muse and Grok use).
+function shownTitles(lines: readonly Line[]): string[] {
+  const counts = new Map<string, number>();
+  return lines.map((l) => {
+    if (isLimit(l)) return l.title;
+    const pack = l.title.replace(/, rule \d+$/, '');
+    const n = (counts.get(pack) ?? 0) + 1;
+    counts.set(pack, n);
+    return `${pack}, rule ${n}`;
+  });
+}
+
+// The summary sentence (F3a engineer report): "your limits" and "N pack rule(s)", joined with "and".
+function dotSentence(limits: number, rules: number): string {
+  const what = [
+    ...(limits > 0 ? ['your limits'] : []),
+    ...(rules > 0 ? [`${rules} pack ${rules === 1 ? 'rule' : 'rules'}`] : []),
+  ].join(' and ');
+  const pronoun = limits > 0 || rules !== 1 ? 'them' : 'it';
+  return `Not included on ChatGPT: ${what}. Add ${pronoun} to your dot by hand.`;
+}
+
+// A personality message for a synthetic input: the compiled one with every line of `all` present,
+// then `missing` taken out of it wherever it appears.
+function soulWith(base: string, all: readonly Line[], missing: readonly Line[]): string {
+  let soul = `${base}\n${all.map((l) => l.text).join('\n')}`;
+  for (const line of missing) soul = soul.split(line.text).join('');
+  return soul;
+}
 
 // A dot build from a roster starter, with the pieces a test wants to vary.
 function dotBuild(starter: string, over: Partial<Build> = {}): Build {
@@ -180,46 +221,45 @@ function libWithRules(n: number): Library {
   return { ...library, packs: library.packs.map((p) => ({ ...p, rulesLines: p.rulesLines.slice(0, n) })) };
 }
 
+// The model for a dot build whose personality message is the compiled one with every limit and pack
+// rules line of `lib` put in and `pick(all)` taken out again. The compile is real; only the message
+// the model checks is edited, so the situation does not depend on what the compiler cuts.
+function modelWithMissing(
+  build: Build,
+  pick: (limits: Line[], rules: Line[]) => Line[],
+  lib: Library = library,
+): { model: CertModel; limits: Line[]; rules: Line[]; missing: Line[] } {
+  const input = inputFor(build);
+  const limits = limitLines(build);
+  const rules = packRuleLines(build, lib);
+  const missing = pick(limits, rules);
+  const soul = soulWith(input.result.soul, [...limits, ...rules], missing);
+  const model = certificateModel({ ...input, result: { ...input.result, soul } }, lib);
+  return { model, limits, rules, missing };
+}
+
+const none = (): Line[] => [];
+const onlyLimits = (limits: Line[]): Line[] => limits;
+const onlyRules = (_limits: Line[], rules: Line[]): Line[] => rules;
+const everything = (limits: Line[], rules: Line[]): Line[] => [...limits, ...rules];
+
 // ---------------------------------------------------------------------------
 // 1. ChatGPT dot: the undelivered dot summary and the Left out group
 // ---------------------------------------------------------------------------
 
-describe('ChatGPT dot: marty', () => {
+describe('ChatGPT dot: marty (the real compile)', () => {
   const c = caseOf('marty.chatgpt-dot');
   const limits = limitLines(c.build);
   const rules = packRuleLines(c.build);
+  const missing = missingFrom([...limits, ...rules], c.result.soul);
+  const missingLimits = missing.filter(isLimit);
+  const missingRules = missing.filter((l) => !isLimit(l));
 
-  it('has limits and pack rules to leave out (the build under test is the one with both)', () => {
+  it('has limits and pack rules in the library (the build under test is the one with both)', () => {
     expect(c.build.packs).toEqual(['memecoins']);
     expect(limits.length).toBe(3);
     expect(rules.length).toBe(library.packs.find((p) => p.id === 'memecoins')?.rulesLines.length);
     expect(rules.length).toBeGreaterThan(0);
-  });
-
-  it('shows the undelivered dot summary, naming the limits and the pack rule count', () => {
-    const item = summaryByKey(c.model, DOT_KEY);
-    expect(item).toBeDefined();
-    expect(item?.kind).toBe('undelivered');
-    expect(item?.text).toBe(
-      `Not included on ChatGPT: your limits and ${rules.length} pack rules. Add them to your dot by hand.`,
-    );
-  });
-
-  it('shows exactly one dot summary line', () => {
-    expect(c.model.summary.filter((s) => s.key === DOT_KEY).length).toBe(1);
-  });
-
-  it('holds every effective limit line and every pack rules line under Left out, each exactly once', () => {
-    const group = c.model.leftOut;
-    expect(group).toBeDefined();
-    expect(group?.heading).toBe('Left out');
-    const texts = (group?.blocks ?? []).map((b) => b.text);
-    const want = [...limits, ...rules];
-    expect(texts.length).toBe(want.length);
-    for (const line of want) {
-      expect(countOf(texts, line.text), line.id).toBe(1);
-    }
-    expect([...texts].sort()).toEqual(want.map((l) => l.text).sort());
   });
 
   it('uses the library limit template with the effective value, from the build, not the other way round', () => {
@@ -232,27 +272,71 @@ describe('ChatGPT dot: marty', () => {
     expect(Object.keys(c.result.limits)).toEqual(limits.map((l) => l.id.replace('limit.', '')));
   });
 
-  it('carries the record ids: limit.<id> for a limit, the pack rule id for a rule', () => {
+  it('B17: the message has a Hard rules section, and every limit line sits under it', () => {
+    const soul = c.result.soul;
+    const heading = soul.indexOf('## Hard rules');
+    expect(heading).toBeGreaterThanOrEqual(0);
+    for (const l of limits) {
+      expect(soul.indexOf(l.text), l.id).toBeGreaterThan(heading);
+    }
+  });
+
+  it('lists no limit line under Left out, because the message carries them', () => {
+    expect(missingLimits).toEqual([]);
     const blocks = c.model.leftOut?.blocks ?? [];
-    expect(blocks.map((b) => b.ids)).toEqual([...limits, ...rules].map((l) => [l.id]));
+    for (const l of limits) expect(blocks.map((b) => b.text)).not.toContain(l.text);
+    for (const b of blocks) expect(b.ids[0]?.startsWith('limit.'), b.title).toBe(false);
+  });
+
+  it('holds exactly the library lines that are missing from the message, each once, in library order', () => {
+    expect(c.model.leftOut === undefined).toBe(missing.length === 0);
+    const group = c.model.leftOut;
+    if (group === undefined) return;
+    expect(group.heading).toBe('Left out');
+    const texts = group.blocks.map((b) => b.text);
+    expect(texts).toEqual(missing.map((l) => l.text));
+    for (const line of missing) expect(countOf(texts, line.text), line.id).toBe(1);
+    // Nothing the message already holds is listed.
+    for (const text of texts) expect(c.result.soul.includes(text), text).toBe(false);
+  });
+
+  it('those lines are the pack rules the length pass cut to fit (result.trimmed), so the two disclosures agree', () => {
+    const cut = c.result.trimmed.filter((t) => t.kind === 'pack-rule').map((t) => t.id);
+    expect(missing.map((l) => l.id).sort()).toEqual([...cut].sort());
+  });
+
+  it('shows the undelivered dot summary, naming only what is missing', () => {
+    const item = summaryByKey(c.model, DOT_KEY);
+    if (missing.length === 0) {
+      expect(item).toBeUndefined();
+      return;
+    }
+    expect(item).toBeDefined();
+    expect(item?.kind).toBe('undelivered');
+    expect(item?.text).toBe(dotSentence(missingLimits.length, missingRules.length));
+    // The limits are in the message, so the sentence does not name them.
+    expect(item?.text).not.toContain('your limits');
+  });
+
+  it('shows exactly one dot summary line', () => {
+    expect(c.model.summary.filter((s) => s.key === DOT_KEY).length).toBe(missing.length === 0 ? 0 : 1);
+  });
+
+  it('carries the record ids: the pack rule id for a rule, limit.<id> for a limit', () => {
+    const blocks = c.model.leftOut?.blocks ?? [];
+    expect(blocks.map((b) => b.ids)).toEqual(missing.map((l) => [l.id]));
     expect(new Set(blocks.map((b) => b.ids[0])).size).toBe(blocks.length);
   });
 
-  it('titles a limit block with the library limit label and a rule block "<pack label>, rule n"', () => {
+  it('titles a rule block "<pack label>, rule n", numbered in the order shown', () => {
     const blocks = c.model.leftOut?.blocks ?? [];
-    expect(blocks.map((b) => b.title)).toEqual([...limits, ...rules].map((l) => l.title));
-    expect(blocks.slice(0, 3).map((b) => b.title)).toEqual([
-      'Max size per trade',
-      'Daily loss limit',
-      'Max trades per day',
-    ]);
-    expect(blocks.slice(3).map((b) => b.title)).toEqual(['Memecoins, rule 1', 'Memecoins, rule 2', 'Memecoins, rule 3']);
+    expect(blocks.map((b) => b.title)).toEqual(shownTitles(missing));
   });
 
-  it('lists the limits first, then the pack rules (engineer reading)', () => {
+  it('lists the limits before the pack rules', () => {
     const ids = (c.model.leftOut?.blocks ?? []).map((b) => b.ids[0] ?? '');
     const firstRule = ids.findIndex((id) => id.startsWith('pack.'));
-    expect(firstRule).toBe(limits.length);
+    if (firstRule === -1) return;
     expect(ids.slice(0, firstRule).every((id) => id.startsWith('limit.'))).toBe(true);
     expect(ids.slice(firstRule).every((id) => id.startsWith('pack.'))).toBe(true);
   });
@@ -267,7 +351,7 @@ describe('ChatGPT dot: marty', () => {
   it('keys the blocks uniquely', () => {
     const keys = (c.model.leftOut?.blocks ?? []).map((b) => b.key);
     expect(new Set(keys).size).toBe(keys.length);
-    const all = [...c.model.steps.flatMap((s) => s.groups), ...c.model.extra, c.model.leftOut as CertGroup]
+    const all = [...c.model.steps.flatMap((s) => s.groups), ...c.model.extra, ...(c.model.leftOut ? [c.model.leftOut] : [])]
       .flatMap((g) => [g.key, ...g.blocks.map((b) => b.key)]);
     expect(new Set(all).size).toBe(all.length);
   });
@@ -283,50 +367,196 @@ describe('ChatGPT dot: marty', () => {
   });
 
   it('uses the dot hint under Left out, not the "did not fit" hint', () => {
-    expect(c.model.leftOutHint).toBe(DOT_LEFT_OUT_HINT);
+    expect(c.model.leftOutHint).toBe(missing.length === 0 ? undefined : DOT_LEFT_OUT_HINT);
+  });
+});
+
+// The situations the real compile may or may not reach: a message that lacks exactly the lines a test
+// names (K3: "only those lines are listed").
+describe('ChatGPT dot: a personality message that lacks some lines', () => {
+  const build = dotBuild('marty');
+  const limits = limitLines(build);
+  const rules = packRuleLines(build);
+  const dailyLoss = limits.find((l) => l.id === 'limit.daily_loss_pct');
+  const ruleTwo = rules[1];
+
+  it('has the three limit lines and three memecoins rules to work with', () => {
+    expect(limits.map((l) => l.title)).toEqual(['Max size per trade', 'Daily loss limit', 'Max trades per day']);
+    expect(rules.map((l) => l.title)).toEqual(['Memecoins, rule 1', 'Memecoins, rule 2', 'Memecoins, rule 3']);
+    expect(dailyLoss).toBeDefined();
+    expect(ruleTwo).toBeDefined();
   });
 
-  it('shows no trimmed-pack summary line, since a dot cuts no pack rule', () => {
-    expect(c.model.summary.some((s) => s.key.startsWith('summary-trimmed-') && s.key !== 'summary-trimmed-other')).toBe(
-      false,
+  it('a message that holds every line: no Left out, no hint, no dot summary line', () => {
+    const { model } = modelWithMissing(build, none);
+    expect(model.leftOut).toBeUndefined();
+    expect(model.leftOutHint).toBeUndefined();
+    expect(summaryByKey(model, DOT_KEY)).toBeUndefined();
+  });
+
+  it('only the limit lines missing: those three are listed, with the label titles, and nothing else', () => {
+    const { model } = modelWithMissing(build, onlyLimits);
+    const blocks = model.leftOut?.blocks ?? [];
+    expect(blocks.map((b) => b.text)).toEqual(limits.map((l) => l.text));
+    expect(blocks.map((b) => b.title)).toEqual(['Max size per trade', 'Daily loss limit', 'Max trades per day']);
+    expect(blocks.map((b) => b.ids)).toEqual(limits.map((l) => [l.id]));
+    expect(summaryByKey(model, DOT_KEY)?.text).toBe(
+      'Not included on ChatGPT: your limits. Add them to your dot by hand.',
     );
+    expect(model.leftOutHint).toBe(DOT_LEFT_OUT_HINT);
+  });
+
+  it('one limit line missing: only that line is listed, and the summary still says "your limits"', () => {
+    const { model } = modelWithMissing(build, () => [dailyLoss as Line]);
+    const blocks = model.leftOut?.blocks ?? [];
+    expect(blocks.map((b) => b.text)).toEqual(['Stop trading for the day once losses reach 3% of the account, and tell the user.']);
+    expect(blocks.map((b) => b.title)).toEqual(['Daily loss limit']);
+    expect(summaryByKey(model, DOT_KEY)?.text).toBe(
+      'Not included on ChatGPT: your limits. Add them to your dot by hand.',
+    );
+  });
+
+  it('only the pack rules missing: the three are listed and the limits are not', () => {
+    const { model } = modelWithMissing(build, onlyRules);
+    const blocks = model.leftOut?.blocks ?? [];
+    expect(blocks.map((b) => b.text)).toEqual(rules.map((l) => l.text));
+    expect(blocks.map((b) => b.title)).toEqual(['Memecoins, rule 1', 'Memecoins, rule 2', 'Memecoins, rule 3']);
+    for (const l of limits) expect(blocks.map((b) => b.text)).not.toContain(l.text);
+    expect(summaryByKey(model, DOT_KEY)?.text).toBe(
+      'Not included on ChatGPT: 3 pack rules. Add them to your dot by hand.',
+    );
+  });
+
+  it('the middle pack rule missing: one block, numbered from 1 in the order shown, with that rule\'s text and id', () => {
+    const { model } = modelWithMissing(build, () => [ruleTwo as Line]);
+    const blocks = model.leftOut?.blocks ?? [];
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0]?.text).toBe(library.packs.find((p) => p.id === 'memecoins')?.rulesLines[1]?.line);
+    expect(blocks[0]?.ids).toEqual(['pack.memecoins.rule.2']);
+    expect(blocks[0]?.title).toBe('Memecoins, rule 1');
+    expect(summaryByKey(model, DOT_KEY)?.text).toBe('Not included on ChatGPT: 1 pack rule. Add it to your dot by hand.');
+  });
+
+  it('a limit line and a pack rule missing: both listed, the limit first, and the summary names both', () => {
+    const { model } = modelWithMissing(build, (l, r) => [r[2] as Line, l[0] as Line]);
+    const blocks = model.leftOut?.blocks ?? [];
+    expect(blocks.map((b) => b.ids[0])).toEqual(['limit.per_trade_pct', 'pack.memecoins.rule.3']);
+    expect(blocks.map((b) => b.title)).toEqual(['Max size per trade', 'Memecoins, rule 1']);
+    expect(summaryByKey(model, DOT_KEY)?.text).toBe(
+      'Not included on ChatGPT: your limits and 1 pack rule. Add them to your dot by hand.',
+    );
+  });
+
+  it('every limit line and every pack rule missing: all six, limits first', () => {
+    const { model } = modelWithMissing(build, everything);
+    const blocks = model.leftOut?.blocks ?? [];
+    expect(blocks.map((b) => b.text)).toEqual([...limits, ...rules].map((l) => l.text));
+    expect(summaryByKey(model, DOT_KEY)?.text).toBe(
+      'Not included on ChatGPT: your limits and 3 pack rules. Add them to your dot by hand.',
+    );
+  });
+
+  it('a line the message holds twice is still not left out', () => {
+    const input = inputFor(build);
+    const soul = `${input.result.soul}\n${limits[0]?.text}\n${limits[0]?.text}`;
+    const { model } = modelWithMissing(build, onlyRules);
+    expect(model.leftOut?.blocks.map((b) => b.text)).toEqual(rules.map((l) => l.text));
+    const twice = certificateModel({ ...input, result: { ...input.result, soul: soulWith(soul, [...limits, ...rules], []) } });
+    expect(twice.leftOut).toBeUndefined();
+  });
+
+  it('the group, hint and summary line disappear together when nothing is missing', () => {
+    for (const pick of [none, onlyLimits, onlyRules, everything]) {
+      const { model, missing } = modelWithMissing(build, pick);
+      expect(model.leftOut !== undefined, pick.name).toBe(missing.length > 0);
+      expect(model.leftOutHint !== undefined, pick.name).toBe(missing.length > 0);
+      expect(summaryByKey(model, DOT_KEY) !== undefined, pick.name).toBe(missing.length > 0);
+    }
   });
 });
 
 describe('ChatGPT dot: a gate set to auto', () => {
-  it('still shows the undelivered dot summary and the same Left out, with the Auto line first', () => {
+  const autoBuild = dotBuild('marty', { gates: { trade: 'auto' } });
+  const tradeLabel = library.gates.find((g) => g.id === 'trade')?.label ?? '?trade';
+
+  it('compiles with the trade gate on auto', () => {
+    expect(compile(autoBuild).gates['trade']).toBe('auto');
+  });
+
+  it('keeps the Auto line first and lists the same Left out as the same build without auto', () => {
     const base = caseOf('marty.chatgpt-dot');
-    const auto = modelOfBuild(dotBuild('marty', { gates: { trade: 'auto' } }));
-    expect(auto.result.gates['trade']).toBe('auto');
+    const auto = modelOfBuild(autoBuild);
+    const missing = missingFrom([...limitLines(autoBuild), ...packRuleLines(autoBuild)], auto.result.soul);
     const keys = auto.model.summary.map((s) => s.key);
     expect(keys).toContain('summary-auto');
-    expect(keys).toContain(DOT_KEY);
-    expect(keys.indexOf('summary-auto')).toBeLessThan(keys.indexOf(DOT_KEY));
+    if (missing.length > 0) {
+      expect(keys).toContain(DOT_KEY);
+      expect(keys.indexOf('summary-auto')).toBeLessThan(keys.indexOf(DOT_KEY));
+    }
     expect(summaryByKey(auto.model, DOT_KEY)?.text).toBe(summaryByKey(base.model, DOT_KEY)?.text);
     expect(auto.model.leftOut?.blocks.map((b) => b.text)).toEqual(base.model.leftOut?.blocks.map((b) => b.text));
-    expect(auto.model.leftOutHint).toBe(DOT_LEFT_OUT_HINT);
+    expect(auto.model.leftOutHint).toBe(base.model.leftOutHint);
   });
 
   it('keeps the gate lines out of Left out when the gate is auto', () => {
-    const auto = modelOfBuild(dotBuild('marty', { gates: { trade: 'auto' } }));
+    const { model } = modelWithMissing(autoBuild, everything);
     const trade = library.gates.find((g) => g.id === 'trade');
-    const texts = (auto.model.leftOut?.blocks ?? []).map((b) => b.text);
+    const texts = (model.leftOut?.blocks ?? []).map((b) => b.text);
+    expect(texts.length).toBeGreaterThan(0);
     for (const line of [trade?.rulesLine.auto, trade?.rulesLine.approve, trade?.rulesLine.forbid]) {
       expect(texts).not.toContain(line);
     }
-    expect((auto.model.leftOut?.blocks ?? []).every((b) => !(b.ids[0] ?? '').startsWith('gate.'))).toBe(true);
+    expect((model.leftOut?.blocks ?? []).every((b) => !(b.ids[0] ?? '').startsWith('gate.'))).toBe(true);
   });
 
-  it('still shows both with several auto gates on several packs', () => {
+  it('real compile: the limits are in the message, so an auto gate gets no "no limits" line', () => {
+    const { result, model } = modelOfBuild(autoBuild);
+    for (const l of limitLines(autoBuild)) expect(result.soul, l.id).toContain(l.text);
+    expect(model.summary.map((s) => s.key)).not.toContain('summary-dot-auto');
+  });
+
+  it('a limit line missing from the message: the auto gate is tied to it in the "no limits" line', () => {
+    const { model } = modelWithMissing(autoBuild, onlyLimits);
+    const line = summaryByKey(model, 'summary-dot-auto');
+    expect(line).toBeDefined();
+    expect(line?.kind).toBe('auto');
+    expect(line?.text).toBe(copy.certificate.summary.dotAutoNoLimits(1));
+    expect(line?.items).toEqual([tradeLabel]);
+  });
+
+  it('one limit line missing is enough for the "no limits" line', () => {
+    const { model } = modelWithMissing(autoBuild, (l) => [l[0] as Line]);
+    expect(summaryByKey(model, 'summary-dot-auto')).toBeDefined();
+  });
+
+  it('only pack rules missing: no "no limits" line, since every limit line is there to check against', () => {
+    const { model } = modelWithMissing(autoBuild, onlyRules);
+    expect(summaryByKey(model, 'summary-dot-auto')).toBeUndefined();
+    expect(summaryByKey(model, DOT_KEY)).toBeDefined();
+  });
+
+  it('nothing missing: neither the dot summary line nor the "no limits" line', () => {
+    const { model } = modelWithMissing(autoBuild, none);
+    expect(summaryByKey(model, 'summary-dot-auto')).toBeUndefined();
+    expect(summaryByKey(model, DOT_KEY)).toBeUndefined();
+  });
+
+  it('no auto gate: no "no limits" line even when limit lines are missing', () => {
+    const { model } = modelWithMissing(dotBuild('marty'), onlyLimits);
+    expect(summaryByKey(model, 'summary-dot-auto')).toBeUndefined();
+    expect(summaryByKey(model, DOT_KEY)).toBeDefined();
+  });
+
+  it('several auto gates on several packs, every pack rule missing: the count is all 14 and the Auto line stays', () => {
     const build = dotBuild('marty', {
       packs: ['coding', 'devops', 'personal-ops'],
       gates: { deploy: 'auto', rollback: 'auto' },
     });
-    const { result, model } = modelOfBuild(build);
+    const { result } = modelOfBuild(build);
     expect(result.gates['deploy']).toBe('auto');
     expect(result.gates['rollback']).toBe('auto');
+    const { model, rules } = modelWithMissing(build, onlyRules);
     expect(model.summary.map((s) => s.key)).toContain('summary-auto');
-    const rules = packRuleLines(build);
     expect(rules.length).toBe(4 + 5 + 5);
     expect(summaryByKey(model, DOT_KEY)?.text).toBe(
       'Not included on ChatGPT: 14 pack rules. Add them to your dot by hand.',
@@ -334,7 +564,7 @@ describe('ChatGPT dot: a gate set to auto', () => {
     expect((model.leftOut?.blocks ?? []).map((b) => b.text)).toEqual(rules.map((r) => r.text));
   });
 
-  it('shows the dot summary with every offered gate auto, on the packs that expose them', () => {
+  it('with every offered gate auto, on the packs that expose them, the real compile lists what its message lacks', () => {
     const packs = ['devops', 'support', 'sales']; // a build holds at most three packs
     const exposed = new Set(packs.flatMap((id) => Object.keys(library.packs.find((p) => p.id === id)?.gatesDefault ?? {})));
     const autoGates = Object.fromEntries(
@@ -347,13 +577,13 @@ describe('ChatGPT dot: a gate set to auto', () => {
     const { result, model } = modelOfBuild(build);
     for (const id of Object.keys(autoGates)) expect(result.gates[id], id).toBe('auto');
     expect(model.summary.map((s) => s.key)).toContain('summary-auto');
-    expect(model.summary.map((s) => s.key)).toContain(DOT_KEY);
-    const want = [...limitLines(build), ...packRuleLines(build)];
+    const want = missingFrom([...limitLines(build), ...packRuleLines(build)], result.soul);
     expect((model.leftOut?.blocks ?? []).map((b) => b.text)).toEqual(want.map((l) => l.text));
+    expect(model.summary.map((s) => s.key).includes(DOT_KEY)).toBe(want.length > 0);
   });
 });
 
-describe('ChatGPT dot: every starter and some other builds', () => {
+describe('ChatGPT dot: every starter and some other builds (the real compile)', () => {
   const builds: { id: string; build: Build }[] = [
     ...library.roster.map((r) => ({ id: `${r.id} as is`, build: dotBuild(r.id) })),
     { id: 'marty with memecoins and perps (limits merge to the stricter)', build: dotBuild('marty', { packs: ['memecoins', 'perps'] }) },
@@ -370,13 +600,16 @@ describe('ChatGPT dot: every starter and some other builds', () => {
   ];
 
   for (const { id, build } of builds) {
-    it(`${id}: Left out is exactly the limit lines and pack rules lines, each once`, () => {
+    it(`${id}: Left out is exactly the library lines its message lacks, each once, and never a limit line`, () => {
       const { result, model } = modelOfBuild(build);
       const limits = limitLines(build);
       const rules = packRuleLines(build);
-      const want = [...limits, ...rules];
+      const want = missingFrom([...limits, ...rules], result.soul);
       // The compiler's effective limits are the library's merge.
       expect(Object.keys(result.limits)).toEqual(limits.map((l) => l.id.replace('limit.', '')));
+      // B17: the Hard rules section carries every limit line, so none is left out.
+      for (const l of limits) expect(result.soul, l.id).toContain(l.text);
+      expect(want.some(isLimit)).toBe(false);
       if (want.length === 0) {
         expect(model.leftOut).toBeUndefined();
         expect(model.leftOutHint).toBeUndefined();
@@ -384,93 +617,99 @@ describe('ChatGPT dot: every starter and some other builds', () => {
         return;
       }
       const texts = (model.leftOut?.blocks ?? []).map((b) => b.text);
-      expect(texts.length).toBe(want.length);
-      expect([...texts].sort()).toEqual(want.map((l) => l.text).sort());
+      expect(texts).toEqual(want.map((l) => l.text));
       for (const line of want) expect(countOf(texts, line.text), line.id).toBe(1);
-      expect((model.leftOut?.blocks ?? []).map((b) => b.title)).toEqual(want.map((l) => l.title));
+      expect((model.leftOut?.blocks ?? []).map((b) => b.title)).toEqual(shownTitles(want));
       expect(model.leftOutHint).toBe(DOT_LEFT_OUT_HINT);
       // The summary counts match.
-      const what = [
-        ...(limits.length > 0 ? ['your limits'] : []),
-        ...(rules.length > 0 ? [`${rules.length} pack ${rules.length === 1 ? 'rule' : 'rules'}`] : []),
-      ].join(' and ');
-      const pronoun = limits.length > 0 || rules.length !== 1 ? 'them' : 'it';
-      expect(summaryByKey(model, DOT_KEY)?.text).toBe(
-        `Not included on ChatGPT: ${what}. Add ${pronoun} to your dot by hand.`,
-      );
+      expect(summaryByKey(model, DOT_KEY)?.text).toBe(dotSentence(0, want.length));
     });
   }
 
-  it('the stricter-limit merge shows in the text: memecoins and perps give 2% a day and 5x leverage', () => {
-    const { model } = modelOfBuild(dotBuild('marty', { packs: ['memecoins', 'perps'] }));
+  it('the stricter-limit merge shows in the message: memecoins and perps give 2% a day and 5x leverage', () => {
+    const { result, model } = modelOfBuild(dotBuild('marty', { packs: ['memecoins', 'perps'] }));
     const texts = (model.leftOut?.blocks ?? []).map((b) => b.text);
-    expect(texts).toContain('Stop trading for the day once losses reach 2% of the account, and tell the user.');
-    expect(texts).toContain('Never open a position above 5x leverage.');
-    expect(texts).toContain('Never put more than 1% of the account into one trade.');
-    expect(texts).not.toContain('Stop trading for the day once losses reach 3% of the account, and tell the user.');
+    for (const line of [
+      'Stop trading for the day once losses reach 2% of the account, and tell the user.',
+      'Never open a position above 5x leverage.',
+      'Never put more than 1% of the account into one trade.',
+    ]) {
+      expect(result.soul).toContain(line);
+      expect(texts).not.toContain(line);
+    }
+    expect(result.soul).not.toContain('Stop trading for the day once losses reach 3% of the account, and tell the user.');
   });
 
-  it('a limit the user changed shows its changed value, not the pack default', () => {
-    const { model } = modelOfBuild(dotBuild('marty', { limits: { per_trade_pct: 0.5 } }));
-    const texts = (model.leftOut?.blocks ?? []).map((b) => b.text);
-    expect(texts).toContain('Never put more than 0.5% of the account into one trade.');
-    expect(texts).not.toContain('Never put more than 1% of the account into one trade.');
+  it('a limit the user changed shows its changed value in the message, not the pack default', () => {
+    const { result } = modelOfBuild(dotBuild('marty', { limits: { per_trade_pct: 0.5 } }));
+    expect(result.soul).toContain('Never put more than 0.5% of the account into one trade.');
+    expect(result.soul).not.toContain('Never put more than 1% of the account into one trade.');
   });
 });
 
 describe('ChatGPT dot: the summary sentence for each mix of limits and pack rules', () => {
-  // The model reads the library for pack labels and rule lines, so a library copy with fewer
-  // rules reaches counts the real library does not (no real pack has one rule).
-  const model = (starter: string, lib: Library): CertModel => {
-    const build = dotBuild(starter);
-    return certificateModel(inputFor(build), lib);
-  };
+  // The model reads the library for pack labels and rule lines, so a library copy with fewer rules
+  // reaches counts the real library does not (no real pack has one rule). The message is the real
+  // compile with the named lines put in or taken out.
+  const sentence = (starter: string, lib: Library, pick: Parameters<typeof modelWithMissing>[1]): string | undefined =>
+    summaryByKey(modelWithMissing(dotBuild(starter), pick, lib).model, DOT_KEY)?.text;
 
   it('limits and several pack rules: "them"', () => {
-    expect(summaryByKey(model('marty', library), DOT_KEY)?.text).toBe(
+    expect(sentence('marty', library, everything)).toBe(
       'Not included on ChatGPT: your limits and 3 pack rules. Add them to your dot by hand.',
     );
   });
 
   it('only pack rules: the count, "them"', () => {
-    expect(summaryByKey(model('june', library), DOT_KEY)?.text).toBe(
+    expect(sentence('june', library, onlyRules)).toBe(
       'Not included on ChatGPT: 5 pack rules. Add them to your dot by hand.',
     );
   });
 
   it('exactly one pack rule and no limit: "1 pack rule" and "it"', () => {
-    const m = model('june', libWithRules(1));
-    expect(summaryByKey(m, DOT_KEY)?.text).toBe('Not included on ChatGPT: 1 pack rule. Add it to your dot by hand.');
-    expect(m.leftOut?.blocks.length).toBe(1);
-    expect(m.leftOut?.blocks[0]?.title).toBe('Personal ops, rule 1');
+    const { model } = modelWithMissing(dotBuild('june'), onlyRules, libWithRules(1));
+    expect(summaryByKey(model, DOT_KEY)?.text).toBe('Not included on ChatGPT: 1 pack rule. Add it to your dot by hand.');
+    expect(model.leftOut?.blocks.length).toBe(1);
+    expect(model.leftOut?.blocks[0]?.title).toBe('Personal ops, rule 1');
   });
 
   it('limits and exactly one pack rule: "them"', () => {
-    expect(summaryByKey(model('marty', libWithRules(1)), DOT_KEY)?.text).toBe(
+    expect(sentence('marty', libWithRules(1), everything)).toBe(
       'Not included on ChatGPT: your limits and 1 pack rule. Add them to your dot by hand.',
     );
   });
 
   it('only limits: no pack rule count', () => {
-    const m = model('marty', libWithRules(0));
-    expect(summaryByKey(m, DOT_KEY)?.text).toBe('Not included on ChatGPT: your limits. Add them to your dot by hand.');
-    expect(m.leftOut?.blocks.map((b) => b.title)).toEqual([
+    const { model } = modelWithMissing(dotBuild('marty'), onlyLimits, libWithRules(0));
+    expect(summaryByKey(model, DOT_KEY)?.text).toBe('Not included on ChatGPT: your limits. Add them to your dot by hand.');
+    expect(model.leftOut?.blocks.map((b) => b.title)).toEqual([
       'Max size per trade',
       'Daily loss limit',
       'Max trades per day',
     ]);
   });
 
+  it('a pack rule missing but every limit line present: the sentence does not name the limits', () => {
+    const text = sentence('marty', library, onlyRules);
+    expect(text).toBe('Not included on ChatGPT: 3 pack rules. Add them to your dot by hand.');
+    expect(text).not.toContain('limits');
+  });
+
   it('nothing to leave out: no summary line, no Left out, no hint', () => {
-    const m = model('june', libWithRules(0));
-    expect(summaryByKey(m, DOT_KEY)).toBeUndefined();
-    expect(m.leftOut).toBeUndefined();
-    expect(m.leftOutHint).toBeUndefined();
+    const { model } = modelWithMissing(dotBuild('june'), none, libWithRules(0));
+    expect(summaryByKey(model, DOT_KEY)).toBeUndefined();
+    expect(model.leftOut).toBeUndefined();
+    expect(model.leftOutHint).toBeUndefined();
   });
 
   it('sits right after the existing undelivered line, in the undelivered place of the summary order', () => {
     const c = caseOf('marty.chatgpt-dot');
-    const m = modelWithResult(c, { undelivered: [{ kind: 'roles', id: 'roles', name: 'Roles' }] });
+    const { limits, rules } = { limits: limitLines(c.build), rules: packRuleLines(c.build) };
+    const soul = soulWith(c.result.soul, [...limits, ...rules], rules);
+    const m = certificateModel({
+      ...c.input,
+      result: { ...c.result, soul, undelivered: [{ kind: 'roles', id: 'roles', name: 'Roles' }] },
+    });
     const keys = m.summary.map((s) => s.key);
     expect(keys.indexOf('summary-undelivered')).toBeGreaterThanOrEqual(0);
     expect(keys.indexOf(DOT_KEY)).toBe(keys.indexOf('summary-undelivered') + 1);
@@ -480,9 +719,17 @@ describe('ChatGPT dot: the summary sentence for each mix of limits and pack rule
 
   it('keeps the dot line after the dropped line and before the deprecated place', () => {
     const c = caseOf('marty.chatgpt-dot');
-    const m = modelWithResult(c, {}, { drops: [{ field: 'name', id: '', reason: 'cleaned' }] });
+    const limits = limitLines(c.build);
+    const rules = packRuleLines(c.build);
+    const soul = soulWith(c.result.soul, [...limits, ...rules], rules);
+    const m = certificateModel({
+      ...c.input,
+      result: { ...c.result, soul },
+      drops: [{ field: 'name', id: '', reason: 'cleaned' }],
+    });
     const kinds = m.summary.map((s) => s.kind);
     expect(kinds).toContain('dropped');
+    expect(m.summary.map((s) => s.key)).toContain(DOT_KEY);
     expect(kinds.indexOf('dropped')).toBeLessThan(kinds.indexOf('undelivered'));
   });
 });
@@ -511,12 +758,30 @@ describe('the dot summary and Left out hint belong to the dot only', () => {
     }
   });
 
-  it('a dot with packs always has Left out and the summary line; a dot with no pack has neither', () => {
+  it('a dot has Left out and the summary line exactly when a limit or pack rules line is missing from its message', () => {
     for (const c of CASES.filter(isDot)) {
-      const hasStuff = limitLines(c.build).length + packRuleLines(c.build).length > 0;
-      expect(c.model.leftOut !== undefined, c.id).toBe(hasStuff);
-      expect(summaryByKey(c.model, DOT_KEY) !== undefined, c.id).toBe(hasStuff);
+      const missing = missingFrom([...limitLines(c.build), ...packRuleLines(c.build)], c.result.soul);
+      expect(c.model.leftOut !== undefined, c.id).toBe(missing.length > 0);
+      expect(summaryByKey(c.model, DOT_KEY) !== undefined, c.id).toBe(missing.length > 0);
     }
+  });
+
+  it('no dot Left out block repeats text the dot message already holds', () => {
+    for (const c of CASES.filter(isDot)) {
+      for (const b of c.model.leftOut?.blocks ?? []) {
+        expect(c.result.soul.includes(b.text), `${c.id}: ${b.title}`).toBe(false);
+      }
+    }
+  });
+
+  it('a starter whose limits and rules all fit its dot message has no Left out (dash)', () => {
+    const c = caseOf('dash.chatgpt-dot');
+    const lines = [...limitLines(c.build), ...packRuleLines(c.build)];
+    expect(lines.length).toBeGreaterThan(0);
+    for (const l of lines) expect(c.result.soul, l.id).toContain(l.text);
+    expect(c.model.leftOut).toBeUndefined();
+    expect(c.model.leftOutHint).toBeUndefined();
+    expect(summaryByKey(c.model, DOT_KEY)).toBeUndefined();
   });
 
   it('Muse and Grok keep their own Left out: pack rules only, no limit blocks', () => {
@@ -763,7 +1028,7 @@ describe('length meter: near the cap', () => {
     expect(m.meter.near).toBe(true);
   });
 
-  it('flags the real goldens that sit near their cap (marty on Muse, 3,971 of 4,000)', () => {
+  it('flags the real goldens that sit near their cap (marty on Muse, within 400 of 4,000 since the B18 risk 4 line)', () => {
     const c = caseOf('marty.muse');
     expect(c.result.length).toBeGreaterThan(c.input.cap - NEAR);
     expect(c.result.length).toBeLessThanOrEqual(c.input.cap);
