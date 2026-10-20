@@ -51,7 +51,7 @@ These change compiled output or the certificate, so they land in the same wave a
 - `400 { "error": "bad_request" }`: a failed request check.
 - `403 { "error": "origin" }`: an origin not on the allowlist.
 - `429 { "error": "rate_limited", "retryAfter": seconds }`: the per-IP limit (X5).
-- `503 { "error": "busy" }`: upstream 429 or overloaded (529).
+- `503 { "error": "busy" }`: upstream 429 or overloaded (529), or the all-callers ceiling (X8).
 - `502 { "error": "upstream" }`: any other upstream failure.
 
 **Other endpoints:**
@@ -63,7 +63,7 @@ These change compiled output or the certificate, so they land in the same wave a
 - It never logs bodies, messages, personalities, IPs, origins or replies.
 - The SDK's own logging is off.
 
-**Rate limit (X5):** 20 requests per 10 minutes and 100 per day per IP, from the first `x-forwarded-for` hop. In memory only.
+**Rate limit (X5, X8):** 20 requests per 10 minutes and 100 per day per IP, keyed on Railway's `X-Real-IP` (never `X-Forwarded-For`), plus a ceiling of 3,000 valid requests per rolling 24 hours across all callers. In memory only.
 
 **Origins (X5):** a hard-coded `ALLOWED_ORIGINS` (local dev origins plus `[TODO: production origin]`). Brian names the domain.
 
@@ -78,7 +78,7 @@ These change compiled output or the certificate, so they land in the same wave a
 
 `withheld(reply, personality)`:
 - Normalize both texts: lowercase, strip markdown marks (`#*_>` `` ` ``, list markers), straighten quotes, collapse whitespace.
-- Return true when any 10 consecutive words of the reply appear as 10 consecutive words of the personality.
+- Return true when any 10 consecutive words of the reply appear as 10 consecutive words of the personality, or when the reply carries at least half the personality's words in order (and at least 50 words), which catches fragments split by filler words (X4 update).
 - A withheld reply is never returned in any form.
 
 Tests (mocked model replies):

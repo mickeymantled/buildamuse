@@ -512,3 +512,12 @@ Elsewhere:
 **X6. Model call.** `claude-sonnet-5-5` through the official SDK (`@anthropic-ai/sdk@0.135.0`, pinned in the Railway import), effort `low` (chat), adaptive thinking (the model default), max_tokens 2,048, no tools. The Claude API reference recommends server-side refusal fallbacks on by default for this model (`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`). A refusal that survives the fallback becomes a fixed "won't answer that" line.
 
 **X7. Deploying.** Creating the Railway function and setting the key in Railway are Brian's (the key is his and the lead never handles keys). The lead prepares the file, the steps and a post-deploy probe script, and asks before creating anything on Railway.
+
+**X8. Client IP and a spend ceiling (lead, from the 5.2 tester's open items).**
+- **Client IP:** the per-IP limit keys on X-Real-IP, which Railway's edge sets to the client's remote IP (docs.railway.com, Public Networking specs, read 2026-10-20). X-Forwarded-For is never read, because a client can set its first hop and so dodge the limit.
+- **No X-Real-IP:** a request without it falls into one shared "unknown" bucket (fails closed).
+- **Global ceiling:** 3,000 requests per rolling 24 hours across all callers, in memory, reset on redeploy. Past it the proxy answers 503 busy. That bounds spend on Brian's key: at roughly $0.006 per request, about $18 a day. For Brian: change GLOBAL_PER_DAY in proxy/function.ts to taste. It is a constant because the only env var allowed is the key (B22).
+- **Order:** only a request that passes the origin, per-IP and body checks spends a ceiling slot, so junk bodies can't exhaust it.
+- **Residual:** about 30 addresses sending valid requests at their 100-a-day limit can still reach the ceiling and turn others away until it rolls over. That is inherent to a global cap.
+
+**X4 (update).** The extraction guard also withholds a reply that carries at least half the personality, in order, and at least 50 words, even with filler words between fragments (the 5.2 tester's fragment attack). An in-voice reply never comes close. A smaller fragmented leak, or an encoded or translated echo, still passes.
