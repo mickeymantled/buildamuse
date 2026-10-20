@@ -1,4 +1,4 @@
-// Mine diff tests (M4 slice 4.9, src/share/mine.ts). docs/M4-PLAN.md section 6, QUESTIONS W12 and W28.
+// Mine diff tests (M4 slice 4.9, src/share/mine.ts). docs/M4-PLAN.md section 6, QUESTIONS W12 and B20.
 //
 // What Mine is: the lines a remixing user pasted that no compile of ours produced. mineLines finds them,
 // withMine writes them into the personality artifact under "## Mine", and nothing else changes.
@@ -7,26 +7,36 @@
 // copying its output:
 // - the heading text "## Mine", the ids user.mine.heading and user.mine.<n> (1-based), the caps
 //   (20,000 characters, 50 Mine lines) and the em dash rule are spec text (W12, W28);
-// - the placement rule is W28: Hard rules, Never and "If rules clash" stay after the user's lines, and on
-//   top-and-bottom layouts Mine goes above the bottom rules block, found by the profile's rules.bottom
-//   template id from the library;
+// - the placement rule is B20 (it replaced W28's): "## Mine" goes right before "## If rules clash", or
+//   before the first clash line on layouts that have no such heading (Grok, the free ChatGPT box), so the
+//   clash order is not pushed below the user's lines. The heading and the clash line come from the library
+//   (chassis.headings section "clash", chassis.lines section "clash"). With no clash line at all, Mine
+//   goes above the closing rules block (the profile's rules.bottom template id) on a top-and-bottom
+//   layout and at the end on every other;
 // - the length caps come from profiles.json lengthCap (number, or { free, paid } on instructions);
 // - peeve text for the baseline test comes from peeves.json.
 // Assertions are structural (ids, order, equality with the pre-Mine compile). The only hard-coded output
 // strings are the Mine lines themselves, which the tests choose.
 //
-// Engineer readings pinned here (from the slice report, not from the spec):
-//   1. Grok has no section of its own for act, gate and clash lines, so Mine sits above "How you work".
-//   2. If a top-and-bottom heading line is missing, Mine goes above the last run whose first id repeats
-//      an earlier id; with no guarded line and no closing block, Mine is appended at the end.
-//   3. A line whose raw text ends past 20,000 characters of the original paste (CR and LF counted) is
+// Engineer readings pinned here (from the slice reports, not from the spec):
+//   1. Mine sits above the clash heading when that heading is directly above the clash line (found by its
+//      library id), else above the clash line itself. Everything from that point on is unchanged, so on
+//      the layouts where sections follow the clash block (skills and the repeated rules on top-and-bottom,
+//      Sources and Never on Grok) those stay after Mine too. Acting for me and the Hard rules (the top
+//      block on top-and-bottom) come before Mine.
+//   2. Grok's clash line is a bullet straight after another bullet, so Mine adds one blank above its
+//      heading and the block is one line longer there. Every other layout already has the blank.
+//   3. The first clash line wins when there are several. If the clash lines are gone: a top-and-bottom
+//      layout puts Mine above its closing rules block (found by heading id, else the last run whose first
+//      id repeats an earlier id); any other layout appends Mine at the end.
+//   4. A line whose raw text ends past 20,000 characters of the original paste (CR and LF counted) is
 //      dropped whole, never truncated. A line ending exactly at 20,000 is kept.
-//   4. Only U+2014 is replaced; U+2013 is left alone. Spaces around it collapse: "a - b".
+//   5. Only U+2014 is replaced; U+2013 is left alone. Spaces around it collapse: "a - b".
 //      Matching and de-duplication run on the replaced form.
-//   5. A lone CR is a line break. A pasted "## Mine" line is skipped.
-//   6. The over-cap warning "mine: soul is N characters, over CAP" is added whenever Mine leaves the
+//   6. A lone CR is a line break. A pasted "## Mine" line is skipped.
+//   7. The over-cap warning "mine: soul is N characters, over CAP" is added whenever Mine leaves the
 //      soul over the cap, even when the baseline compile was already over it.
-//   7. withMine re-cleans its input, and with no lines left returns the same result object.
+//   8. withMine re-cleans its input, and with no lines left returns the same result object.
 // Tracing: trace.ts carries the one W28 carve-out. traceBundle accepts user.mine.heading and user.mine.<n>
 // ids in the main personality artifact (a file, the soul, or the ChatGPT dot's spoken personality) and
 // nowhere else, and trace() has no carve-out. The tests under "Tracing (W28 carve-out)" below pin that a
@@ -155,16 +165,72 @@ function lastLines(text: string, n: number): string[] {
 
 const isMineId = (l: TracedLine): boolean => l.id.startsWith('user.mine.');
 
-// Lines that must stay after Mine (W28): gate and rules lines, the act chassis lines, the clash line.
-const GUARDED_KINDS = new Set(['gate', 'rule', 'limit', 'pack-rule']);
-function guarded(l: TracedLine): boolean {
-  return GUARDED_KINDS.has(l.kind) || l.id.startsWith('chassis.act.') || l.id.startsWith('chassis.clash.');
+// --- B20 placement, from the library ---------------------------------------
+
+const CLASH_HEADING = library.chassis.headings.find((h) => h.section === 'clash');
+const CLASH_LINES = library.chassis.lines.filter((l) => l.section === 'clash');
+if (CLASH_HEADING === undefined || CLASH_LINES.length === 0) throw new Error('test setup: the library has no clash record');
+const CLASH_TEXTS = CLASH_LINES.flatMap((l) => [l.line, l.short]).filter((t): t is string => t !== undefined);
+
+// A compiled clash line carries the library id, with an optional "#short" or "@profile" suffix.
+const isClashLine = (l: TracedLine): boolean => CLASH_LINES.some((c) => l.id.startsWith(c.id));
+// Grok writes the clash line as a bullet.
+const withoutBullet = (text: string): string => text.replace(/^- /, '');
+
+// Layout facts the tests pin, so a drift in a compiled layout shows up here and not in a user's file.
+// The clash line stands alone (no "## If rules clash" heading) on Grok and on the free ChatGPT box. The
+// ChatGPT dot is left out: whether it keeps the heading is the dot slice's call, and the code anchors on
+// the clash line either way.
+const NO_CLASH_HEADING = new Set(['grok', 'chatgpt instructions free']);
+const HEADING_OPEN = new Set(['chatgpt dot']);
+// Grok's clash line is a bullet right after a bullet, so Mine brings its own blank line above the heading.
+const LEADING_BLANK = new Set(['grok']);
+// Where the Hard rules are, relative to the clash block: one section above it, a block above and a repeat of
+// it below, Grok's "Never" section below it, or (OpenClaw, whose rules live in AGENTS.md) none in the
+// personality at all.
+const RULES_AT: Record<string, 'above' | 'above and below' | 'below' | 'none'> = {
+  muse: 'above',
+  openclaw: 'none',
+  hermes: 'above',
+  grok: 'below',
+  'chatgpt dot': 'above',
+  'chatgpt project': 'above and below',
+  'chatgpt instructions free': 'above and below',
+  'chatgpt instructions paid': 'above and below',
+  'chatgpt gpt': 'above and below',
+};
+
+interface Anchor {
+  index: number; // the first line of the block Mine sits above
+  heading: boolean; // that block starts with the "If rules clash" heading
+  gap: number; // 1 when withMine must add a blank line above its heading
 }
 
-// The soul lines with the Mine block (heading, n lines, one blank) cut out.
-function withoutMineBlock(lines: TracedLine[], n: number): TracedLine[] {
+// The anchor in a pre-Mine compile, found the way the plan states it.
+function anchorIn(lines: TracedLine[]): Anchor | undefined {
+  const clash = lines.findIndex(isClashLine);
+  if (clash === -1) return undefined;
+  const heading = clash > 0 && lines[clash - 1].kind === 'heading' && lines[clash - 1].id === CLASH_HEADING?.id;
+  const index = heading ? clash - 1 : clash;
+  return { index, heading, gap: index > 0 && lines[index - 1].kind !== 'blank' ? 1 : 0 };
+}
+
+function anchorOf(result: CompileResult): Anchor {
+  const anchor = anchorIn(result.soulLines);
+  if (anchor === undefined) throw new Error('test setup: the compile has no clash line');
+  return anchor;
+}
+
+const RULE_KINDS = new Set(['rule', 'limit', 'pack-rule']);
+const isRuleLine = (l: TracedLine): boolean => RULE_KINDS.has(l.kind);
+// Acting for me: its heading, the act chassis lines and the gate soul lines.
+const isActLine = (l: TracedLine): boolean => l.id === 'heading.act' || l.id.startsWith('chassis.act.') || l.kind === 'gate';
+
+// The soul lines with the Mine block (the blank above when withMine added one, the heading, n lines and the
+// closing blank) cut out.
+function withoutMineBlock(lines: TracedLine[], n: number, gap: number): TracedLine[] {
   const start = lines.findIndex((l) => l.id === 'user.mine.heading');
-  return [...lines.slice(0, start), ...lines.slice(start + 1 + n + 1)];
+  return [...lines.slice(0, start - gap), ...lines.slice(start + 1 + n + 1)];
 }
 
 // --- The shared checks, used by the marty tests and by the sweeps ----------
@@ -173,6 +239,7 @@ function checkSection(after: CompileResult, mine: string[], label: string): void
   const at = after.soulLines.findIndex((l) => l.id === 'user.mine.heading');
   expect(at, `${label}: heading present`).toBeGreaterThan(-1);
   expect(after.soulLines[at].text, label).toBe('## Mine');
+  expect(after.soulLines[at - 1]?.kind, `${label}: a blank line sits above the heading`).toBe('blank');
   mine.forEach((text, i) => {
     expect(after.soulLines[at + 1 + i].text, `${label}: line ${i + 1}`).toBe(text);
     expect(after.soulLines[at + 1 + i].id, `${label}: id ${i + 1}`).toBe(`user.mine.${i + 1}`);
@@ -215,18 +282,11 @@ function checkOthersIdentical(before: CompileResult, after: CompileResult, label
   expect(restOf(after), `${label}: every other field`).toStrictEqual(restOf(before));
 }
 
-// How many closing lines must stay put: five. On a top-and-bottom layout Mine sits directly above the
-// closing rules block (W28), so when that block holds fewer than five non-blank lines the tail that can
-// stay unchanged is the whole block. A free instructions soul has a block of two or three lines.
-function tailLength(before: CompileResult, profile: Profile): number {
-  if (profile.rulesInSoul !== 'top-and-bottom') return 5;
-  const at = before.soulLines.findIndex((l) => l.id === profile.templates['rules.bottom'].id);
-  const closing = before.soulLines.slice(at).filter((l) => l.kind !== 'blank').length;
-  return Math.min(5, closing);
-}
-
-function checkTailUnchanged(before: CompileResult, after: CompileResult, profile: Profile, label: string): void {
-  const n = tailLength(before, profile);
+// Everything from the anchor on is the clash block and what follows it. Its non-blank lines are the
+// closing lines of the personality text, so they must be byte-identical at the end of the artifact.
+function checkTailUnchanged(before: CompileResult, after: CompileResult, label: string): void {
+  const anchor = anchorOf(before);
+  const n = before.soulLines.slice(anchor.index).filter((l) => l.kind !== 'blank').length;
   expect(n, `${label}: there is a tail to compare`).toBeGreaterThan(0);
   expect(lastLines(personalityText(after), n), label).toStrictEqual(lastLines(personalityText(before), n));
 }
@@ -248,34 +308,103 @@ function checkSync(after: CompileResult, label: string): void {
 }
 
 function checkRestorable(before: CompileResult, after: CompileResult, n: number, label: string): void {
-  expect(withoutMineBlock(after.soulLines, n), `${label}: cutting the Mine block restores the soul`).toStrictEqual(
+  const { gap } = anchorOf(before);
+  expect(withoutMineBlock(after.soulLines, n, gap), `${label}: cutting the Mine block restores the soul`).toStrictEqual(
     before.soulLines,
   );
 }
 
-function checkPlacement(before: CompileResult, after: CompileResult, profile: Profile, n: number, label: string): void {
+// B20: Mine sits right before the clash heading (or the first clash line), and everything from there on is
+// the unchanged clash block. Acting for me and the Hard rules come before Mine.
+function checkPlacement(
+  before: CompileResult,
+  after: CompileResult,
+  profile: Profile,
+  v: Variant,
+  mine: string[],
+  label: string,
+): void {
+  const n = mine.length;
   const lines = after.soulLines;
+  const anchor = anchorOf(before);
+  const at = lines.findIndex((l) => l.id === 'user.mine.heading');
   const lastMine = lines.map(isMineId).lastIndexOf(true);
-  expect(lastMine, `${label}: Mine present`).toBeGreaterThan(-1);
-  if (profile.rulesInSoul === 'top-and-bottom') {
-    // Mine goes directly above the closing rules block, which stays whole and last.
-    const bottomId = profile.templates['rules.bottom'].id;
-    const bottom = lines.findIndex((l) => l.id === bottomId);
-    const bottomBefore = before.soulLines.findIndex((l) => l.id === bottomId);
-    expect(bottom, `${label}: closing rules heading`).toBeGreaterThan(-1);
-    expect(lastMine, `${label}: Mine is above the closing rules`).toBeLessThan(bottom);
-    expect(bottom, `${label}: one blank line between Mine and the closing rules`).toBe(lastMine + 2);
-    expect(lines[lastMine + 1].kind, label).toBe('blank');
-    expect(lines.slice(bottom), `${label}: closing block unchanged`).toStrictEqual(before.soulLines.slice(bottomBefore));
-  } else {
-    const firstGuarded = lines.findIndex(guarded);
-    expect(firstGuarded, `${label}: a guarded line exists`).toBeGreaterThan(-1);
-    expect(lastMine, `${label}: every gate, rules, act and clash line comes after Mine`).toBeLessThan(firstGuarded);
-    const guardedBefore = before.soulLines.filter(guarded).map((l) => l.id);
-    const guardedAfter = lines.filter(guarded).map((l) => l.id);
-    expect(guardedAfter, `${label}: no guarded line lost`).toStrictEqual(guardedBefore);
+  expect(at, `${label}: Mine present`).toBeGreaterThan(-1);
+  expect(n, label).toBe(lastMine - at);
+
+  // The layout facts.
+  if (!HEADING_OPEN.has(v.name)) {
+    expect(anchor.heading, `${label}: "If rules clash" heading on this layout`).toBe(!NO_CLASH_HEADING.has(v.name));
   }
-  expect(n, label).toBe(lines.filter(isMineId).length - 1);
+  expect(anchor.gap, `${label}: a blank added above the Mine heading`).toBe(LEADING_BLANK.has(v.name) ? 1 : 0);
+
+  // Everything above the anchor is unchanged, then the optional blank, then the section and its closing blank.
+  expect(lines.slice(0, anchor.index), `${label}: lines above the anchor unchanged`).toStrictEqual(
+    before.soulLines.slice(0, anchor.index),
+  );
+  expect(at, `${label}: Mine starts at the anchor`).toBe(anchor.index + anchor.gap);
+  if (anchor.gap === 1) {
+    expect(lines[anchor.index].kind, `${label}: the added blank line`).toBe('blank');
+  }
+  expect(lines[lastMine + 1].kind, `${label}: a blank line closes Mine`).toBe('blank');
+
+  // The next line after Mine is the clash heading or the clash line, from the library.
+  const next = lines[lastMine + 2];
+  if (anchor.heading) {
+    expect(next.id, label).toBe(CLASH_HEADING?.id);
+    expect(next.text, `${label}: the clash heading follows Mine`).toBe(CLASH_HEADING?.text);
+  } else {
+    expect(isClashLine(next), `${label}: the clash line follows Mine`).toBe(true);
+    expect(CLASH_TEXTS, `${label}: clash text from the library`).toContain(withoutBullet(next.text));
+  }
+  // The clash block, and whatever the layout puts after it, is unchanged and still after Mine.
+  expect(lines.slice(lastMine + 2), `${label}: everything after Mine is the unchanged clash block`).toStrictEqual(
+    before.soulLines.slice(anchor.index),
+  );
+  expect(lines.findIndex(isClashLine), `${label}: the clash line is after Mine`).toBeGreaterThan(lastMine);
+  // The same order in the text of the artifact.
+  expect(personalityText(after), `${label}: Mine block then the clash block, in the text`).toContain(
+    `## Mine\n${mine.join('\n')}\n\n${next.text}`,
+  );
+
+  // Acting for me comes before Mine, on every layout.
+  const acts = lines.map((l, i) => (isActLine(l) ? i : -1)).filter((i) => i !== -1);
+  expect(acts.length, `${label}: there are act lines`).toBeGreaterThan(0);
+  for (const i of acts) {
+    expect(i, `${label}: ${lines[i].id} is before Mine`).toBeLessThan(at);
+  }
+
+  // The Hard rules: placement follows the layout, and no rule line is lost or moved across Mine's block.
+  const rules = lines.map((l, i) => (isRuleLine(l) ? i : -1)).filter((i) => i !== -1);
+  const above = rules.filter((i) => i < at).map((i) => lines[i].id);
+  const below = rules.filter((i) => i > lastMine).map((i) => lines[i].id);
+  expect(above.length + below.length, `${label}: every rule line is on one side of Mine`).toBe(rules.length);
+  expect(rules.length, `${label}: rule lines kept`).toBe(before.soulLines.filter(isRuleLine).length);
+  const side = RULES_AT[v.name];
+  if (side === 'none') {
+    expect(rules, `${label}: no rule lines in the personality`).toStrictEqual([]);
+  } else if (side === 'above') {
+    expect(below, `${label}: the Hard rules are before Mine`).toStrictEqual([]);
+  } else if (side === 'below') {
+    expect(above, `${label}: Grok's Never section follows its clash bullet, so it follows Mine`).toStrictEqual([]);
+  } else {
+    // The top block is above Mine, and a repeat of it (the compact box repeats only part) comes below.
+    expect(below.length, `${label}: a repeated block below Mine`).toBeGreaterThan(0);
+    for (const id of below) {
+      expect(above, `${label}: ${id} below Mine repeats a line above it`).toContain(id);
+    }
+  }
+  // The rules headings the profile names sit on the same side.
+  const aboveKeys = side === 'below' ? [] : side === 'above' ? ['rules.heading', 'rules.top'] : ['rules.top'];
+  for (const key of aboveKeys) {
+    if (!Object.hasOwn(profile.templates, key)) continue;
+    const idx = lines.findIndex((l) => l.id === profile.templates[key].id);
+    if (idx !== -1) expect(idx, `${label}: ${key} is before Mine`).toBeLessThan(at);
+  }
+  if (side === 'above and below') {
+    const idx = lines.findIndex((l) => l.id === profile.templates['rules.bottom'].id);
+    expect(idx, `${label}: rules.bottom heading is after Mine`).toBeGreaterThan(lastMine);
+  }
 }
 
 function checkAll(starter: string, v: Variant, roles?: RoleId[]): void {
@@ -286,10 +415,10 @@ function checkAll(starter: string, v: Variant, roles?: RoleId[]): void {
   const after = withMine(before, profile, MINE, build);
   checkSection(after, MINE, label);
   checkOthersIdentical(before, after, label);
-  checkTailUnchanged(before, after, profile, label);
+  checkTailUnchanged(before, after, label);
   checkSync(after, label);
   checkRestorable(before, after, MINE.length, label);
-  checkPlacement(before, after, profile, MINE.length, label);
+  checkPlacement(before, after, profile, v, MINE, label);
 }
 
 // --- mineLines -------------------------------------------------------------
@@ -725,8 +854,8 @@ for (const v of VARIANTS) {
       checkOthersIdentical(before, after, v.name);
     });
 
-    it('keeps the last five non-blank lines of the personality artifact (the whole closing block when shorter)', () => {
-      checkTailUnchanged(before, after, profile, v.name);
+    it('keeps the clash block and everything after it at the end of the personality artifact, unchanged', () => {
+      checkTailUnchanged(before, after, v.name);
     });
 
     it('keeps soul, soulLines, the personality artifact and length in sync', () => {
@@ -737,13 +866,17 @@ for (const v of VARIANTS) {
       checkRestorable(before, after, MINE.length, v.name);
     });
 
-    it('keeps rules, gate, act and clash lines after Mine (W28)', () => {
-      checkPlacement(before, after, profile, MINE.length, v.name);
+    it('puts Mine right before the clash block, with Acting for me and the Hard rules above it (B20)', () => {
+      checkPlacement(before, after, profile, v, MINE, v.name);
+      // Marty has gates, limits and pack rules, so the rules checks are not vacuous where the layout has them.
+      expect(after.soulLines.some(isRuleLine), v.name).toBe(RULES_AT[v.name] !== 'none');
     });
 
     it('adds the Mine lines to the soul and the length by the section size', () => {
       // heading + lines + blank, each joined by one newline: 7 + 3 newlines, plus the lines and their joins.
-      const added = '## Mine'.length + MINE.reduce((sum, m) => sum + m.length, 0) + (1 + MINE.length + 1);
+      // A layout that needs its own blank above the heading (Grok) adds one more newline.
+      const gap = LEADING_BLANK.has(v.name) ? 1 : 0;
+      const added = '## Mine'.length + MINE.reduce((sum, m) => sum + m.length, 0) + (1 + MINE.length + 1) + gap;
       expect(after.length - before.length).toBe(added);
     });
 
@@ -877,37 +1010,141 @@ describe('withMine: cleaning and ids', () => {
   });
 });
 
-describe('withMine: placement fallbacks (engineer reading 2)', () => {
-  it('appends Mine at the end when there is no rules, act or clash line', () => {
-    const build = rosterBuild('marty', MUSE);
-    const full = compile(build);
-    const profile = profileOf(full);
-    const kept = full.soulLines.filter((l) => !guarded(l) && l.kind !== 'heading' && l.kind !== 'blank').slice(0, 4);
-    expect(kept.length).toBeGreaterThan(0);
-    const synthetic: CompileResult = { ...full, soulLines: kept, soul: kept.map((l) => l.text).join('\n') };
-    const out = withMine(synthetic, profile, MINE, build);
-    const ids = out.soulLines.map((l) => l.id);
-    expect(ids.slice(0, kept.length)).toStrictEqual(kept.map((l) => l.id));
-    expect(out.soulLines[kept.length].kind).toBe('blank');
-    expect(ids.slice(kept.length + 1)).toStrictEqual(['user.mine.heading', 'user.mine.1', 'user.mine.2']);
-    expect(out.soul).toBe(`${synthetic.soul}\n\n## Mine\n${MINE.join('\n')}`);
+// A synthetic result with the clash lines gone: each clash line, the "If rules clash" heading directly above
+// it and the blank line above that heading.
+function withoutClash(result: CompileResult): CompileResult {
+  const lines = result.soulLines;
+  const drop = new Set<number>();
+  lines.forEach((l, i) => {
+    if (!isClashLine(l)) return;
+    drop.add(i);
+    if (lines[i - 1]?.kind === 'heading' && lines[i - 1].id === CLASH_HEADING?.id) {
+      drop.add(i - 1);
+      if (lines[i - 2]?.kind === 'blank') drop.add(i - 2);
+    }
+  });
+  const soulLines = lines.filter((_, i) => !drop.has(i));
+  return { ...result, soulLines, soul: soulLines.map((l) => l.text).join('\n') };
+}
+
+function withSoulLines(result: CompileResult, soulLines: TracedLine[]): CompileResult {
+  return { ...result, soulLines, soul: soulLines.map((l) => l.text).join('\n') };
+}
+
+describe('withMine: where the clash lines are (B20)', () => {
+  const build = rosterBuild('marty', MUSE);
+  const full = compile(build);
+  const profile = profileOf(full);
+
+  it('anchors on the clash line itself when the "If rules clash" heading is missing', () => {
+    const at = full.soulLines.findIndex(isClashLine);
+    expect(at).toBeGreaterThan(0);
+    expect(full.soulLines[at - 1].id, 'precondition: the heading is there').toBe(CLASH_HEADING?.id);
+    const lines = full.soulLines.filter((_, i) => i !== at - 1);
+    const out = withMine(withSoulLines(full, lines), profile, MINE, build);
+    const last = out.soulLines.map(isMineId).lastIndexOf(true);
+    expect(isClashLine(out.soulLines[last + 2])).toBe(true);
+    expect(out.soulLines.slice(last + 2)).toStrictEqual(lines.slice(at - 1));
+    expect(out.soulLines.slice(0, out.soulLines.findIndex((l) => l.id === 'user.mine.heading'))).toStrictEqual(lines.slice(0, at - 1));
   });
 
-  it('on a top-and-bottom layout, finds the closing run when its heading line is missing', () => {
-    const build = rosterBuild('marty', VARIANTS[5]);
-    const full = compile(build);
-    const profile = profileOf(full);
-    const bottomId = profile.templates['rules.bottom'].id;
-    const headingAt = full.soulLines.findIndex((l) => l.id === bottomId);
-    expect(headingAt).toBeGreaterThan(0);
-    const lines = full.soulLines.filter((_, i) => i !== headingAt);
-    const synthetic: CompileResult = { ...full, soulLines: lines, soul: lines.map((l) => l.text).join('\n') };
-    const out = withMine(synthetic, profile, MINE, build);
-    const lastMine = out.soulLines.map(isMineId).lastIndexOf(true);
-    // Mine sits directly above the closing run, which starts where the heading used to be.
-    expect(out.soulLines[lastMine + 1].kind).toBe('blank');
-    expect(out.soulLines.slice(lastMine + 2)).toStrictEqual(lines.slice(headingAt));
+  it('counts only the clash heading: a different heading above the clash line stays above Mine', () => {
+    const at = full.soulLines.findIndex(isClashLine);
+    const other: TracedLine = { text: '## Something else', id: 'heading.who', kind: 'heading' };
+    const lines = full.soulLines.map((l, i) => (i === at - 1 ? other : l));
+    const out = withMine(withSoulLines(full, lines), profile, MINE, build);
+    const heading = out.soulLines.findIndex((l) => l.id === 'user.mine.heading');
+    // The other heading is not the clash heading, so the clash line is the anchor: Mine adds its own blank
+    // line below that heading, and the clash line follows Mine.
+    expect(out.soulLines[heading - 1].kind).toBe('blank');
+    expect(out.soulLines[heading - 2]).toStrictEqual(other);
+    const last = out.soulLines.map(isMineId).lastIndexOf(true);
+    expect(isClashLine(out.soulLines[last + 2])).toBe(true);
   });
+
+  it('goes above the first clash line when there are several', () => {
+    const at = full.soulLines.findIndex(isClashLine);
+    const again: TracedLine = { ...full.soulLines[at], id: `${full.soulLines[at].id}#again` };
+    const lines = [...full.soulLines.slice(0, at + 1), again, ...full.soulLines.slice(at + 1)];
+    const out = withMine(withSoulLines(full, lines), profile, MINE, build);
+    const last = out.soulLines.map(isMineId).lastIndexOf(true);
+    expect(out.soulLines[last + 2].id).toBe(CLASH_HEADING?.id);
+    expect(out.soulLines[last + 3].id).toBe(full.soulLines[at].id);
+    expect(out.soulLines[last + 4]).toStrictEqual(again);
+  });
+
+  it('keeps every clash line after Mine on all nine profiles, however many Mine lines there are', () => {
+    for (const v of VARIANTS) {
+      const b = rosterBuild('marty', v);
+      const before = compile(b);
+      const many = Array.from({ length: MAX_MINE_LINES }, (_, i) => `mine rule number ${i + 1}`);
+      const out = withMine(before, profileOf(before), many, b);
+      const lastMine = out.soulLines.map(isMineId).lastIndexOf(true);
+      const clashAt = out.soulLines.map(isClashLine);
+      expect(clashAt.indexOf(true), v.name).toBeGreaterThan(lastMine);
+      expect(clashAt.filter(Boolean).length, v.name).toBe(before.soulLines.filter(isClashLine).length);
+    }
+  });
+});
+
+describe('withMine: with no clash line (B20 fallbacks)', () => {
+  for (const v of VARIANTS) {
+    const closing = RULES_AT[v.name] === 'above and below'; // the top-and-bottom layouts
+    it(`${v.name}: ${closing ? 'puts Mine above the closing rules block' : 'appends Mine at the end'}`, () => {
+      const build = rosterBuild('marty', v);
+      const full = compile(build);
+      const profile = profileOf(full);
+      const synthetic = withoutClash(full);
+      expect(full.soulLines.some(isClashLine), 'precondition: the compile has a clash line').toBe(true);
+      expect(synthetic.soulLines.some(isClashLine), 'precondition: the synthetic result has none').toBe(false);
+      expect(synthetic.soulLines.some(isRuleLine), 'precondition: rules remain where the layout has them').toBe(
+        RULES_AT[v.name] !== 'none',
+      );
+      expect(synthetic.soulLines.some(isActLine), 'precondition: act lines remain').toBe(true);
+      const out = withMine(synthetic, profile, MINE, build);
+      const lines = out.soulLines;
+      const at = lines.findIndex((l) => l.id === 'user.mine.heading');
+      const last = lines.map(isMineId).lastIndexOf(true);
+      expect(last - at, v.name).toBe(MINE.length);
+      expect(lines[last + 1]?.kind ?? 'blank', `${v.name}: a blank line closes Mine or Mine ends the file`).toBe('blank');
+      expect(profile.rulesInSoul === 'top-and-bottom', `${v.name}: the library says top-and-bottom`).toBe(closing);
+      if (closing) {
+        // Directly above the closing rules block, which stays whole and last.
+        const bottomAt = synthetic.soulLines.findIndex((l) => l.id === profile.templates['rules.bottom'].id);
+        expect(bottomAt, `${v.name}: the closing rules heading`).toBeGreaterThan(0);
+        expect(at, v.name).toBe(bottomAt);
+        expect(lines.slice(0, bottomAt), v.name).toStrictEqual(synthetic.soulLines.slice(0, bottomAt));
+        expect(lines.slice(last + 2), v.name).toStrictEqual(synthetic.soulLines.slice(bottomAt));
+      } else {
+        // At the end, after one blank line, however many rules and act lines come before it.
+        const n = synthetic.soulLines.length;
+        expect(lines.slice(0, n), v.name).toStrictEqual(synthetic.soulLines);
+        expect(lines[n].kind, v.name).toBe('blank');
+        expect(lines.slice(n + 1).map((l) => l.id), v.name).toStrictEqual(['user.mine.heading', 'user.mine.1', 'user.mine.2']);
+        expect(out.soul, v.name).toBe(`${synthetic.soul}\n\n## Mine\n${MINE.join('\n')}`);
+      }
+      checkSync(out, v.name);
+    });
+  }
+
+  for (const v of VARIANTS.filter((x) => RULES_AT[x.name] === 'above and below')) {
+    it(`${v.name}: finds the closing run when its heading line is missing too`, () => {
+      const build = rosterBuild('marty', v);
+      const full = compile(build);
+      const profile = profileOf(full);
+      const noClash = withoutClash(full);
+      const bottomId = profile.templates['rules.bottom'].id;
+      const headingAt = noClash.soulLines.findIndex((l) => l.id === bottomId);
+      expect(headingAt).toBeGreaterThan(0);
+      const lines = noClash.soulLines.filter((_, i) => i !== headingAt);
+      const out = withMine(withSoulLines(noClash, lines), profile, MINE, build);
+      const last = out.soulLines.map(isMineId).lastIndexOf(true);
+      // Mine sits directly above the closing run, which starts where the heading used to be.
+      expect(out.soulLines[last + 1].kind).toBe('blank');
+      expect(out.soulLines.slice(last + 2)).toStrictEqual(lines.slice(headingAt));
+      expect(out.soulLines.slice(0, last - MINE.length)).toStrictEqual(lines.slice(0, headingAt));
+    });
+  }
 });
 
 // --- The length cap --------------------------------------------------------
@@ -987,9 +1224,12 @@ describe('withMine: over-cap warning', () => {
   for (const v of VARIANTS) {
     if (v === INSTRUCTIONS_FREE) continue;
     it(`${v.name}: a small Mine that stays under the cap adds no warning`, () => {
-      const build = rosterBuild('marty', v);
+      // Vera: Marty's compile is trimmed to the exact cap on OpenClaw (3,600 of 3,600) and sits 11 under on
+      // paid instructions, so no Mine at all would fit there. Vera has room on every profile but free.
+      const build = rosterBuild('vera', v);
       const before = compile(build);
       const profile = profileOf(before);
+      expect(capFor(profile, build) - before.length, 'precondition: room for a small Mine').toBeGreaterThan(OVERHEAD + 12 + 1);
       const out = withMine(before, profile, ['a short line'], build);
       expect(out.length).toBeLessThanOrEqual(capFor(profile, build));
       expect(mineWarnings(out)).toStrictEqual([]);

@@ -260,28 +260,38 @@ describe('header', () => {
     },
   );
 
-  it('drops the tagline after a name change', () => {
+  it('swaps the hand-written tagline for the generated one after a name change (B19)', () => {
     open(june);
     expect(screen.queryByText(juneEntry.tagline)).not.toBeNull();
     store((s) => s.setName('Zephyr'));
     expect(textOf(screen.getByRole('heading', { level: 1 }))).toBe(copy.certificate.title('Zephyr'));
     expect(screen.queryByText(juneEntry.tagline)).toBeNull();
+    // June is the parent base ("Playmaker") with kids, cooking, dog, phone: no Work or Markets chip.
+    expect(screen.getByText('Your playmaker.')).toBeTruthy();
     // The build name stays: it comes from the picks, not the name.
     expect(screen.getByText(juneEntry.buildName)).toBeTruthy();
   });
 
-  it('drops the tagline after a slider change', () => {
+  it('swaps the hand-written tagline for the generated one after a slider change', () => {
     open(june);
     store((s) => s.setStat('warm', 2));
     expect(screen.queryByText(juneEntry.tagline)).toBeNull();
+    expect(screen.getByText('Your playmaker.')).toBeTruthy();
   });
 
-  it('shows no tagline for a link that carries a changed name', () => {
+  it('shows the generated tagline, not the starter one, for a link that carries a changed name', () => {
     open({ ...june, name: 'Zephyr' });
     expect(screen.queryByText(juneEntry.tagline)).toBeNull();
+    expect(screen.getByText('Your playmaker.')).toBeTruthy();
   });
 
-  it('shows no roster tagline for a custom build (the library has no tagline table)', () => {
+  it('follows the first Work or Markets chip: Marty with a new name reads "Your memecoins trench companion."', () => {
+    open({ ...golden('marty.muse'), name: 'Degen' });
+    expect(screen.queryByText(rosterEntry('marty').tagline)).toBeNull();
+    expect(screen.getByText('Your memecoins trench companion.')).toBeTruthy();
+  });
+
+  it('shows no roster tagline for a custom build, but the generated one (B19)', () => {
     store((s) => {
       s.setTarget('muse');
       s.startBlank();
@@ -294,6 +304,8 @@ describe('header', () => {
     for (const entry of library.roster) {
       expect(screen.queryByText(entry.tagline), entry.id).toBeNull();
     }
+    // No chip tapped yet: "Your <base noun>." with the trader noun "Trench Companion", lowercased.
+    expect(screen.getByText('Your trench companion.')).toBeTruthy();
   });
 
   it('draws the radar with five axes and a text alternative that names every stat and level', () => {
@@ -1275,15 +1287,29 @@ describe('Mine switch', () => {
     expect(screen.getByText(copy.certificate.mine.included)).toBeTruthy();
   });
 
-  it('turned on, keeps the Hard rules after the user lines (W28)', async () => {
+  it('turned on, puts Mine after the Hard rules and Acting for me and right before "If rules clash" (B20)', async () => {
     const user = userEvent.setup();
     open(build);
     store((s) => s.setPasted(MINE));
+    const off = personalityPre();
     await user.click(switchEl());
     const text = personalityPre();
     const rules = profileById('muse').templates['rules.heading'].line;
     expect(rules).toBe('## Hard rules');
-    expect(text.indexOf('## Mine')).toBeLessThan(text.indexOf(rules));
+    const act = library.chassis.headings.find((h) => h.id === 'heading.act');
+    const clash = library.chassis.headings.find((h) => h.id === 'heading.clash');
+    expect(act).toBeDefined();
+    expect(clash).toBeDefined();
+    const mineAt = text.indexOf('## Mine');
+    expect(text.indexOf(rules)).toBeGreaterThan(-1);
+    expect(text.indexOf(rules)).toBeLessThan(mineAt);
+    expect(text.indexOf(act?.text ?? '')).toBeGreaterThan(-1);
+    expect(text.indexOf(act?.text ?? '')).toBeLessThan(mineAt);
+    // The clash heading follows the Mine section directly, and it and everything after it are unchanged.
+    const section = `## Mine\n${MINE}\n\n`;
+    expect(text.indexOf(`${section}${clash?.text}`), 'Mine sits right above the clash heading').toBe(mineAt);
+    expect(text.slice(mineAt + section.length)).toBe(off.slice(off.indexOf(clash?.text ?? '')));
+    expect(text.replace(section, '')).toBe(off);
   });
 
   it('turned on, shows a Mine block with the line, after the personality block', async () => {
@@ -1394,7 +1420,19 @@ describe('Mine switch', () => {
     expect(holders).toContain(copy.certificate.blockTitles.mine);
     const mainBlock = holders.find((t) => t !== copy.certificate.blockTitles.mine) as string;
     const group = screen.getByRole('group', { name: mainBlock });
-    expect(textOf(group.querySelector('pre') as Element)).toContain('## Mine');
+    const text = textOf(group.querySelector('pre') as Element);
+    expect(text).toContain('## Mine');
+    // B20: the clash block follows the Mine section directly: its heading, or on Grok and the free
+    // ChatGPT box (no heading) the clash line itself, as a bullet on Grok. Both texts are the library's.
+    const heading = library.chassis.headings.find((h) => h.id === 'heading.clash');
+    const clash = library.chassis.lines.find((l) => l.id === 'chassis.clash.order');
+    expect(heading).toBeDefined();
+    expect(clash).toBeDefined();
+    const section = `## Mine\n${MINE}\n\n`;
+    const at = text.indexOf(section);
+    expect(at, 'a Mine section with a blank line below it').toBeGreaterThan(-1);
+    const next = text.slice(at + section.length).split('\n')[0].replace(/^- /, '');
+    expect([heading?.text, clash?.line, clash?.short], 'the clash block follows Mine').toContain(next);
   });
 
   it('opens clean after a reset: the paste and the switch are cleared (W27)', () => {
@@ -1633,9 +1671,10 @@ describe('every golden build and a gpt variant of each starter', () => {
   ];
   const packRuleLines = new Set(library.packs.flatMap((p) => p.rulesLines.map((l) => l.line)));
 
-  // F3a: a ChatGPT dot (rulesDelivery custom-rules) carries only gates, so its Left out holds the
-  // build's limit lines too. Derived from the library tables: each pack's limitsDefault merged by the
-  // limit's `stricter` direction, the build's own limits on top, filled into the limit's rulesTemplate.
+  // F3a, as moved by B17: a ChatGPT dot (rulesDelivery custom-rules) carries its limit lines and pack
+  // rules lines in its message, so its Left out holds only the ones missing from that message. Derived
+  // from the library tables: each pack's limitsDefault merged by the limit's `stricter` direction, the
+  // build's own limits on top, filled into the limit's rulesTemplate.
   const limitLinesOf = (build: Build): string[] => {
     const values = new Map<string, number>();
     for (const id of build.packs) {
@@ -1685,14 +1724,17 @@ describe('every golden build and a gpt variant of each starter', () => {
       expect(count(pres, text), `"${text.slice(0, 50)}" shows as many times as it is made`).toBe(count(expected, text));
     }
     // Anything else on the page is under Left out, with the library's text: a cut pack rule, and on a
-    // dot also the build's limit lines (F3a).
+    // dot also a limit line when its message lacks one (F3a, B17).
     const extras = pres.filter((t) => !expected.includes(t));
     const isDot = build.target === 'chatgpt' && build.mode === 'dot';
     const allowed = new Set<string>(isDot ? [...packRuleLines, ...limitLinesOf(build)] : packRuleLines);
     for (const text of extras) expect(allowed.has(text), `extra block "${text.slice(0, 50)}"`).toBe(true);
     if (isDot) {
-      // A dot lists every limit line and every pack rules line once, and nothing else.
-      expect([...extras].sort()).toEqual([...limitLinesOf(build), ...packRulesOf(build)].sort());
+      // A dot lists each limit line and pack rules line its message lacks once, and nothing else.
+      const lacking = [...limitLinesOf(build), ...packRulesOf(build)].filter((t) => !result.soul.includes(t));
+      expect([...extras].sort()).toEqual(lacking.sort());
+      // B17: the message carries every limit line, so no limit line is ever an extra block.
+      for (const line of limitLinesOf(build)) expect(extras, line).not.toContain(line);
     }
 
     // Every custom rule is a card with its action once.

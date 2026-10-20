@@ -13,7 +13,8 @@
 //      outfit, name, certificate), Copy link, then the link opened in a fresh render: same page.
 //   3. A full link remix: ?remix=1 for June on Muse, the B12 warning, paste the original personality
 //      plus one new line, Continue, remove one peeve, Next to the certificate. Mine holds only the
-//      new line, is off by default, sits above the hard rules when on, and never reaches the link.
+//      new line, is off by default, sits below the hard rules and right above "If rules clash" when on (B20),
+//      and never reaches the link.
 //   4. Target switch round trips on the certificate across all five targets.
 //   5. Download zip on Marty OpenClaw roles: every file delivery, byte for byte.
 //   6. A bad link shows the link error view, and Start over goes to the target screen.
@@ -900,7 +901,8 @@ describe('3. a full link remix: ?remix=1 for June on Muse', () => {
     const onBlock = personalityBlock(current);
     expect(all.findIndex((b) => b.el === mineBlock.el)).toBe(all.findIndex((b) => b.el === onBlock.el) + 1);
 
-    // The line is in the personality block, above the hard rules section and the act section.
+    // The line is in the personality block, below the act section and the hard rules section, and directly
+    // above "If rules clash" (B20), so the clash order stays the last thing in the file.
     const lines = onBlock.text.split('\n');
     const mineAt = lines.indexOf('## Mine');
     expect(mineAt, 'a Mine heading in the personality').toBeGreaterThan(-1);
@@ -915,8 +917,16 @@ describe('3. a full link remix: ?remix=1 for June on Muse', () => {
     const actAt = lines.indexOf(actHeading);
     expect(hardAt, 'a Hard rules section').toBeGreaterThan(-1);
     expect(actAt, 'an Acting for me section').toBeGreaterThan(-1);
-    expect(mineAt).toBeLessThan(actAt);
-    expect(mineAt).toBeLessThan(hardAt);
+    const clashHeading = must(library.chassis.headings.find((h) => h.id === 'heading.clash'), 'clash heading').text;
+    const clashAt = lines.indexOf(clashHeading);
+    expect(clashAt, 'an "If rules clash" section').toBeGreaterThan(-1);
+    expect(actAt).toBeLessThan(mineAt);
+    expect(hardAt).toBeLessThan(mineAt);
+    // Mine, its line and the blank line close up to the clash heading, which is where the file ends.
+    expect(clashAt).toBe(mineAt + 3);
+    const offLines = offBlock.text.split('\n');
+    expect(lines.slice(clashAt), 'the clash block is unchanged').toEqual(offLines.slice(offLines.indexOf(clashHeading)));
+    expect(lines.slice(0, mineAt), 'everything above Mine is unchanged').toEqual(offLines.slice(0, offLines.indexOf(clashHeading)));
     // Nothing else moved: take the Mine section out and the personality is the Mine-off text again.
     expect(onBlock.text.replace(`## Mine\n${NEW_LINE}\n\n`, '')).toBe(offBlock.text);
     // The removed peeve line is not back, and the meter counts the longer text.

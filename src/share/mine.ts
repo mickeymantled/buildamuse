@@ -1,11 +1,11 @@
-// Remix "Mine" lines (W12, W28): the lines a user pasted that no compile of ours produced, and how
+// Remix "Mine" lines (W12, B20): the lines a user pasted that no compile of ours produced, and how
 // they join the personality artifact. Pure: no I/O, and no input is mutated.
 // Mine is user text by design. Its heading is spec text and its lines trace to user.mine.* ids, the
 // one carve-out from "every output line traces to a library record id".
 
 import { compile, library } from '../compiler/compile.js';
 import { artifactKindOf } from '../compiler/types.js';
-import type { Build, BuildV1, CompileResult, LineKind, Profile, TracedLine } from '../compiler/types.js';
+import type { Build, BuildV1, CompileResult, Profile, TracedLine } from '../compiler/types.js';
 
 export const MINE_HEADING = '## Mine';
 export const MAX_PASTE_CHARS = 20_000;
@@ -13,9 +13,8 @@ export const MAX_MINE_LINES = 50;
 
 const HEADING_ID = 'user.mine.heading';
 
-// Lines that must stay after Mine: gate and rules lines, the act chassis lines and the clash line.
-const GUARDED_KINDS: ReadonlySet<LineKind> = new Set<LineKind>(['gate', 'rule', 'limit', 'pack-rule']);
-const GUARDED_PREFIXES = ['chassis.act.', 'chassis.clash.'];
+// The clash lines must stay after Mine (B20): the clash order is the last word in the file.
+const CLASH_PREFIX = 'chassis.clash.';
 
 const NEWLINE = /\r\n?|\n/;
 const EM_DASH = /\s*\u2014\s*/g;
@@ -106,19 +105,6 @@ export function mineTexts(current: CompileResult, baseline?: Build | BuildV1): s
   return texts;
 }
 
-function guarded(line: TracedLine): boolean {
-  return GUARDED_KINDS.has(line.kind) || GUARDED_PREFIXES.some((prefix) => line.id.startsWith(prefix));
-}
-
-// The first line of the block that holds line `i`: back to just after the nearest blank line.
-function blockStart(lines: TracedLine[], i: number): number {
-  let at = i;
-  while (at > 0 && lines[at - 1].kind !== 'blank') {
-    at -= 1;
-  }
-  return at;
-}
-
 // Layouts that repeat the rules close with a rules.bottom block. Find its heading by template id;
 // with no heading, the closing block is the last run of lines and its first line repeats an earlier id.
 function closingRulesStart(lines: TracedLine[], profile: Profile): number | undefined {
@@ -137,16 +123,20 @@ function closingRulesStart(lines: TracedLine[], profile: Profile): number | unde
   return first !== undefined && lines.findIndex((l) => l.id === first.id) < start ? start : undefined;
 }
 
-// Where Mine goes: the index of the first line of the block it sits above, or undefined to append.
-// Top-and-bottom layouts put it above the closing rules. Every other layout puts it above the first
-// section that holds an act, rules, never or clash line, so those stay after the user's lines. On
-// grok the act, gate and clash lines share the "How you work" section, so Mine lands above it.
+// Where Mine goes (B20): the index of the first line of the block it sits above, or undefined to append.
+// Mine goes right above the first chassis clash line, so the clash order stays after the user's lines.
+// If the "## If rules clash" heading sits directly above that line (found by its library id), Mine goes
+// above the heading. Layouts without the heading (grok, the compact free box) take the line itself.
+// A layout with no clash line puts Mine above the closing rules block on top-and-bottom layouts and at
+// the end on every other.
 function anchorOf(lines: TracedLine[], profile: Profile): number | undefined {
-  if (profile.rulesInSoul === 'top-and-bottom') {
-    return closingRulesStart(lines, profile);
+  const clash = lines.findIndex((l) => l.id.startsWith(CLASH_PREFIX));
+  if (clash !== -1) {
+    const headingId = library.chassis.headings.find((h) => h.section === 'clash')?.id;
+    const above = lines[clash - 1];
+    return above !== undefined && above.kind === 'heading' && above.id === headingId ? clash - 1 : clash;
   }
-  const first = lines.findIndex(guarded);
-  return first === -1 ? undefined : blockStart(lines, first);
+  return profile.rulesInSoul === 'top-and-bottom' ? closingRulesStart(lines, profile) : undefined;
 }
 
 // Record ids behind a text, first seen first. Blank lines carry no record of their own.
@@ -192,7 +182,9 @@ export function withMine(
   if (at === undefined) {
     soulLines = [...result.soulLines, ...(result.soulLines.length > 0 ? [blank] : []), ...section];
   } else {
-    soulLines = [...result.soulLines.slice(0, at), ...section, blank, ...result.soulLines.slice(at)];
+    // Soul layouts already have a blank line above the anchor. Grok's clash line is a bullet, so it needs one.
+    const gap = at > 0 && result.soulLines[at - 1].kind !== 'blank' ? [blank] : [];
+    soulLines = [...result.soulLines.slice(0, at), ...gap, ...section, blank, ...result.soulLines.slice(at)];
   }
   const soul = soulLines.map((l) => l.text).join('\n');
   const ids = idsOf(soulLines);
