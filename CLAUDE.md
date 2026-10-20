@@ -10,6 +10,7 @@ A mobile-first static site where a first-time Meta Muse user taps through eight 
 - `docs/Build-a-Bot-v2-Brief.md`: Brian's v2 brief (2026-10-01): six runtimes, bundles, packs, roles, gates. Supersedes the spec where they differ.
 - `docs/V2-DESIGN.md`: the lead's v2 architecture (profiles, layers, ids, trace).
 - `docs/UI-PLAN.md`: the M3 UI architecture (screens, flow, store, components, copy).
+- `docs/M5-PLAN.md`: the M5 preview chat (proxy contract, limits, extraction guard, UI). Readings are the X entries in QUESTIONS.md.
 - `docs/M4-PLAN.md`: the M4 certificate architecture (bundle fields, certificate model, links, remix and Mine, zip, bundle split). Readings are the W entries in QUESTIONS.md.
 - `QUESTIONS.md`: every ambiguity found and the reading picked. Check it before deciding anything the docs leave open.
 - `PROGRESS.md`: milestone and slice state. Read it first after any context reset.
@@ -35,9 +36,9 @@ A mobile-first static site where a first-time Meta Muse user taps through eight 
 
 ## Rules that never bend
 
-- Tap-only UI. The only text input in the first-build flow is the name. The remix paste box is the one exception.
+- Tap-only UI. The only text input in the first-build flow is the name. Two exceptions: the remix paste box, and the certificate preview chat's "ask your own" box (200 characters; QUESTIONS B22).
 - No storage of user data, ever. State lives in the browser and the share link.
-- No model call inside the app. The compiler is a pure function.
+- The compiler is a pure function and never calls a model. The app's only network call is the certificate preview chat: it sends the compiled personality and one message to the preview proxy (`proxy/`), which stores nothing and logs only error counts (QUESTIONS B22, B23).
 - No real people, no franchise characters, anywhere.
 - Chassis lines ship in every build and cannot be removed by any pick.
 - Blunt and warm never go below 1.
@@ -59,6 +60,7 @@ npm run check:bundle  # production build; fails if library text reaches the firs
 
 - `src/library/*.json`: hand-edited content. The compiler never mutates it.
 - `src/compiler/`: types, `compile.ts`, `passes/`, `trace.ts`, `cond.ts`, `migrate.ts`, `defaults.ts`.
+- `proxy/`: the preview chat proxy, one Railway function file (Bun).
 - `src/share/`: share links (`encode.ts`, `url.ts`), the remix Mine diff (`mine.ts`), the zip writer (`zip.ts`).
 - `src/ui/`: `Shell.tsx` (first paint), `App.tsx`, `store.ts`, `flow.ts`, `copy.ts` plus `copy/`, `screens/`, `components/`, `certificate/` (pure `model.ts` and its views).
 - `test/`: one file per behavior (compiler, share, UI, certificate), `golden/v2/` (55 bundles), `packs/` (probe prompts).

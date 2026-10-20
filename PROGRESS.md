@@ -232,3 +232,23 @@ Done when: the criteria in docs/M4-PLAN.md section 11 (lead-written; B14 gives n
 - W22 / B15: the Grok Setup Bot endpoint trade-off (M5 or later).
 - U12: the M4 UI strings.
 - Device checks: Copy, Copy link, Share and Download zip on iOS Safari (iPhone) and Android Chrome. Tip: run `npx vite --host`, then open the Mac's address on the phone over Wi-Fi.
+
+## M4.1: Brian's M4 closeout (2026-10-20)
+
+| # | Slice | Agents | Status |
+| --- | --- | --- | --- |
+| K1 | Dot "## Hard rules" with limits and pack rules (B17) | engineer, tester, safety | |
+| K2 | risk 4 line (B18) | transcriber, safety | |
+| K3 | generated taglines for custom builds (B19); dot Left out lists only undelivered lines | engineer, tester | |
+| K4 | Mine before "## If rules clash" (B20) | engineer, tester | |
+
+## M5: preview chat
+
+Done when: docs/M5-PLAN.md section 4. Decisions B22, B23; readings X1 to X7. Subagents on Sonnet; the lead checks every slice.
+
+| # | Slice | Agents | Status |
+| --- | --- | --- | --- |
+| 5.1 | decisions, model string verified (claude-sonnet-5-5, docs.claude.com 2026-10-20), proxy contract, M5 plan, CLAUDE.md rules amended | lead | done |
+| 5.2 | proxy: one Railway function, request checks, limits, error counts only, extraction guard | engineer, tester | |
+| 5.3 | preview chat on the certificate: label, three chips, ask your own (200, 20 per session) | engineer, tester | |
+| 5.4 | deploy (Brian sets the key; lead asks before creating Railway resources), live probe run, in-voice check | lead, Brian | |
