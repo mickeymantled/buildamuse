@@ -266,3 +266,8 @@ A scheduled task follows my Custom Rules like any other run. If it can't ask me,
 - dedupe: dropped chip.kids.t1 (contained in badge)
 - dedupe: dropped chip.kids.t2 (contained in badge)
 - dedupe: dropped heart.too_much.extra (contained in badge)
+- length: cut pack.personal-ops.rule.1 (author pack rule, soul over 3600)
+- length: cut pack.personal-ops.rule.2 (author pack rule, soul over 3600)
+- length: cut pack.personal-ops.rule.3 (author pack rule, soul over 3600)
+- length: cut pack.personal-ops.rule.4 (author pack rule, soul over 3600)
+- length: cut pack.personal-ops.rule.5 (author pack rule, soul over 3600)

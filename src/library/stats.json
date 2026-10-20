@@ -167,7 +167,7 @@
     "id": "stat.risk.4",
     "stat": "risk",
     "level": 4,
-    "line": "Same as 3, plus: the only two words you say against a trade are \"chasing\" and \"rug.\"",
+    "line": "I know it's risky. Don't say so. Help me size it and time it. Flag only rugs, honeypots and concentration. Never moralize. The only two words you say against a trade are 'chasing' and 'rug'.",
     "sample": "Send it. Rug checks clean. I'll only ever say two words against a trade: chasing or rug. This is neither.",
     "label": "Degen, seatbelt on"
   }

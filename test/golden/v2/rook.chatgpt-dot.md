@@ -296,4 +296,8 @@ A scheduled task follows my Custom Rules like any other run. If it can't ask me,
 ## Warnings
 
 - dedupe: dropped badge.displacement (badge equals chip trigger)
+- length: cut pack.coding.rule.1 (author pack rule, soul over 3600)
+- length: cut pack.coding.rule.2 (author pack rule, soul over 3600)
+- length: cut pack.coding.rule.3 (author pack rule, soul over 3600)
+- length: cut pack.coding.rule.4 (author pack rule, soul over 3600)
 - length: chassis switched to short forms (soul over 3600)

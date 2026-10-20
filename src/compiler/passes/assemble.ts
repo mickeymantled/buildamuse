@@ -6,6 +6,7 @@ import type {
   CompileContext,
   Item,
   Library,
+  Profile,
   RenderOptions,
   Resolved,
   Section,
@@ -265,6 +266,15 @@ const SOUL_ORDER: readonly Section[] = [
   'rules-bottom',
 ];
 
+// A profile with no rules file (the ChatGPT dot) puts its Hard rules section right after the memory
+// section, so it follows the line that points at the Custom Rules in Settings.
+function soulOrderOf(profile: Profile): readonly Section[] {
+  if (profile.rulesDelivery !== 'custom-rules') return SOUL_ORDER;
+  const rest = SOUL_ORDER.filter((section) => section !== 'rules');
+  const at = rest.indexOf('memory') + 1;
+  return [...rest.slice(0, at), 'rules', ...rest.slice(at)];
+}
+
 // The v2 soul: today's sections from the build, with chassis lines taken from ctx.chassis
 // (already variant-applied for the profile), plus profile opening lines, pack triggers,
 // gate soul lines and the rules block.
@@ -327,15 +337,18 @@ export function assembleSoul(ctx: CompileContext): Item[] {
     ...act.slice(approval + 1),
   ]);
 
-  // rules: one block in a section, or the same block at top and bottom.
+  // rules: one block in a section, or the same block at top and bottom. A custom-rules profile
+  // leaves the gate lines out, because Custom Rules enforce the gates; the section is the prose
+  // backstop for the limits and the pack rules lines.
   if (profile.rulesInSoul === 'section') {
-    bySection.set('rules', rulesItems(build, ctx.gates, ctx.limits, lib, 'rules'));
+    const gates = profile.rulesDelivery === 'custom-rules' ? {} : ctx.gates;
+    bySection.set('rules', rulesItems(build, gates, ctx.limits, lib, 'rules'));
   } else if (profile.rulesInSoul === 'top-and-bottom') {
     bySection.set('rules-top', rulesItems(build, ctx.gates, ctx.limits, lib, 'rules-top'));
     bySection.set('rules-bottom', rulesItems(build, ctx.gates, ctx.limits, lib, 'rules-bottom'));
   }
 
-  return SOUL_ORDER.flatMap((section) => bySection.get(section) ?? []);
+  return soulOrderOf(profile).flatMap((section) => bySection.get(section) ?? []);
 }
 
 // Order and heading overrides for rendering assembleSoul output.
@@ -352,5 +365,5 @@ export function soulRenderOptions(ctx: CompileContext): RenderOptions {
       headings[section] = { id: template.id, text: template.line };
     }
   }
-  return { order: SOUL_ORDER, headings };
+  return { order: soulOrderOf(ctx.profile), headings };
 }

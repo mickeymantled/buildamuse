@@ -622,7 +622,7 @@
       "chassis.memory.judge": "This message is how you judge. Memory is what you know. Never put a fact here."
     },
     "rulesDelivery": "custom-rules",
-    "rulesInSoul": "none",
+    "rulesInSoul": "section",
     "skillsDelivery": "spoken",
     "memoryDelivery": "spoken",
     "routinesDelivery": "spoken",
@@ -737,6 +737,10 @@
       "personality.opener": {
         "id": "profile.chatgpt-dot.personality.opener",
         "line": "Here's how I want you to work:"
+      },
+      "rules.heading": {
+        "id": "profile.chatgpt-dot.rules.heading",
+        "line": "## Hard rules"
       },
       "skill.sentence": {
         "id": "profile.chatgpt-dot.skill.sentence",

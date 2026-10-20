@@ -276,8 +276,13 @@ const TIER_MAX_CAP = 4000;
 // Brian's pack rules line (library origin "brief"), the only one Tier A never cuts.
 const BRIEF_RULE_IDS = ['pack.perps.rule.1'];
 
-// The profiles whose soul carries the rules block (rulesInSoul "section"), so Tier A has lines to cut.
-const RULES_IN_SOUL_PROFILES = [MUSE, HERMES];
+// The profiles whose soul carries a rules section (rulesInSoul "section"), so Tier A has lines to cut.
+// Muse and Hermes carry gate rules, limits and pack rules. Since B17 the ChatGPT dot carries a "## Hard
+// rules" section too, but only limits and pack rules (its gate rules are Custom Rules, never soul text).
+const RULES_IN_SOUL_PROFILES = [MUSE, HERMES, CHATGPT_DOT];
+
+// The two profiles whose cap is exactly the 4,000 line the 4001 case below straddles.
+const CAP_4000_PROFILES = [MUSE, HERMES];
 
 // The only kinds the S1 order can drop.
 const DROPPABLE_KINDS = ['voice', 'chip-trigger'];
@@ -559,11 +564,27 @@ function trimModel(lines: TracedLine[], sequence: string[], cap: number): Outcom
   return { dropped, remaining, length, fits: length <= cap };
 }
 
-// Tier A on traced lines: remove every author pack rules line.
+// A section left with no lines renders nothing: no heading and no blank line of its own (render
+// skips an empty section). Only the ChatGPT dot's "## Hard rules" can empty this way, because its
+// limits and pack rules lines are all it holds and Tier A cuts the pack rules lines. The heading and
+// the one blank line that separated it from its neighbour go.
+function withoutEmptyRulesSection(lines: TracedLine[], profile: Profile): TracedLine[] {
+  const heading = profile.templates['rules.heading'];
+  if (!heading) return lines;
+  const at = lines.findIndex((l) => l.kind === 'heading' && l.id === heading.id);
+  if (at < 0) return lines;
+  const next = lines[at + 1];
+  if (next !== undefined && next.kind !== 'blank') return lines; // still holds a line
+  if (next !== undefined) return [...lines.slice(0, at), ...lines.slice(at + 2)];
+  return [...lines.slice(0, Math.max(0, at - 1)), ...lines.slice(at + 1)];
+}
+
+// Tier A on traced lines: remove every author pack rules line, and a rules section that was left empty.
 function cutAuthorRules(lines: TracedLine[], build: Build, lib: Library): { lines: TracedLine[]; cutIds: string[] } {
   const author = new Set(authorRuleIdsOf(build, lib));
   const cutIds = lines.filter((l) => l.kind === 'pack-rule' && author.has(l.id)).map((l) => l.id);
-  return { lines: lines.filter((l) => !cutIds.includes(l.id)), cutIds };
+  const kept = lines.filter((l) => !cutIds.includes(l.id));
+  return { lines: cutIds.length > 0 ? withoutEmptyRulesSection(kept, resolveProfile(build, lib)) : kept, cutIds };
 }
 
 // Tier B on traced lines: every chassis line takes its short-form id and text.
@@ -717,7 +738,18 @@ function expectOnlyCandidatesDropped(
 ): void {
   const resultIds = new Set(result.soulLines.map((l) => canonId(l.id)));
   const lost = pre.soulLines.filter((l) => !resultIds.has(canonId(l.id))).map((l) => l.id);
-  expect([...lost].sort()).toEqual([...droppedIds, ...cutIds].sort());
+  // The one other line that can go is the rules heading, and only when Tier A left that section with
+  // nothing in it (the dot's Hard rules, once its pack rules lines are cut and the build has no limits).
+  const emptied = lost.filter((id) => pre.soulLines.some((l) => l.id === id && l.kind === 'heading'));
+  for (const id of emptied) {
+    expect(id, 'the only heading that may go is a rules heading').toMatch(/^profile\..+\.rules\.heading$/);
+    expect(cutIds.length, `${id} goes only after Tier A cut a rules line`).toBeGreaterThan(0);
+    expect(
+      result.soulLines.filter((l) => l.kind === 'rule' || l.kind === 'limit' || l.kind === 'pack-rule'),
+      `${id} goes only when the section is empty`,
+    ).toEqual([]);
+  }
+  expect([...lost].sort()).toEqual([...droppedIds, ...cutIds, ...emptied].sort());
 
   const kindOf = new Map(pre.soulLines.map((l) => [l.id, l.kind]));
   for (const id of droppedIds) {
@@ -762,7 +794,8 @@ function expectChassisForm(result: CompileResult, profile: Profile, lib: Library
 // from the compiler: always-on chassis (less the profile's null variants), the three
 // drives, stat lines, peeves with a line, four examples, gate soul lines, on profiles with
 // a rules section the rules block (gate rules, limits, Brian's pack rule, and every author
-// pack rule that Tier A did not cut), pack triggers and every Work/Markets first trigger.
+// pack rule that Tier A did not cut; on the ChatGPT dot the same without the gate rules, which
+// Custom Rules carry), pack triggers and every Work/Markets first trigger.
 function expectProtectedLinesPresent(build: Build, lib: Library, result: CompileResult, cutIds: string[] = []): void {
   const profile = resolveProfile(build, lib);
   const ids = result.soulLines.map((l) => l.id);
@@ -817,9 +850,20 @@ function expectProtectedLinesPresent(build: Build, lib: Library, result: Compile
   // Brian's pack rules line always stays. An author line stays unless Tier A cut it; Tier A is the
   // only thing that removes one.
   if (profile.rulesInSoul !== 'none') {
+    // B17: a profile whose rules layer is Custom Rules (the ChatGPT dot) puts only the limits and the
+    // pack rules lines in the soul. Its gates are enforced by the Custom Rules table, so no gate rules
+    // line may appear in the soul text.
     for (const gate of lib.gates) {
       if (!Object.hasOwn(gates, gate.id)) continue;
-      expect(ids).toContain(`gate.${gate.id}.rules.${gates[gate.id]}`);
+      const gateRuleId = `gate.${gate.id}.rules.${gates[gate.id]}`;
+      if (profile.rulesDelivery === 'custom-rules') {
+        expect(ids, `${profile.id} soul carries no gate rules line (${gateRuleId})`).not.toContain(gateRuleId);
+      } else {
+        expect(ids).toContain(gateRuleId);
+      }
+    }
+    if (profile.rulesDelivery === 'custom-rules') {
+      expect(ids.filter((id) => /^gate\..+\.rules\./.test(id)), `${profile.id} soul gate rules lines`).toEqual([]);
     }
     const packs = build.packs.map((id) => lib.packs.find((p) => p.id === id)!);
     const limitIds = new Set<string>([
@@ -916,15 +960,23 @@ const COMBOS: Combo[] = SOUL_PROFILES.flatMap((profile) =>
 // Recomputed at the B1 caps (Muse and Hermes 4,000, OpenClaw and Dot 3,600) from the pre-length
 // soul of each of the nine starters on each soul profile: "clean" fits as is, "tierA" fits once
 // the author pack rules lines are cut, "tierB" is still over after the cuts (or has no rules block
-// to cut from) and fits once the chassis is short. Rook is the one starter that needs Tier B: on
-// Muse and Hermes after its four coding rules lines are cut, on OpenClaw and Dot with nothing to
-// cut. No roster build needs a voice or trigger drop at these caps, and none stays over: the drop
-// and exhaustion cases below are constructed.
+// to cut from) and fits once the chassis is short. Re-pinned for B17 and B18:
+//   - B17 gave the dot a "## Hard rules" section (its limits and pack rules lines), so the dot now has
+//     author lines to cut. Marty (three limit lines, three memecoins rules) needs Tier B; June (five
+//     personal-ops rules) and Odds (seven prediction-markets and spot rules) fit after Tier A; Dash
+//     (one limit line, three sales rules) still fits as it is.
+//   - B18 wrote the risk 4 line out in full, about 100 characters longer than "Same as 3, plus: ...".
+//     Marty on Muse fit after Tier A at 3,971 with the old line. With the new one it is 4,077 after the
+//     cuts, so it now needs Tier B.
+//   - Rook still needs Tier B on all four: on Muse, Hermes and the dot after its four coding rules
+//     lines are cut, on OpenClaw with nothing to cut.
+// No roster build needs a voice or trigger drop at these caps, and none stays over: the drop and
+// exhaustion cases below are constructed.
 const ROSTER_STAGES: Record<string, Record<string, Stage>> = {
-  muse: { marty: 'tierA', june: 'tierA', rook: 'tierB', vera: 'clean', sol: 'clean', dash: 'clean', pip: 'clean', ink: 'clean', odds: 'tierA' },
+  muse: { marty: 'tierB', june: 'tierA', rook: 'tierB', vera: 'clean', sol: 'clean', dash: 'clean', pip: 'clean', ink: 'clean', odds: 'tierA' },
   openclaw: { marty: 'clean', june: 'clean', rook: 'tierB', vera: 'clean', sol: 'clean', dash: 'clean', pip: 'clean', ink: 'clean', odds: 'clean' },
   hermes: { marty: 'tierA', june: 'tierA', rook: 'tierB', vera: 'clean', sol: 'clean', dash: 'clean', pip: 'clean', ink: 'clean', odds: 'tierA' },
-  'chatgpt-dot': { marty: 'clean', june: 'clean', rook: 'tierB', vera: 'clean', sol: 'clean', dash: 'clean', pip: 'clean', ink: 'clean', odds: 'clean' },
+  'chatgpt-dot': { marty: 'tierB', june: 'tierA', rook: 'tierB', vera: 'clean', sol: 'clean', dash: 'clean', pip: 'clean', ink: 'clean', odds: 'tierA' },
 };
 
 const combosAt = (stage: Stage): Combo[] => COMBOS.filter((c) => ROSTER_STAGES[c.profile.id][c.entryId] === stage);
@@ -1036,10 +1088,18 @@ describe('Length', () => {
       expect(combosAt('exhausted')).toEqual([]);
     });
 
-    it('Tier A only has lines to cut on the profiles with a rules block: every roster Tier A fit is Muse or Hermes, and the Tier B fits are rook on all four', () => {
+    it('Tier A only has lines to cut on the profiles with a rules block: every roster Tier A fit is Muse, Hermes or the dot, and the Tier B fits are rook on all four plus marty on Muse and on the dot', () => {
       for (const c of combosAt('tierA')) expect(RULES_IN_SOUL_PROFILES, c.label).toContain(c.profile);
+      expect(combosAt('tierA').some((c) => c.profile === CHATGPT_DOT)).toBe(true);
       expect(combosAt('tierB').map((c) => c.label).sort()).toEqual(
-        ['rook on chatgpt-dot', 'rook on hermes', 'rook on muse', 'rook on openclaw'],
+        [
+          'marty on chatgpt-dot',
+          'marty on muse',
+          'rook on chatgpt-dot',
+          'rook on hermes',
+          'rook on muse',
+          'rook on openclaw',
+        ],
       );
     });
   });
@@ -1189,7 +1249,7 @@ describe('Length', () => {
   // ---- The 4,000 line --------------------------------------------------------------------------
 
   describe('the tiers apply on a cap of 4000 or less and not above it', () => {
-    for (const profile of RULES_IN_SOUL_PROFILES) {
+    for (const profile of CAP_4000_PROFILES) {
       it(`${profile.id}: the same soul, over a cap of 4001 only drops lines (no cut, no short); at a cap of 4000 it goes through Tier A`, () => {
         // Dash, its base line lengthened so the pre-length soul is 4002: over 4001 by 1, over 4000 by 2.
         const build = rosterBuild('dash', profile);

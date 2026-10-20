@@ -19,7 +19,11 @@
 //   - verify, notes and reloadNote: test/verify-cleanup.test.ts,
 //   - the skill.file, skill.chipFile and actions.consequential templates: test/skill-frontmatter.test.ts
 //     and test/verify-cleanup.test.ts.
-// It is valid until the next M4 content edit to another profile record; re-pin or retire it in the
+// M5 slice K1 (B17, Dot hard rules) edited the chatgpt-dot record by design: `rulesInSoul` went from
+// "none" to "section" and a `rules.heading` template ("## Hard rules") was added. Both are stripped from
+// both sides for that one profile, and nothing else about it; test/dot-hard-rules.test.ts pins the new
+// values, and the test below says the dot is the only profile whose rulesInSoul moved.
+// It is valid until the next M4 or M5 content edit to another profile record; re-pin or retire it in the
 // slice that makes that edit. The structural blocks stay.
 
 import { describe, it, expect } from 'vitest';
@@ -130,6 +134,11 @@ function comparable(p: Profile): Record<string, unknown> {
   delete copy.reloadNote;
   const templates = copy.templates as Record<string, unknown>;
   for (const key of EDITED_TEMPLATES) delete templates[key];
+  // B17: the dot's rules layer got a Hard rules section in its personality message.
+  if (p.id === 'chatgpt-dot') {
+    delete copy.rulesInSoul;
+    delete templates['rules.heading'];
+  }
   return copy;
 }
 
@@ -280,6 +289,30 @@ describe('pre-split baseline (migration check; step tags, rulesPath and the reco
       expect(JSON.stringify(stripped)).toBe(JSON.stringify(expected));
     });
   }
+
+  it.skipIf(baseline === null)('B17 moved rulesInSoul on the dot only: every other profile still has its pre-split value', () => {
+    const before = new Map((baseline?.profiles ?? []).map((p) => [p.id, p.rulesInSoul]));
+    for (const p of library.targets.profiles) {
+      if (p.id === 'chatgpt-dot') {
+        expect(before.get(p.id), 'dot before B17').toBe('none');
+        expect(p.rulesInSoul, 'dot after B17').toBe('section');
+      } else {
+        expect(p.rulesInSoul, p.id).toBe(before.get(p.id));
+      }
+    }
+  });
+
+  it.skipIf(baseline === null)('B17 added the rules.heading template to the dot only', () => {
+    const had = new Map((baseline?.profiles ?? []).map((p) => [p.id, Object.hasOwn(p.templates, 'rules.heading')]));
+    for (const p of library.targets.profiles) {
+      if (p.id === 'chatgpt-dot') {
+        expect(had.get(p.id), 'dot before B17').toBe(false);
+        expect(p.templates['rules.heading']).toEqual({ id: 'profile.chatgpt-dot.rules.heading', line: '## Hard rules' });
+      } else {
+        expect(Object.hasOwn(p.templates, 'rules.heading'), p.id).toBe(had.get(p.id));
+      }
+    }
+  });
 
   it.skipIf(baseline === null)('the library carries every pre-split profile and no extra ones', () => {
     const before = (baseline?.profiles ?? []).map((p) => p.id).sort();

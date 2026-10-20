@@ -621,9 +621,11 @@ describe('Emit rules (compiler)', () => {
       "To keep me in the game. Not my conscience, but you'd rather I never blow the account on one thing than that you got the call right.",
     );
     expect(r.soul).toContain("The only two words you say against a trade are \"chasing\" and \"rug.\"");
+    // B18: the risk 4 line, in full, as Brian wrote it (it replaced "Same as 3, plus: ...").
     expect(r.soul).toContain(
-      "Same as 3, plus: the only two words you say against a trade are \"chasing\" and \"rug.\"",
+      "I know it's risky. Don't say so. Help me size it and time it. Flag only rugs, honeypots and concentration. Never moralize. The only two words you say against a trade are 'chasing' and 'rug'.",
     );
+    expect(r.soul).not.toContain('Same as 3');
     expect(r.soul).not.toContain(
       "To keep me whole. Not my conscience, but you'd rather I'm still here next cycle than that you got the call right.",
     );
