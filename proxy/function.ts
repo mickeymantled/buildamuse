@@ -1,6 +1,7 @@
 // Preview chat proxy (docs/M5-PLAN.md sections 1 and 2). One Railway function, runs on Bun.
-// It receives a compiled personality and one user message, sends the personality as the system
-// prompt, and returns the reply. It compiles nothing, stores nothing, and logs only error counts.
+// It receives a compiled personality, the session's earlier turns and one user message, sends the
+// personality as the system prompt, and returns the reply. It compiles nothing, stores nothing, and
+// logs only error counts.
 // Env: ANTHROPIC_API_KEY (nothing else).
 import Anthropic from "@anthropic-ai/sdk@0.135.0";
 
@@ -20,9 +21,14 @@ export const ALLOWED_ORIGINS: readonly string[] = [
 // The placeholder must never match a request header.
 const ORIGIN_SET = new Set(ALLOWED_ORIGINS.filter((o) => !o.startsWith("[TODO")));
 
-export const MAX_BODY_BYTES = 64 * 1024;
+export const MAX_BODY_BYTES = 128 * 1024;
 export const MAX_PERSONALITY = 16_000;
 export const MAX_MESSAGE = 200;
+// The page holds the session (20 messages) and sends the earlier ones with each request (QUESTIONS X3):
+// 19 earlier exchanges, the 20th message being the current one.
+export const MAX_HISTORY_TURNS = 38;
+export const MAX_REPLY_TURN = 4_000;
+export const MAX_HISTORY_CHARS = 16_000;
 export const WINDOW_MS = 10 * 60_000;
 export const PER_WINDOW = 20;
 export const DAY_MS = 24 * 60 * 60_000;
@@ -43,8 +49,10 @@ export const COVER_FLOOR = 50;
 export type ErrorCode = "bad_request" | "origin" | "rate_limited" | "busy" | "upstream";
 export type Counters = Partial<Record<ErrorCode, number>>;
 
+export type Turn = { role: "user" | "assistant"; content: string };
 export type ModelResult = { refused: true } | { refused: false; text: string };
-export type CallModel = (personality: string, message: string) => Promise<ModelResult>;
+// turns is the history followed by the current user message.
+export type CallModel = (personality: string, turns: readonly Turn[]) => Promise<ModelResult>;
 
 export type Verdict = { ok: true } | { ok: false; retryAfter: number };
 export interface Limiter {
@@ -69,12 +77,12 @@ export interface ModelClient {
 }
 
 export function makeCallModel(client: ModelClient): CallModel {
-  return async (personality, message) => {
+  return async (personality, turns) => {
     const res = await client.beta.messages.create({
       model: MODEL,
       max_tokens: MAX_TOKENS,
       system: personality,
-      messages: [{ role: "user", content: message }],
+      messages: turns.map((t) => ({ role: t.role, content: t.content })),
       output_config: { effort: "low" },
       betas: [FALLBACK_BETA],
       fallbacks: "default",
@@ -188,6 +196,61 @@ export function withheld(reply: string, personality: string): boolean {
   return out.length >= need && sharedInOrder(ref, out) >= need;
 }
 
+// Input screen (QUESTIONS X4). A keyword match on a normalized copy of the text, not a classifier: a
+// paraphrased ask, an ask in a language or spelling it does not list, or an encoded ask still reaches the
+// model, and the output guard (withheld) is the backstop.
+const OWN = "(?:your|ur|yr|(?:the|this) bots?)";
+const ADJ = "(?:(?:own|hidden|secret|original|initial|hard|custom|exact|full|real|internal|core|current) ){0,3}";
+const RULE_NOUN = "(?:rules?|instructions?|guidelines?|directives?|prompts?)";
+// "your setup on this coin" is a trader's question, so on or for plus a word other than me or us passes.
+const SETUP_NOUN = "set ?up(?! (?:on|for) (?!(?:me|us)\\b)\\w)";
+const SETUP_ASKS: readonly RegExp[] = [
+  /\b(?:system ?prompt|sys ?prompt|system (?:message|instructions?|rules|text))\b/,
+  /\bdeveloper (?:message|prompt|instructions?)\b/,
+  new RegExp(
+    `\\b${OWN} ${ADJ}(?:instructions?|rules|prompts?|guidelines?|directives?|configs?|configuration|programming|personality (?:file|text|prompt)|persona prompt|${SETUP_NOUN})\\b`,
+  ),
+  /\bsoulfile\b/,
+  new RegExp(`\\b${RULE_NOUN} you (?:were|have been|got|have|follow|received)\\b`),
+  new RegExp(`\\b${RULE_NOUN} (?:do|did|must|should|have|are|were) you (?:follow|have|get|got|use|run|obey|been given|given|receive|received)\\b`),
+  /\bwhat (?:were|are|was) you (?:told|given)\b/,
+  /\bwhat you (?:were|are|have been) (?:told|given)\b/,
+  /\bhow (?:were|are|was) you (?:set up|configured|programmed|instructed|prompted)\b/,
+  // "message" is left out of these two: "your previous message" is ordinary in a multi-turn chat. So are
+  // a game's "first rules" and a trader's "initial setup", so the loose ordinals take only the high-signal nouns.
+  /\b(?:text|words|everything|anything|lines|content|instructions) (?:above(?! \d)|before this|preceding|at the top)\b/,
+  // "my previous prompt" is the person's own earlier message.
+  /\b(?<!\bmy )(?:previous|prior|earlier|initial|original|first|starting) (?:instructions?|prompt|directives)\b/,
+  /\b(?:above|preceding|hidden|secret) (?:instructions?|prompt|rules|directives|guidelines)\b/,
+  /\b(?:above|preceding|hidden|secret|initial|starting) text\b/,
+  /\b(?:hidden|secret) setup\b/,
+  // "ignore my previous message" is a correction, not an attack.
+  /\bignore (?:(?:all|any|the|your|my) )?(?:previous|prior|above|earlier|preceding|former)\b(?! (?:messages?|msgs?|ones?|questions?|repl(?:y|ies)|answers?|texts?|comments?|posts?|emails?)\b)/,
+  // A small non-English set.
+  /\b(?:tus|tes|vos|deine[nmrs]?|ihre[nmrs]?|tuoi|tue|suas|seus) (?:instrucciones|instructions|consignes|regles|reglas|regeln|anweisungen|istruzioni|regole|instrucoes|regras)\b/,
+  /\bprompt (?:del|du|de|di) (?:sistema|systeme)\b/,
+  /\bmensaje del sistema\b/,
+];
+
+// Lowercase, strip accents, drop apostrophes, fold SOUL.md and "soul file" to one token (before the dot
+// goes), then reduce everything outside a-z and 0-9 to single spaces.
+function screenForm(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(SINGLE_QUOTES, "")
+    .replace(/'/g, "")
+    .replace(/\bsoul(?:\s*\.?\s*md|\s+file)\b/g, " soulfile ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+export function asksForSetup(text: string): boolean {
+  const form = screenForm(text);
+  return SETUP_ASKS.some((re) => re.test(form));
+}
+
 function corsFor(request: Request): Record<string, string> {
   const origin = request.headers.get("origin");
   return origin !== null && ORIGIN_SET.has(origin) ? { "access-control-allow-origin": origin } : {};
@@ -255,8 +318,28 @@ async function readCapped(request: Request): Promise<string | null> {
   }
 }
 
+// Earlier turns alternate user, assistant, starting with the user. Only role and content are passed on.
+function parseHistory(value: unknown): Turn[] | null {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length % 2 !== 0 || value.length > MAX_HISTORY_TURNS) return null;
+  const turns: Turn[] = [];
+  let chars = 0;
+  for (let i = 0; i < value.length; i++) {
+    const entry: unknown = value[i];
+    if (typeof entry !== "object" || entry === null || Array.isArray(entry)) return null;
+    const { role, content } = entry as Record<string, unknown>;
+    const want = i % 2 === 0 ? "user" : "assistant";
+    if (role !== want || typeof content !== "string") return null;
+    const n = content.trim().length;
+    if (n < 1 || n > (want === "user" ? MAX_MESSAGE : MAX_REPLY_TURN)) return null;
+    chars += content.length;
+    turns.push({ role: want, content });
+  }
+  return chars > MAX_HISTORY_CHARS ? null : turns;
+}
+
 // Lengths are checked after trim. The values themselves go through unchanged.
-function parseInput(raw: string): { personality: string; message: string } | null {
+function parseInput(raw: string): { personality: string; message: string; history: Turn[] } | null {
   let data: unknown;
   try {
     data = JSON.parse(raw);
@@ -264,12 +347,14 @@ function parseInput(raw: string): { personality: string; message: string } | nul
     return null;
   }
   if (typeof data !== "object" || data === null || Array.isArray(data)) return null;
-  const { personality, message } = data as Record<string, unknown>;
+  const { personality, message, history } = data as Record<string, unknown>;
   if (typeof personality !== "string" || typeof message !== "string") return null;
   const p = personality.trim().length;
   const m = message.trim().length;
   if (p < 1 || p > MAX_PERSONALITY || m < 1 || m > MAX_MESSAGE) return null;
-  return { personality, message };
+  const turns = parseHistory(history);
+  if (turns === null) return null;
+  return { personality, message, history: turns };
 }
 
 function upstreamCode(err: unknown): "busy" | "upstream" {
@@ -313,12 +398,16 @@ async function route(request: Request, deps: Deps): Promise<Response> {
   const raw = await readCapped(request);
   const input = raw === null ? null : parseInput(raw);
   if (input === null) return fail(deps, 400, "bad_request", cors);
+  // A screened ask costs no slot, no model call and no counter (X4). The per-IP take above still counted it.
+  if (asksForSetup(input.message) || input.history.some((t) => t.role === "user" && asksForSetup(t.content))) {
+    return json(200, { withheld: true }, cors);
+  }
   // Only a valid request spends a slot of the all-callers ceiling, so junk bodies can't exhaust it (X8).
   if (!deps.limiter.takeGlobal(deps.now())) return fail(deps, 503, "busy", cors);
 
   let result: ModelResult;
   try {
-    result = await deps.callModel(input.personality, input.message);
+    result = await deps.callModel(input.personality, [...input.history, { role: "user", content: input.message }]);
   } catch (err) {
     const code = upstreamCode(err);
     return fail(deps, code === "busy" ? 503 : 502, code, cors);
@@ -341,7 +430,7 @@ export async function handle(request: Request, deps: Deps): Promise<Response> {
 
 // The real wiring. The client is built on first use so importing this file needs no key.
 let live: CallModel | undefined;
-const callLive: CallModel = (personality, message) => {
+const callLive: CallModel = (personality, turns) => {
   live ??= makeCallModel(
     new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
@@ -350,7 +439,7 @@ const callLive: CallModel = (personality, message) => {
       timeout: UPSTREAM_TIMEOUT_MS,
     }),
   );
-  return live(personality, message);
+  return live(personality, turns);
 };
 
 const liveDeps: Deps = {

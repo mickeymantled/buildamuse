@@ -6,11 +6,17 @@
 //
 // Expected behavior comes from docs/M5-PLAN.md section 3 (the preview chat UI) and section 1 (the
 // proxy answers the page reads), and QUESTIONS.md B22 (the label, the caps, plain text), B23 (the
-// preview chat is the app's only network call) and X1 to X3 (the chips, the unlock, single-turn).
+// preview chat is the app's only network call) and X1 and X2 (the chips, the unlock). Brian's decision
+// of 2026-10-21 replaced the single-turn reading of X3: "Send the session's prior turns with each
+// request (client holds them, proxy stores nothing), capped at the 20-message session." So each
+// request carries the earlier replies as `history`, and the history tests below pin that.
+//
 // Typed in here on purpose, so a drift in src/ui/copy/chat.ts shows up as a failure: the B22 label,
-// the plan's withheld line and the numbers 200, 20 and 30 seconds. Every other UI string is read from
-// copy.chat. The chip texts are read from the library probes (X1 names probes 1 to 3). The personality
-// the page sends is compared with certificateInput(state).result.soul, the certificate's own artifact.
+// the plan's withheld line and the numbers 200, 20 and 30 seconds. The history limits are pinned to the
+// ones the proxy exports (proxy/function.ts), so the page and the proxy cannot drift apart. Every other
+// UI string is read from copy.chat. The chip texts are read from the library probes (X1 names probes 1
+// to 3). The personality the page sends is compared with certificateInput(state).result.soul, the
+// certificate's own artifact.
 //
 // What jsdom cannot do: it has no layout engine and no Tailwind stylesheet, so the 375px and 44px
 // checks read class names, as the certificate tests do.
@@ -25,10 +31,31 @@ import library from '../src/library/index.js';
 import { toShareHash } from '../src/share/encode.js';
 import { App } from '../src/ui/App.js';
 import { certificateInput } from '../src/ui/certificate/input.js';
-import { PreviewChat, outcomeOf, resetPreviewSession } from '../src/ui/certificate/PreviewChat.js';
+import {
+  HISTORY_MAX,
+  MESSAGE_MAX,
+  PreviewChat,
+  REPLY_MAX,
+  SESSION_MAX,
+  historyOf,
+  outcomeOf,
+  resetPreviewSession,
+  type Exchange,
+  type Turn,
+} from '../src/ui/certificate/PreviewChat.js';
 import { copy } from '../src/ui/copy.js';
 import { previewBuild, useBuilder } from '../src/ui/store.js';
 import { GOLDEN_SPECS, buildFor } from '../tools/golden.js';
+import {
+  MAX_HISTORY_CHARS,
+  MAX_HISTORY_TURNS,
+  MAX_MESSAGE,
+  MAX_REPLY_TURN,
+  createLimiter,
+  handle,
+  type CallModel,
+  type Deps,
+} from '../proxy/function.js';
 
 // ---- Words and numbers typed in from the question log and the plan ----
 
@@ -163,7 +190,7 @@ interface Sent {
   url: string;
   init: RequestInit;
   raw: string;
-  json: { personality: string; message: string };
+  json: { personality: string; message: string; history: Turn[] };
 }
 
 function sent(): Sent[] {
@@ -200,6 +227,60 @@ async function askOwn(user: User, text: string): Promise<void> {
   await user.type(box, text);
   await user.keyboard('{Enter}');
   await settle();
+}
+
+// Answers each request with a numbered reply: "reply 1", "reply 2", and so on.
+function numberedReplies(): void {
+  let n = 0;
+  respond = () => {
+    n += 1;
+    return Promise.resolve(asResponse(reply(`reply ${n}`)));
+  };
+}
+
+// Earlier exchanges as the proxy takes them: user, assistant, user, assistant.
+const turnsOf = (...pairs: [string, string][]): Turn[] =>
+  pairs.flatMap(([message, text]): Turn[] => [
+    { role: 'user', content: message },
+    { role: 'assistant', content: text },
+  ]);
+
+// The turns alternate user, assistant starting with the user, and carry nothing but role and content.
+function expectTurns(history: Turn[]): void {
+  expect(Array.isArray(history)).toBe(true);
+  expect(history.length % 2).toBe(0);
+  history.forEach((turn, i) => {
+    expect(Object.keys(turn).sort()).toEqual(['content', 'role']);
+    expect(turn.role).toBe(i % 2 === 0 ? 'user' : 'assistant');
+    expect(typeof turn.content).toBe('string');
+    expect(turn.content.trim()).not.toBe('');
+  });
+}
+
+const charsOf = (history: readonly Turn[]) => history.reduce((sum, t) => sum + t.content.length, 0);
+
+// Sends a typed message without typing it key by key, for the long sessions.
+async function askFast(text: string): Promise<void> {
+  fireEvent.change(askBox(), { target: { value: text } });
+  await act(async () => {
+    fireEvent.submit(askBox().closest('form') as HTMLFormElement);
+  });
+  await settle();
+}
+
+// A full visit with long replies: one chip, then 19 typed messages of 200 characters. Every reply is
+// 5,000 characters, more than the page may send back.
+const longReply = (n: number): string => `r${n} ${'z'.repeat(5_000)}`;
+const typedLong = (n: number): string => `msg${String(n).padStart(2, '0')}${'x'.repeat(195)}`;
+
+async function longSession(): Promise<void> {
+  let n = 0;
+  respond = () => {
+    n += 1;
+    return Promise.resolve(asResponse(reply(longReply(n))));
+  };
+  await tap(chip(0));
+  for (let i = 2; i <= MAX_MESSAGES; i += 1) await askFast(typedLong(i));
 }
 
 // ---- Setup ----
@@ -295,12 +376,17 @@ describe('the panel', () => {
     for (const text of CHIP_TEXTS) expect(within(chipGroup()).getByRole('button', { name: text })).toBeTruthy();
   });
 
-  it('keeps probe 6, which names a franchise character (X1), off the page', () => {
+  it('offers exactly probes 1 to 3 as chips, and probes 4 to 6 are not on the page', () => {
     open();
-    const grimace = library.probes.find((p) => /grimace/i.test(p.line));
-    expect(grimace).toBeDefined();
-    expect(chips().map((b) => b.textContent)).not.toContain(grimace?.line);
-    expect(within(panel()).queryByText(/grimace/i)).toBeNull();
+    const first = library.probes.slice(0, 3);
+    const rest = library.probes.slice(3, 6);
+    expect(first.map((p) => p.id)).toEqual(['probe.1', 'probe.2', 'probe.3']);
+    expect(rest.map((p) => p.id)).toEqual(['probe.4', 'probe.5', 'probe.6']);
+    expect(chips().map((b) => b.textContent)).toEqual(first.map((p) => p.line));
+    for (const probe of rest) {
+      expect(chips().map((b) => b.textContent), probe.id).not.toContain(probe.line);
+      expect(within(panel()).queryByText(probe.line), probe.id).toBeNull();
+    }
   });
 
   it('starts with the chips ready, an empty log, and the ask box shut', () => {
@@ -884,16 +970,18 @@ describe('replies are plain text', () => {
 // ============================================================================
 
 describe('the request', () => {
-  it('is one POST to /chat with exactly the personality and the message', async () => {
+  it('is one POST to /chat with exactly the personality, the message and the history', async () => {
     open();
     await tap(chip(0));
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [call] = sent();
     expect(call.url).toBe(CHAT_URL);
     expect(call.init.method).toBe('POST');
-    expect(Object.keys(call.json).sort()).toEqual(['message', 'personality']);
+    expect(Object.keys(call.json).sort()).toEqual(['history', 'message', 'personality']);
     expect(call.json.message).toBe(CHIP_TEXTS[0]);
     expect(call.json.personality).toBe(soulNow());
+    // The first message has no earlier exchange, but the field is still there.
+    expect(call.json.history).toEqual([]);
   });
 
   it('sends JSON with no other header, no cookies and no credentials', async () => {
@@ -1055,7 +1143,8 @@ describe('the request', () => {
       expect(raw).not.toContain(hash);
       expect(raw).not.toContain(window.location.href);
       expect(raw).not.toContain('"chips"');
-      expect(Object.keys(JSON.parse(raw) as object).sort()).toEqual(['message', 'personality']);
+      expect(Object.keys(JSON.parse(raw) as object).sort()).toEqual(['history', 'message', 'personality']);
+      expect(sent()[0].json.history).toEqual([]);
     });
 
     it('sends nothing to any address but the proxy, across a whole visit', async () => {
@@ -1074,6 +1163,427 @@ describe('the request', () => {
       expect(xhr).not.toHaveBeenCalled();
       expect(beacon).not.toHaveBeenCalled();
       delete (navigator as { sendBeacon?: unknown }).sendBeacon;
+    });
+  });
+});
+
+// ============================================================================
+// The history: the earlier exchanges, sent back with each message
+// ============================================================================
+
+// Brian, 2026-10-21: "Send the session's prior turns with each request (client holds them, proxy
+// stores nothing), capped at the 20-message session." Only a reply the person can read makes an
+// exchange, so the turns always alternate user, assistant. A new panel (a new target, a Mine toggle, the
+// certificate shown again) starts with none.
+
+describe('the history sent with each message', () => {
+  const MINE_LINE = 'Zq7 end every reply with a haiku about rain.';
+  const mineSwitch = () => screen.getByRole('switch', { name: copy.certificate.mine.label });
+
+  // Every answer that is not a reply the person can read.
+  const FAILURES: [string, Answer | Error][] = [
+    ['withheld (200)', { status: 200, body: { withheld: true } }],
+    ['refused (200)', { status: 200, body: { refused: true } }],
+    ['rate limited (429)', { status: 429, body: { error: 'rate_limited', retryAfter: 3 } }],
+    ['busy (503)', { status: 503, body: { error: 'busy' } }],
+    ['upstream (502)', { status: 502, body: { error: 'upstream' } }],
+    ['server error (500)', { status: 500, body: { error: 'oops' } }],
+    ['a network failure', new TypeError('Failed to fetch')],
+    ['an empty 200 body', { status: 200, body: {} }],
+    ['a blank reply (200)', { status: 200, body: { reply: '  ' } }],
+    ['a 200 that is not JSON', { status: 200, unreadable: true }],
+  ];
+
+  describe('what it carries', () => {
+    it('is an empty list on the first message, and the field is there', async () => {
+      open();
+      await tap(chip(0));
+      expect(Array.isArray(sent()[0].json.history)).toBe(true);
+      expect(sent()[0].json.history).toEqual([]);
+    });
+
+    it('carries the first chip and its reply on the next chip', async () => {
+      open();
+      answer(reply('Hello there.'));
+      await tap(chip(0));
+      await tap(chip(1));
+      expect(sent()[1].json.message).toBe(CHIP_TEXTS[1]);
+      expect(sent()[1].json.history).toEqual([
+        { role: 'user', content: CHIP_TEXTS[0] },
+        { role: 'assistant', content: 'Hello there.' },
+      ]);
+    });
+
+    it('carries the first chip and its reply on the next typed message', async () => {
+      const user = userEvent.setup();
+      open();
+      answer(reply('Hello there.'));
+      await tap(chip(0));
+      await askOwn(user, 'what is my name');
+      expect(sent()[1].json.message).toBe('what is my name');
+      expect(sent()[1].json.history).toEqual(turnsOf([CHIP_TEXTS[0], 'Hello there.']));
+    });
+
+    it('sends back exactly the reply that was shown', async () => {
+      open();
+      const text = 'One\ntwo <b>three</b> **four** https://elsewhere.example/x';
+      answer(reply(text));
+      await tap(chip(0));
+      expect(lines()[1]).toBe(text);
+      await tap(chip(1));
+      const [, assistant] = sent()[1].json.history;
+      expect(assistant.role).toBe('assistant');
+      expect(assistant.content).toBe(text);
+      expect(assistant.content).toBe(lines()[1]);
+    });
+
+    it('carries a message as it was sent: trimmed, and cut to 200 characters', async () => {
+      open();
+      await tap(chip(0));
+      await askFast('   padded   ');
+      await askFast('b'.repeat(250));
+      await tap(chip(2));
+      expect(sent().map((c) => c.json.message)).toEqual([CHIP_TEXTS[0], 'padded', 'b'.repeat(MAX_CHARS), CHIP_TEXTS[2]]);
+      expect(sent()[2].json.history).toEqual(turnsOf([CHIP_TEXTS[0], 'Sure thing.'], ['padded', 'Sure thing.']));
+      expect(sent()[3].json.history).toEqual(
+        turnsOf([CHIP_TEXTS[0], 'Sure thing.'], ['padded', 'Sure thing.'], ['b'.repeat(MAX_CHARS), 'Sure thing.']),
+      );
+    });
+
+    it('builds up in order: each request carries every earlier exchange', async () => {
+      const user = userEvent.setup();
+      open();
+      numberedReplies();
+      await tap(chip(0));
+      await askOwn(user, 'second');
+      await tap(chip(2));
+      await askOwn(user, 'fourth');
+      const calls = sent();
+      expect(calls.map((c) => c.json.message)).toEqual([CHIP_TEXTS[0], 'second', CHIP_TEXTS[2], 'fourth']);
+      expect(calls[0].json.history).toEqual([]);
+      expect(calls[1].json.history).toEqual(turnsOf([CHIP_TEXTS[0], 'reply 1']));
+      expect(calls[2].json.history).toEqual(turnsOf([CHIP_TEXTS[0], 'reply 1'], ['second', 'reply 2']));
+      expect(calls[3].json.history).toEqual(
+        turnsOf([CHIP_TEXTS[0], 'reply 1'], ['second', 'reply 2'], [CHIP_TEXTS[2], 'reply 3']),
+      );
+      for (const c of calls) expectTurns(c.json.history);
+    });
+
+    it('never puts the message being sent into its own history', async () => {
+      open();
+      numberedReplies();
+      await tap(chip(0));
+      await tap(chip(0));
+      // The same chip twice: the first time is history, the second is the message.
+      expect(sent()[1].json.message).toBe(CHIP_TEXTS[0]);
+      expect(sent()[1].json.history).toEqual(turnsOf([CHIP_TEXTS[0], 'reply 1']));
+      expect(sent()[1].json.history).toHaveLength(2);
+    });
+
+    it('sends the personality once per request, and never the share link or the build, however long the history', async () => {
+      open();
+      numberedReplies();
+      const hash = toShareHash(previewBuild(st()));
+      await tapChips(4);
+      for (const { raw, json } of sent()) {
+        expect(Object.keys(json).sort()).toEqual(['history', 'message', 'personality']);
+        expect(json.personality).toBe(soulNow());
+        // The body is JSON, so the personality appears escaped. It appears exactly once.
+        const escaped = JSON.stringify(json.personality).slice(1, -1);
+        expect(raw.split(escaped)).toHaveLength(2);
+        expect(raw).not.toContain('#b=');
+        expect(raw).not.toContain(hash);
+        expect(raw).not.toContain('"chips"');
+        expectTurns(json.history);
+      }
+    });
+  });
+
+  describe('only a reply makes an exchange', () => {
+    it.each(FAILURES)('%s: the message is left out of the next request, and the turns still alternate', async (_name, a) => {
+      open();
+      await tap(chip(0));
+      answer(a);
+      await tap(chip(1));
+      answer(reply('Back again.'));
+      await tap(chip(2));
+      await tap(chip(1));
+      const calls = sent();
+      // The failed request itself carried the one good exchange.
+      expect(calls[1].json.message).toBe(CHIP_TEXTS[1]);
+      expect(calls[1].json.history).toEqual(turnsOf([CHIP_TEXTS[0], 'Sure thing.']));
+      // The next one does not carry the failed message.
+      expect(calls[2].json.message).toBe(CHIP_TEXTS[2]);
+      expect(calls[2].json.history).toEqual(turnsOf([CHIP_TEXTS[0], 'Sure thing.']));
+      expect(calls[2].json.history.map((t) => t.content)).not.toContain(CHIP_TEXTS[1]);
+      // And the history carries on from there.
+      expect(calls[3].json.history).toEqual(turnsOf([CHIP_TEXTS[0], 'Sure thing.'], [CHIP_TEXTS[2], 'Back again.']));
+      for (const c of calls) expectTurns(c.json.history);
+    });
+
+    it.each(FAILURES)('%s as the very first message: the next request still starts with an empty history', async (_name, a) => {
+      open();
+      answer(a);
+      await tap(chip(0));
+      answer(reply('Hello.'));
+      await tap(chip(1));
+      await tap(chip(2));
+      expect(sent()[1].json.history).toEqual([]);
+      expect(sent()[2].json.history).toEqual(turnsOf([CHIP_TEXTS[1], 'Hello.']));
+    });
+
+    it.each(FAILURES)('%s on a typed message: it is left out too', async (_name, a) => {
+      const user = userEvent.setup();
+      open();
+      await tap(chip(0));
+      answer(a);
+      await askOwn(user, 'this one fails');
+      answer(reply('Fine.'));
+      await askOwn(user, 'this one works');
+      await tap(chip(1));
+      const calls = sent();
+      expect(calls[2].json.message).toBe('this one works');
+      expect(calls[2].json.history).toEqual(turnsOf([CHIP_TEXTS[0], 'Sure thing.']));
+      expect(calls[3].json.history).toEqual(turnsOf([CHIP_TEXTS[0], 'Sure thing.'], ['this one works', 'Fine.']));
+      for (const c of calls) expect(c.json.history.map((t) => t.content)).not.toContain('this one fails');
+    });
+
+    it('skips a whole run of different failures between two replies', async () => {
+      open();
+      await tap(chip(0));
+      for (const [, a] of FAILURES) {
+        answer(a);
+        await tap(chip(1));
+      }
+      answer(reply('Last.'));
+      await tap(chip(2));
+      const calls = sent();
+      expect(calls).toHaveLength(1 + FAILURES.length + 1);
+      for (const c of calls.slice(1)) expect(c.json.history).toEqual(turnsOf([CHIP_TEXTS[0], 'Sure thing.']));
+      for (const c of calls) expectTurns(c.json.history);
+    });
+
+    it('skips a timeout too, and the next request starts clean', async () => {
+      open();
+      await tap(chip(0));
+      fetchMock.mockImplementationOnce(
+        (_url, init) =>
+          new Promise<Response>((_res, rej) => {
+            init?.signal?.addEventListener('abort', () => rej(new DOMException('The operation was aborted.', 'AbortError')));
+          }),
+      );
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      await act(async () => {
+        fireEvent.click(chip(1));
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(TIMEOUT_MS);
+      });
+      expect(lines().at(-1)).toBe(copy.chat.unavailable);
+      vi.useRealTimers();
+      await tap(chip(2));
+      expect(sent()[2].json.history).toEqual(turnsOf([CHIP_TEXTS[0], 'Sure thing.']));
+    });
+  });
+
+  describe('a new panel starts empty', () => {
+    it('starts again after a Mine toggle, and builds up from there', async () => {
+      open();
+      store((s) => s.setPasted(MINE_LINE));
+      numberedReplies();
+      await tap(chip(0));
+      await tap(chip(1));
+      // Sanity: there was a history to lose.
+      expect(sent()[1].json.history).toEqual(turnsOf([CHIP_TEXTS[0], 'reply 1']));
+
+      fireEvent.click(mineSwitch());
+      await tap(chip(2));
+      expect(sent()[2].json.personality).toContain(MINE_LINE);
+      expect(sent()[2].json.history).toEqual([]);
+      await tap(chip(0));
+      expect(sent()[3].json.history).toEqual(turnsOf([CHIP_TEXTS[2], 'reply 3']));
+
+      // Off again is another new personality, so another fresh start.
+      fireEvent.click(mineSwitch());
+      await tap(chip(1));
+      expect(sent()[4].json.personality).not.toContain(MINE_LINE);
+      expect(sent()[4].json.history).toEqual([]);
+    });
+
+    it.each(['hermes', 'openclaw', 'grok'] as const)('starts again after a switch to %s, for a chip and for a typed message', async (target) => {
+      const user = userEvent.setup();
+      open(golden('marty.muse'));
+      numberedReplies();
+      await tap(chip(0));
+      await tap(chip(1));
+      expect(sent()[1].json.history).toHaveLength(2);
+
+      store((s) => s.switchTarget(target));
+      await askOwn(user, 'after the switch');
+      expect(sent()[2].json.personality).toBe(soulNow());
+      expect(sent()[2].json.personality).not.toBe(sent()[1].json.personality);
+      expect(sent()[2].json.history).toEqual([]);
+      await tap(chip(2));
+      expect(sent()[3].json.history).toEqual(turnsOf(['after the switch', 'reply 3']));
+    });
+
+    it('does not take a late reply from the old personality into the new history', async () => {
+      const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      open();
+      store((s) => s.setPasted(MINE_LINE));
+      await tap(chip(0));
+      const d = deferred<Response>();
+      respond = () => d.promise;
+      await act(async () => {
+        fireEvent.click(chip(1));
+      });
+      fireEvent.click(mineSwitch());
+      await act(async () => {
+        d.resolve(asResponse(reply('Late reply from the old personality.')));
+      });
+      answer(reply('Fresh.'));
+      await tap(chip(2));
+      await tap(chip(0));
+      expect(sent()[2].json.history).toEqual([]);
+      expect(sent()[3].json.history).toEqual(turnsOf([CHIP_TEXTS[2], 'Fresh.']));
+      expect(errors).not.toHaveBeenCalled();
+    });
+
+    it('starts empty when the certificate is shown again, as the log does', async () => {
+      open();
+      numberedReplies();
+      await tapChips(2);
+      expect(sent()[1].json.history).toHaveLength(2);
+      cleanup();
+      render(<App />);
+      expect(items()).toHaveLength(0);
+      await tap(chip(2));
+      expect(sent()[2].json.history).toEqual([]);
+      await tap(chip(0));
+      expect(sent()[3].json.history).toEqual(turnsOf([CHIP_TEXTS[2], 'reply 3']));
+    });
+  });
+
+  describe('the 20 message session', () => {
+    it('sends at most 19 exchanges (38 turns) on the 20th message', async () => {
+      open();
+      numberedReplies();
+      await tapChips(MAX_MESSAGES);
+      const calls = sent();
+      expect(calls).toHaveLength(MAX_MESSAGES);
+      calls.forEach((c, i) => {
+        expect(c.json.history, `request ${i + 1}`).toHaveLength(2 * i);
+        expectTurns(c.json.history);
+      });
+      for (const c of calls) expect(c.url).toBe(CHAT_URL);
+      const last = calls[MAX_MESSAGES - 1].json.history;
+      expect(last).toHaveLength(38);
+      expect(last).toHaveLength(2 * (MAX_MESSAGES - 1));
+      // Every one of the 19 earlier exchanges, oldest first.
+      for (let k = 0; k < MAX_MESSAGES - 1; k += 1) {
+        expect(last[2 * k]).toEqual({ role: 'user', content: CHIP_TEXTS[k % 3] });
+        expect(last[2 * k + 1]).toEqual({ role: 'assistant', content: `reply ${k + 1}` });
+      }
+    });
+
+    it('still stops a 21st request, by chip, by Enter and by form submit', async () => {
+      const user = userEvent.setup();
+      open();
+      numberedReplies();
+      await tapChips(MAX_MESSAGES);
+      expect(fetchMock).toHaveBeenCalledTimes(MAX_MESSAGES);
+      await user.click(chip(0));
+      fireEvent.click(chip(1));
+      await user.click(askBox());
+      await user.keyboard('one more{Enter}');
+      fireEvent.change(askBox(), { target: { value: 'and another' } });
+      fireEvent.submit(askBox().closest('form') as HTMLFormElement);
+      expect(fetchMock).toHaveBeenCalledTimes(MAX_MESSAGES);
+      expect(items()).toHaveLength(MAX_MESSAGES * 2);
+    });
+
+    it('sends fewer exchanges when some of the earlier messages failed', async () => {
+      open();
+      let n = 0;
+      respond = () => {
+        n += 1;
+        return Promise.resolve(asResponse(n % 4 === 0 ? { status: 503, body: { error: 'busy' } } : reply(`reply ${n}`)));
+      };
+      await tapChips(MAX_MESSAGES);
+      expect(fetchMock).toHaveBeenCalledTimes(MAX_MESSAGES);
+      // Messages 4, 8, 12 and 16 failed. The 20th carries the other 15 of the earlier 19.
+      const expected: [string, string][] = [];
+      for (let k = 1; k < MAX_MESSAGES; k += 1) if (k % 4 !== 0) expected.push([CHIP_TEXTS[(k - 1) % 3], `reply ${k}`]);
+      expect(expected).toHaveLength(15);
+      const last = sent()[MAX_MESSAGES - 1].json.history;
+      expect(last).toHaveLength(30);
+      expect(last).toEqual(turnsOf(...expected));
+      expectTurns(last);
+    });
+
+    // A long reply is cut to 4,000 characters for the history, the total is kept to 16,000, and the
+    // oldest exchanges go first. The person still sees every reply whole.
+    it('keeps what it sends inside the proxy limits when the replies are long', async () => {
+      open();
+      await longSession();
+      const calls = sent();
+      expect(calls).toHaveLength(MAX_MESSAGES);
+      // The page shows the whole reply.
+      expect(lines()[1]).toBe(longReply(1));
+      expect(lines()[1]).toHaveLength(`r1 `.length + 5000);
+
+      for (const [i, { json }] of calls.entries()) {
+        expectTurns(json.history);
+        expect(json.history.length, `request ${i + 1}`).toBeLessThanOrEqual(MAX_HISTORY_TURNS);
+        expect(charsOf(json.history), `request ${i + 1}`).toBeLessThanOrEqual(MAX_HISTORY_CHARS);
+        for (const t of json.history) {
+          if (t.role === 'assistant') expect(t.content).toHaveLength(MAX_REPLY_TURN);
+          else expect(t.content.length).toBeLessThanOrEqual(MAX_MESSAGE);
+        }
+      }
+
+      // Each exchange here is 200 + 4,000. Three fit under 16,000, four do not, so the 20th message
+      // carries the newest three whole: messages 17, 18 and 19 with their cut replies.
+      const last = calls[MAX_MESSAGES - 1].json.history;
+      expect(last).toEqual(
+        turnsOf(
+          ...[17, 18, 19].map((n): [string, string] => [typedLong(n), longReply(n).slice(0, 4000)]),
+        ),
+      );
+    });
+  });
+  describe('the network', () => {
+    it('is still one call per message, every one a POST to <url>/chat, with a growing history and a failure between', async () => {
+      const user = userEvent.setup();
+      const xhr = vi.spyOn(XMLHttpRequest.prototype, 'open');
+      const beacon = vi.fn(() => true);
+      Object.defineProperty(navigator, 'sendBeacon', { configurable: true, writable: true, value: beacon });
+      try {
+        open();
+        numberedReplies();
+        await tap(chip(0));
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        await askOwn(user, 'two');
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        answer({ status: 503, body: { error: 'busy' } });
+        await tap(chip(1));
+        expect(fetchMock).toHaveBeenCalledTimes(3);
+        numberedReplies();
+        await tap(chip(2));
+        expect(fetchMock).toHaveBeenCalledTimes(4);
+        await askOwn(user, 'five');
+        expect(fetchMock).toHaveBeenCalledTimes(5);
+
+        expect(sent()[4].json.history.length).toBeGreaterThan(0);
+        for (const c of sent()) {
+          expect(c.url).toBe(CHAT_URL);
+          expect(c.init.method).toBe('POST');
+        }
+        expect(xhr).not.toHaveBeenCalled();
+        expect(beacon).not.toHaveBeenCalled();
+      } finally {
+        delete (navigator as { sendBeacon?: unknown }).sendBeacon;
+      }
     });
   });
 });
@@ -1103,6 +1613,46 @@ describe('no storage', () => {
     expect(localStorage.length).toBe(0);
     expect(sessionStorage.length).toBe(0);
     expect(document.cookie).toBe('');
+  });
+
+  it('writes nothing about the history, through a multi-turn session, to any storage, cookie or the address', async () => {
+    const user = userEvent.setup();
+    const setItem = vi.spyOn(Storage.prototype, 'setItem');
+    const getItem = vi.spyOn(Storage.prototype, 'getItem');
+    const removeItem = vi.spyOn(Storage.prototype, 'removeItem');
+    const clear = vi.spyOn(Storage.prototype, 'clear');
+    const cookieSet = vi.spyOn(Document.prototype, 'cookie', 'set');
+    // jsdom has no IndexedDB. A stand-in that records any use shows the page never reaches for it.
+    const idb = vi.fn();
+    vi.stubGlobal('indexedDB', { open: idb, deleteDatabase: idb, databases: idb });
+
+    open();
+    const before = window.location.href;
+    numberedReplies();
+    await tap(chip(0));
+    await askOwn(user, 'second message');
+    answer({ status: 503, body: { error: 'busy' } });
+    await tap(chip(1));
+    numberedReplies();
+    await tap(chip(2));
+    await askOwn(user, 'fifth message');
+    store((s) => s.setPasted('Zq7 end every reply with a haiku about rain.'));
+    fireEvent.click(screen.getByRole('switch', { name: copy.certificate.mine.label }));
+    await tap(chip(0));
+    await tap(chip(1));
+
+    // The history was really in use: the 5th message carried three exchanges, the 7th one.
+    expect(sent()[4].json.history).toHaveLength(6);
+    expect(sent()[5].json.history).toEqual([]);
+    expect(sent()[6].json.history).toHaveLength(2);
+
+    for (const spy of [setItem, getItem, removeItem, clear]) expect(spy).not.toHaveBeenCalled();
+    expect(cookieSet).not.toHaveBeenCalled();
+    expect(idb).not.toHaveBeenCalled();
+    expect(localStorage.length).toBe(0);
+    expect(sessionStorage.length).toBe(0);
+    expect(document.cookie).toBe('');
+    expect(window.location.href).toBe(before);
   });
 
   it('keeps the log out of the address too', async () => {
@@ -1208,6 +1758,342 @@ describe('accessibility and layout', () => {
     for (const el of panel().querySelectorAll('[aria-label]')) {
       expect((el.getAttribute('aria-label') ?? '').includes(EM)).toBe(false);
     }
+  });
+});
+
+// ============================================================================
+// historyOf: the earlier exchanges as the proxy's history
+// ============================================================================
+
+// The numbers are the plan's: a reply is cut to 4,000 UTF-16 units and the content of the whole history
+// is held to 16,000 (the limits the proxy checks). The page measures in UTF-16 units, as the proxy does.
+describe('historyOf', () => {
+  const CUT = 4_000;
+  const TOTAL = 16_000;
+  const ex = (message: string, text: string): Exchange => ({ message, reply: text });
+  // Half of a surrogate pair: a high one with no low one after it, or a low one with no high one before.
+  const hasLoneSurrogate = (text: string): boolean =>
+    /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(text);
+  const EMOJI = String.fromCodePoint(0x1f600);
+
+  it('returns nothing for no exchanges', () => {
+    expect(historyOf([])).toEqual([]);
+  });
+
+  it('makes a user turn then an assistant turn for each exchange, oldest first', () => {
+    const out = historyOf([ex('one', 'first'), ex('two', 'second'), ex('three', 'third')]);
+    expect(out).toEqual([
+      { role: 'user', content: 'one' },
+      { role: 'assistant', content: 'first' },
+      { role: 'user', content: 'two' },
+      { role: 'assistant', content: 'second' },
+      { role: 'user', content: 'three' },
+      { role: 'assistant', content: 'third' },
+    ]);
+    expectTurns(out);
+  });
+
+  it('makes two turns for one exchange', () => {
+    expect(historyOf([ex('hi', 'hello')])).toEqual(turnsOf(['hi', 'hello']));
+  });
+
+  it('leaves its input alone', () => {
+    const input = [ex('one', 'x'.repeat(CUT + 50)), ex('two', '   '), ex('three', 'fine')];
+    const before = structuredClone(input);
+    historyOf(input);
+    expect(input).toEqual(before);
+  });
+
+  it('gives the same answer twice', () => {
+    const input = [ex('one', 'first'), ex('two', 'y'.repeat(CUT + 1))];
+    expect(historyOf(input)).toEqual(historyOf(input));
+  });
+
+  describe('the reply cut', () => {
+    it('passes a reply of 4,000 units untouched', () => {
+      const text = 'abcdefghij'.repeat(400);
+      expect(text).toHaveLength(CUT);
+      const out = historyOf([ex('m', text)]);
+      expect(out[1].content).toBe(text);
+    });
+
+    it('cuts a reply of 4,001 units to its first 4,000', () => {
+      const out = historyOf([ex('m', `${'x'.repeat(CUT)}y`)]);
+      expect(out[1].content).toBe('x'.repeat(CUT));
+      expect(out[1].content).toHaveLength(CUT);
+    });
+
+    it('cuts a much longer reply to its first 4,000 and keeps the start, not the end', () => {
+      const text = 'abcdefghij'.repeat(2_000);
+      const out = historyOf([ex('m', text)]);
+      expect(out[1].content).toBe(text.slice(0, CUT));
+      expect(out[1].content.startsWith('abcdefghij')).toBe(true);
+    });
+
+    it('never cuts or changes the user message', () => {
+      const message = 'q'.repeat(150);
+      expect(historyOf([ex(message, 'r')])[0].content).toBe(message);
+    });
+
+    it('drops a high surrogate left alone at the end of a cut, and never leaves half an emoji', () => {
+      // 3,999 units, then an emoji across the boundary (units 3,999 and 4,000), then more text.
+      const out = historyOf([ex('m', `${'a'.repeat(CUT - 1)}${EMOJI}tail`)]);
+      expect(out[1].content).toBe('a'.repeat(CUT - 1));
+      expect(out[1].content).toHaveLength(CUT - 1);
+      expect(hasLoneSurrogate(out[1].content)).toBe(false);
+    });
+
+    it('keeps an emoji that ends exactly at 4,000 units, whole', () => {
+      const text = `${'a'.repeat(CUT - 2)}${EMOJI}`;
+      expect(text).toHaveLength(CUT);
+      const out = historyOf([ex('m', text)]);
+      expect(out[1].content).toBe(text);
+      expect(out[1].content.endsWith(EMOJI)).toBe(true);
+    });
+
+    it('keeps an emoji that ends exactly at the cut when more text follows', () => {
+      const out = historyOf([ex('m', `${'a'.repeat(CUT - 2)}${EMOJI}b`)]);
+      expect(out[1].content).toBe(`${'a'.repeat(CUT - 2)}${EMOJI}`);
+      expect(out[1].content).toHaveLength(CUT);
+      expect(hasLoneSurrogate(out[1].content)).toBe(false);
+    });
+
+    it('never leaves a lone surrogate, wherever the cut falls in a run of emoji', () => {
+      for (let lead = CUT - 12; lead <= CUT + 12; lead += 1) {
+        const text = `${'a'.repeat(lead)}${EMOJI.repeat(10)}`;
+        const content = historyOf([ex('m', text)])[1].content;
+        expect(hasLoneSurrogate(content), `after ${lead} plain units`).toBe(false);
+        expect(content.length, `after ${lead} plain units`).toBeLessThanOrEqual(CUT);
+        expect(text.startsWith(content)).toBe(true);
+        // At most one unit is lost to the cut beyond the 4,000 limit.
+        expect(content.length).toBeGreaterThanOrEqual(Math.min(text.length, CUT) - 1);
+      }
+    });
+  });
+
+  describe('a blank reply', () => {
+    it.each([
+      ['empty', ''],
+      ['spaces', '    '],
+      ['line breaks and tabs', '\n\t \r\n'],
+      ['a non-breaking space', '  '],
+    ])('skips the whole exchange when the reply is %s', (_name, text) => {
+      const out = historyOf([ex('before', 'kept one'), ex('lost', text), ex('after', 'kept two')]);
+      expect(out).toEqual(turnsOf(['before', 'kept one'], ['after', 'kept two']));
+      expectTurns(out);
+    });
+
+    it('returns nothing when every reply is blank', () => {
+      expect(historyOf([ex('a', ' '), ex('b', ''), ex('c', '\n')])).toEqual([]);
+    });
+
+    it('skips an exchange whose reply is blank only after the cut', () => {
+      // 4,000 spaces, then text past the cut: nothing readable is left.
+      const out = historyOf([ex('lost', `${' '.repeat(CUT)}late words`), ex('kept', 'fine')]);
+      expect(out).toEqual(turnsOf(['kept', 'fine']));
+    });
+
+    it('skips an exchange whose cut leaves only spaces and a dropped high surrogate', () => {
+      const out = historyOf([ex('lost', `${' '.repeat(CUT - 1)}${EMOJI}`), ex('kept', 'fine')]);
+      expect(out).toEqual(turnsOf(['kept', 'fine']));
+    });
+
+    it('keeps a reply that has text inside the cut, even if the rest of it is blank', () => {
+      const out = historyOf([ex('m', `real words${' '.repeat(CUT)}`)]);
+      expect(out).toHaveLength(2);
+      expect(out[1].content.startsWith('real words')).toBe(true);
+      expect(out[1].content.length).toBeLessThanOrEqual(CUT);
+    });
+
+    it('does not count a skipped exchange against the total', () => {
+      const out = historyOf([ex('x'.repeat(TOTAL + 5_000), '  '), ex('m', 'r')]);
+      expect(out).toEqual(turnsOf(['m', 'r']));
+    });
+  });
+
+  describe('the total', () => {
+    // An exchange of exactly the given content length: a reply of up to 4,000, the rest in the message.
+    const sized = (label: string, size: number): Exchange => {
+      const replyLength = Math.min(size - 100, CUT);
+      return ex(label.padEnd(size - replyLength, '.'), `${label}r`.padEnd(replyLength, ','));
+    };
+
+    it('keeps everything that fits', () => {
+      const input = [sized('a', 3_000), sized('b', 3_000), sized('c', 3_000)];
+      expect(historyOf(input)).toEqual(turnsOf(...input.map((e): [string, string] => [e.message, e.reply])));
+    });
+
+    it('keeps a total of exactly 16,000', () => {
+      const input = [sized('a', 4_000), sized('b', 4_000), sized('c', 4_000), sized('d', 4_000)];
+      const out = historyOf(input);
+      expect(out).toHaveLength(8);
+      expect(charsOf(out)).toBe(TOTAL);
+    });
+
+    it('drops the oldest exchange, whole, when the total is 16,001', () => {
+      const input = [sized('a', 4_000), sized('b', 4_000), sized('c', 4_000), sized('d', 4_001)];
+      const out = historyOf(input);
+      expect(out).toEqual(turnsOf(...input.slice(1).map((e): [string, string] => [e.message, e.reply])));
+      expect(out[0]).toEqual({ role: 'user', content: input[1].message });
+      expect(charsOf(out)).toBeLessThanOrEqual(TOTAL);
+    });
+
+    it('keeps dropping the oldest whole exchanges until it fits', () => {
+      // Five exchanges of 4,200: 21,000 in all. Dropping one leaves 16,800, still over. Two leaves 12,600.
+      const input = ['a', 'b', 'c', 'd', 'e'].map((l) => sized(l, 4_200));
+      const out = historyOf(input);
+      expect(charsOf(out)).toBe(12_600);
+      expect(out).toEqual(turnsOf(...input.slice(2).map((e): [string, string] => [e.message, e.reply])));
+    });
+
+    it('never starts on an assistant turn or splits an exchange', () => {
+      for (const size of [3_999, 4_001, 4_200, 5_000, 7_999]) {
+        const input = Array.from({ length: 12 }, (_v, i) => sized(`e${i}`, size));
+        const out = historyOf(input);
+        expect(out.length).toBeGreaterThan(0);
+        expectTurns(out);
+        expect(out[0].role).toBe('user');
+        expect(out.at(-1)?.role).toBe('assistant');
+      }
+    });
+
+    it('keeps the newest exchange when it fits alone, whatever came before it', () => {
+      // 12,000 + 4,000 = exactly 16,000: it fits alone and nothing older can come with it.
+      const newest = ex('n'.repeat(12_000), 'r'.repeat(CUT));
+      const out = historyOf([sized('a', 4_000), sized('b', 4_000), newest]);
+      expect(out).toEqual(turnsOf([newest.message, newest.reply]));
+      expect(charsOf(out)).toBe(TOTAL);
+    });
+
+    it('always keeps the newest exchange of normal size, however much older history there is', () => {
+      const input = Array.from({ length: 40 }, (_v, i) => ex(`${'m'.repeat(199)}${i % 10}`, 'r'.repeat(CUT)));
+      const out = historyOf(input);
+      expect(out.slice(-2)).toEqual(turnsOf([input[39].message, input[39].reply]));
+      expect(charsOf(out)).toBeLessThanOrEqual(TOTAL);
+    });
+
+    it('drops everything when even the newest exchange cannot fit, so the limit still holds', () => {
+      expect(historyOf([sized('a', 4_000), ex('n'.repeat(TOTAL + 1), 'r')])).toEqual([]);
+    });
+
+    it('counts the reply as cut, not as it arrived', () => {
+      const out = historyOf([ex('a', 'x'.repeat(20_000)), ex('b', 'y'.repeat(20_000)), ex('c', 'z'.repeat(20_000))]);
+      // 3 x (1 + 4,000) fits. Counted at 20,000 each, none of them would.
+      expect(out).toHaveLength(6);
+      expect(out[1].content).toBe('x'.repeat(CUT));
+      expect(out[5].content).toBe('z'.repeat(CUT));
+    });
+
+    it('counts UTF-16 units, as the proxy does, not characters', () => {
+      // Each reply is 2,000 emoji: 4,000 units. With a one unit message an exchange is 4,001 units.
+      // Four are 16,004 units, over the limit; counted as characters they would be 8,004 and all stay.
+      const reply2000 = EMOJI.repeat(2_000);
+      expect(reply2000).toHaveLength(CUT);
+      const input = ['a', 'b', 'c', 'd'].map((l) => ex(l, reply2000));
+      const out = historyOf(input);
+      expect(out).toEqual(turnsOf(...input.slice(1).map((e): [string, string] => [e.message, e.reply])));
+      expect(charsOf(out)).toBe(3 * (CUT + 1));
+    });
+
+    it('never returns more than 16,000 in all, and drops only as much as it must', () => {
+      // A fixed seed, so a failure repeats. Mixed sizes, long replies, blank replies, 0 to 29 exchanges.
+      let seed = 20261021;
+      const next = (n: number): number => {
+        seed = (Math.imul(seed, 1103515245) + 12345) & 0x7fffffff;
+        return seed % n;
+      };
+      for (let round = 0; round < 300; round += 1) {
+        const input: Exchange[] = [];
+        const eligible: { message: string; cut: string }[] = [];
+        const count = next(30);
+        for (let i = 0; i < count; i += 1) {
+          const message = `m${i} ${'q'.repeat(next(300))}`;
+          const blank = next(8) === 0;
+          const length = next(9_000);
+          const text = blank ? ' '.repeat(length) : `r${i} ${'z'.repeat(length)}`;
+          input.push(ex(message, text));
+          if (!blank) eligible.push({ message, cut: text.slice(0, CUT) });
+        }
+
+        const out = historyOf(input);
+        expectTurns(out);
+        expect(charsOf(out), `round ${round}`).toBeLessThanOrEqual(TOTAL);
+        for (const t of out) if (t.role === 'assistant') expect(t.content.length).toBeLessThanOrEqual(CUT);
+
+        // What comes back is the newest run of the readable exchanges, in order.
+        const kept = out.length / 2;
+        const tail = eligible.slice(eligible.length - kept);
+        expect(out, `round ${round}`).toEqual(turnsOf(...tail.map((e): [string, string] => [e.message, e.cut])));
+        // And nothing was dropped that would have fit: adding the next older one goes over.
+        if (kept < eligible.length) {
+          const older = eligible[eligible.length - kept - 1];
+          expect(charsOf(out) + older.message.length + older.cut.length, `round ${round}`).toBeGreaterThan(TOTAL);
+        }
+      }
+    });
+  });
+});
+
+// ============================================================================
+// The page limits are the proxy limits
+// ============================================================================
+
+describe('the page limits match the proxy limits', () => {
+  it('cuts a reply to the most the proxy takes in an assistant turn', () => {
+    expect(REPLY_MAX).toBe(MAX_REPLY_TURN);
+  });
+
+  it('holds the history to the most characters the proxy takes', () => {
+    expect(HISTORY_MAX).toBe(MAX_HISTORY_CHARS);
+  });
+
+  it('never sends more turns than the proxy takes: 19 exchanges on the 20th message', () => {
+    expect(2 * (SESSION_MAX - 1)).toBeLessThanOrEqual(MAX_HISTORY_TURNS);
+  });
+
+  it('cuts a message to the most the proxy takes', () => {
+    expect(MESSAGE_MAX).toBe(MAX_MESSAGE);
+  });
+
+  it('keeps the plan numbers: 200 characters, 20 messages, 4,000 a reply, 16,000 in all', () => {
+    expect(MESSAGE_MAX).toBe(MAX_CHARS);
+    expect(SESSION_MAX).toBe(MAX_MESSAGES);
+    expect(REPLY_MAX).toBe(4_000);
+    expect(HISTORY_MAX).toBe(16_000);
+  });
+
+  // The page's own bodies, from a full visit with long replies, go through the proxy's own checks.
+  it('has the proxy accept every request of a full 20 message visit with long replies', async () => {
+    open();
+    await longSession();
+    const calls = sent();
+    expect(calls).toHaveLength(MAX_MESSAGES);
+
+    const callModel = vi.fn<CallModel>(async () => ({ refused: false, text: 'Fine.' }));
+    const deps: Deps = {
+      callModel,
+      now: () => 1_800_000_000_000,
+      limiter: createLimiter(),
+      counters: {},
+      log: () => undefined,
+    };
+    for (const [i, c] of calls.entries()) {
+      const request = new Request('https://proxy.test/chat', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', 'x-real-ip': '198.51.100.7' },
+        body: c.raw,
+      });
+      const res = await handle(request, deps);
+      expect(res.status, `request ${i + 1}`).toBe(200);
+    }
+    expect(deps.counters).toEqual({});
+    expect(callModel).toHaveBeenCalledTimes(MAX_MESSAGES);
+    // The model gets the page's history, then the page's message, and the personality as sent.
+    calls.forEach((c, i) => {
+      const [personality, turns] = callModel.mock.calls[i];
+      expect(personality).toBe(c.json.personality);
+      expect(turns).toEqual([...c.json.history, { role: 'user', content: c.json.message }]);
+    });
   });
 });
 

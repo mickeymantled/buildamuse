@@ -6,14 +6,18 @@ import { copy } from '../copy.js';
 import { useBuilder } from '../store.js';
 import { certificateInput } from './input.js';
 
-// The preview chat (M5 slice 5.3, docs/M5-PLAN.md section 3). It sends the certificate's personality
-// and one short message to the preview proxy and shows the reply. It is the app's only network call
-// (QUESTIONS B22, B23). It stores nothing: the log lives in this component and the session count in
-// module memory, so a reload starts over. The share link, the build and the pasted text never leave.
+// The preview chat (M5 slice 5.3, docs/M5-PLAN.md section 3). It sends the certificate's personality,
+// the earlier exchanges of this panel and one short message to the preview proxy and shows the reply.
+// It is the app's only network call (QUESTIONS B22, B23). It stores nothing: the log and the earlier
+// exchanges live in this component and the session count in module memory, so a reload starts over.
+// The proxy keeps nothing between requests. The share link, the build and the pasted text never leave.
 
 export const MESSAGE_MAX = 200;
 export const SESSION_MAX = 20;
 export const TIMEOUT_MS = 30_000;
+// These two match the proxy's limits on the history it accepts.
+export const REPLY_MAX = 4_000;
+export const HISTORY_MAX = 16_000;
 
 // The proxy base URL, or undefined when the chat is off. This is the only place the variable is read,
 // so a test can stub it. A trailing slash is dropped so the path joins cleanly.
@@ -66,11 +70,61 @@ export function outcomeOf(status: number, body: unknown): Outcome {
   return { kind: 'unavailable' };
 }
 
-async function ask(url: string, personality: string, message: string, signal: AbortSignal): Promise<Outcome> {
+export interface Exchange {
+  message: string;
+  reply: string;
+}
+
+export interface Turn {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+// A reply cut to REPLY_MAX, without a half emoji at the end. Null when nothing readable is left, so
+// the whole exchange can be skipped and the proxy never sees an empty turn.
+function cutReply(reply: string): string | null {
+  let text = reply;
+  if (text.length > REPLY_MAX) {
+    text = text.slice(0, REPLY_MAX);
+    const last = text.charCodeAt(text.length - 1);
+    if (last >= 0xd800 && last <= 0xdbff) text = text.slice(0, -1);
+  }
+  return text.trim() === '' ? null : text;
+}
+
+// The earlier exchanges as the proxy's history: user then assistant, in order. Replies are cut to
+// REPLY_MAX. The oldest exchanges go, whole, until the content fits HISTORY_MAX.
+export function historyOf(exchanges: readonly Exchange[]): Turn[] {
+  const kept: { message: string; reply: string }[] = [];
+  let total = 0;
+  for (const { message, reply } of exchanges) {
+    const cut = cutReply(reply);
+    if (cut === null) continue;
+    kept.push({ message, reply: cut });
+    total += message.length + cut.length;
+  }
+  let from = 0;
+  while (from < kept.length && total > HISTORY_MAX) {
+    total -= kept[from].message.length + kept[from].reply.length;
+    from += 1;
+  }
+  return kept.slice(from).flatMap<Turn>(({ message, reply }) => [
+    { role: 'user', content: message },
+    { role: 'assistant', content: reply },
+  ]);
+}
+
+async function ask(
+  url: string,
+  personality: string,
+  message: string,
+  history: Turn[],
+  signal: AbortSignal,
+): Promise<Outcome> {
   const res = await fetch(`${url}/chat`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ personality, message }),
+    body: JSON.stringify({ personality, message, history }),
     credentials: 'omit',
     signal,
   });
@@ -142,6 +196,9 @@ function ChatPanel({ url, personality }: { url: string; personality: string }) {
   const inFlight = useRef(false);
   const abort = useRef<AbortController | null>(null);
   const nextId = useRef(1);
+  // The completed exchanges, sent back with each message. Only a reply is kept, so the turns always
+  // alternate. Component memory only, like the log.
+  const exchanges = useRef<Exchange[]>([]);
   const logRef = useRef<HTMLUListElement>(null);
   const capRef = useRef<HTMLParagraphElement>(null);
   const headingId = useId();
@@ -153,8 +210,8 @@ function ChatPanel({ url, personality }: { url: string; personality: string }) {
   const capped = sent >= SESSION_MAX;
   const askOpen = unlocked && !capped;
 
-  // This panel is keyed by the personality, so a new personality is a new panel. Leaving ends a
-  // request that is still out.
+  // This panel is keyed by the personality, so a new personality is a new panel with a fresh log and
+  // fresh history. Leaving ends a request that is still out.
   useEffect(() => {
     alive.current = true;
     return () => {
@@ -193,6 +250,7 @@ function ChatPanel({ url, personality }: { url: string; personality: string }) {
     const message = raw.trim().slice(0, MESSAGE_MAX);
     if (message === '' || inFlight.current || session.sent >= SESSION_MAX) return;
     inFlight.current = true;
+    const history = historyOf(exchanges.current);
     session.sent += 1;
     setSent(session.sent);
     add('you', message);
@@ -203,7 +261,7 @@ function ChatPanel({ url, personality }: { url: string; personality: string }) {
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     let outcome: Outcome;
     try {
-      outcome = await ask(url, personality, message, controller.signal);
+      outcome = await ask(url, personality, message, history, controller.signal);
     } catch {
       outcome = { kind: 'unavailable' };
     } finally {
@@ -216,8 +274,10 @@ function ChatPanel({ url, personality }: { url: string; personality: string }) {
     if (!alive.current) return;
     setUnlocked(session.unlocked);
     setLoading(false);
-    if (outcome.kind === 'reply') add('bot', outcome.text);
-    else add('note', noteOf(outcome));
+    if (outcome.kind === 'reply') {
+      exchanges.current.push({ message, reply: outcome.text });
+      add('bot', outcome.text);
+    } else add('note', noteOf(outcome));
   };
 
   const onSubmit = (e: FormEvent<HTMLFormElement>): void => {
@@ -342,8 +402,8 @@ function ChatPanel({ url, personality }: { url: string; personality: string }) {
 
 // Shows only when VITE_PREVIEW_URL is set, so tests and dev stay offline unless it is configured.
 // The personality is the certificate's own, Mine included when its switch is on. The panel is keyed
-// by it: a new target or a Mine toggle starts a fresh log, since the old replies came from another
-// personality.
+// by it: a new target or a Mine toggle starts a fresh log and a fresh history, since the old replies
+// came from another personality.
 export function PreviewChat() {
   const input = useBuilder(certificateInput);
   const [url] = useState(previewUrl);
