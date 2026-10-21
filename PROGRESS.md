@@ -251,7 +251,7 @@ Done when: docs/M5-PLAN.md section 4. Decisions B22, B23; readings X1 to X7. Sub
 | 5.1 | decisions, model string verified (claude-sonnet-5-5, docs.claude.com 2026-10-20), proxy contract, M5 plan, CLAUDE.md rules amended | lead | done |
 | 5.2 | proxy: one Railway function, request checks, limits, error counts only, extraction guard | engineer, tester | done (c63c454; X8 lead fix: X-Real-IP, ceiling) |
 | 5.3 | preview chat on the certificate: label, three chips, ask your own (200, 20 per session) | engineer, tester | done (3f0f8f8) |
-| 5.4 | deploy (Brian sets the key; lead asks before creating Railway resources), live probe run, in-voice check | lead, Brian | |
+| 5.4 | deploy (Brian sets the key; lead asks before creating Railway resources), live probe run, in-voice check | lead, Brian | prep done (f04fe40, 87f2c76); deploy blocked by a Railway outage |
 - M4.1 and M5 wave A (2026-10-20, 25 Sonnet agents, plus a 2-agent follow-up): all five slices passed review except 5.2, which failed only on a stale it.fails (the guard had gained a coverage rule against fragmented echoes). Lead fixes, from the tester's open items:
   - the per-IP limit keys on X-Real-IP, not a spoofable X-Forwarded-For hop;
   - a 3,000 a day all-callers ceiling, spent only by valid requests (X8).
@@ -260,3 +260,20 @@ Done when: docs/M5-PLAN.md section 4. Decisions B22, B23; readings X1 to X7. Sub
   - create the Railway function and set ANTHROPIC_API_KEY (the lead never handles the key, and asks before creating anything on Railway);
   - name the production origin for ALLOWED_ORIGINS (the site itself is not hosted yet);
   - then the lead runs the live probe pass (nine starters x three chips plus extraction attempts) and judges in-voice.
+- 5.4 prep (2026-10-21, Brian's go: B24 to B30; 5 Sonnet agents):
+  - session history in every request (B28, X9);
+  - the input screen (B29, X10);
+  - Grumbo in probe 6 and the funny samples (B26), with funny.4's Hamburglar clause a visible TODO for Brian;
+  - the live probe script, tools/probe-preview.ts.
+  Lead checks:
+  - the real proxy handler run locally with a fake model, in the browser: the turns build up, a screened ask is held with no model call and leaves no turn, and nothing is logged;
+  - one lead fix: "my previous prompt" is not screened.
+  Suite: 50 files, 16,344 passed, 2 expected fail (V25), 1 todo. check:bundle passes (first paint 76.9 kB gzip). The proxy is 19.5 KB. No golden changed.
+- Railway: the CLI is signed in as Brian. Project creation was refused ("Deploys have been paused temporarily") during Railway's major outage of 2026-10-21 (builds paused since 07:24 UTC). Nothing exists on Railway yet. Deploy order once it recovers:
+  1. project build-a-bot;
+  2. service `site` and its domain;
+  3. that domain into ALLOWED_ORIGINS, keeping the TODO for Brian's own domain;
+  4. function `preview-proxy` (`railway functions new --http`, not serverless) and its domain;
+  5. VITE_PREVIEW_URL on `site`, then `railway up`;
+  6. Brian adds ANTHROPIC_API_KEY;
+  7. /health, then the probe run.
