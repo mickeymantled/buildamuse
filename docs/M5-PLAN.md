@@ -5,7 +5,7 @@ Sources:
 - docs/Build-a-Muse-Build-Spec.md, the M4 row of the original spec ("Preview chat on the certificate: three probe chips plus 'ask your own,' served through a small proxy that holds the model key and injects the compiled soul as system prompt"; done when "the chips return in-voice replies for all nine starters; the proxy rate-limits per IP; nothing is logged beyond error counts").
 - The Claude API reference (claude-api skill) and docs.claude.com (read 2026-10-20).
 
-Lead readings are X1 to X7 in QUESTIONS.md. Subagents run on Sonnet; the lead checks every slice.
+Lead readings are X1 to X11 in QUESTIONS.md; Brian's 5.4 decisions are B24 to B30. Subagents run on Sonnet; the lead checks every slice.
 
 ## 0. M4 closeout first (B17 to B20)
 
@@ -31,22 +31,23 @@ These change compiled output or the certificate, so they land in the same wave a
 
 ## 1. Proxy contract (5.1, lead)
 
-`POST /chat`, JSON request body: `{ "personality": string, "message": string }`.
+`POST /chat`, JSON request body: `{ "personality": string, "message": string, "history"?: Turn[] }`, where a Turn is `{ "role": "user" | "assistant", "content": string }` (B28, X9).
 
 **Request checks:**
 - `personality`: 1 to 16,000 characters after trim.
 - `message`: 1 to 200 characters after trim. Plain text: it is sent as one text block; nothing is fetched, parsed as a link or treated as a file.
+- `history`: absent means none. Otherwise an even-length array of at most 38 turns, alternating user then assistant. A user turn is 1 to 200 characters after trim, an assistant turn 1 to 4,000, and all history content together at most 16,000 characters. Only role and content are passed on.
 - Content type `application/json`.
-- A body over 64 KB is rejected before parsing.
+- A body over 128 KB is rejected before parsing.
 
 **Model call (X6):** the official SDK `@anthropic-ai/sdk@0.135.0`.
-- `client.beta.messages.create({ model: "claude-sonnet-5-5", max_tokens: 2048, system: personality, messages: [{ role: "user", content: message }], output_config: { effort: "low" }, betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" })`.
+- `client.beta.messages.create({ model: "claude-sonnet-5-5", max_tokens: 2048, system: personality, messages: [...history, { role: "user", content: message }], output_config: { effort: "low" }, betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" })`.
 - No tools, and the `thinking` parameter is omitted (adaptive is the model default).
 - The model string was verified on docs.claude.com on 2026-10-20 (`claude-sonnet-5-5`). It is a constant in the file, with that date in a comment.
 
 **Responses (all JSON):**
 - `200 { "reply": string }`: the text blocks joined.
-- `200 { "withheld": true }`: the extraction guard tripped (section 2).
+- `200 { "withheld": true }`: the input screen or the extraction guard tripped (section 2).
 - `200 { "refused": true }`: `stop_reason` is `refusal` after the fallback.
 - `400 { "error": "bad_request" }`: a failed request check.
 - `403 { "error": "origin" }`: an origin not on the allowlist.
@@ -92,7 +93,9 @@ Tests (mocked model replies):
   - a reply that quotes 9 words.
 - **Spec gate:** for each of the nine starters on each target, a mock that returns the system prompt is always withheld.
 
-Residual (X4, for Brian): an encoded or translated echo is not verbatim and passes.
+**Input screen (B29, X10).** Before the model is called, `asksForSetup` screens the message and every earlier user turn with keyword patterns: asks for the system prompt, "your" instructions, rules, prompt, setup or config, "what were you told", "the text above", "ignore previous", SOUL.md, and a few non-English forms. A hit answers `{ "withheld": true }` with no model call and no ceiling slot spent.
+
+Residuals (X4, X10, accepted by Brian in B29): an encoded or translated echo is not verbatim and passes the guard; a paraphrased, encoded or unlisted-language ask passes the screen.
 
 ## 3. Preview chat UI (5.3)
 
@@ -116,8 +119,9 @@ The `PreviewChat` section on the certificate sits after the steps and before Not
   - busy;
   - unavailable.
 
-**What it sends:** `{ personality, message }`.
+**What it sends:** `{ personality, message, history }` (B28).
 - `personality` is the certificate's personality artifact as shown, `certificateInput(state).result.soul`, so Mine is included when it is on.
+- `history` is this panel's completed exchanges, user then assistant. Replies are cut to 4,000 characters, and the oldest exchanges drop whole to fit 16,000 (X9). A withheld, refused or failed message adds no turn. A new personality starts a new panel, so a new history.
 - The request uses `fetch` with `credentials: "omit"` and a 30-second timeout through AbortController.
 
 **Rules:**
@@ -136,7 +140,9 @@ The `PreviewChat` section on the certificate sits after the steps and before Not
    - the error counter, which logs no body, message, personality, IP or origin (spy on console);
    - the CORS allowlist;
    - the SDK call shape (model string, system equal to the personality, one user text message, no tools);
-   - the extraction guard suite (section 2).
+   - the extraction guard suite (section 2);
+   - the history checks and call shape (X9);
+   - the input screen: 30 asks screened, 30 ordinary messages passing, every probe and stat sample passing, no model call or ceiling slot on a hit, and the paraphrase residual pinned (X10).
 2. UI tests cover:
    - hidden without a URL;
    - the label;
@@ -145,6 +151,7 @@ The `PreviewChat` section on the certificate sits after the steps and before Not
    - the 20-message cap;
    - each state;
    - the request body (the personality equals the certificate personality; Mine included when on; never the share payload);
+   - the history: completed exchanges only, in order, cut and dropped to the limits, fresh on a new personality, never stored;
    - no storage;
    - no other network call.
 3. The tap-only test lists exactly three text inputs: name, remix paste, ask-your-own.

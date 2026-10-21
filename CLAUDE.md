@@ -38,7 +38,7 @@ A mobile-first static site where a first-time Meta Muse user taps through eight 
 
 - Tap-only UI. The only text input in the first-build flow is the name. Two exceptions: the remix paste box, and the certificate preview chat's "ask your own" box (200 characters; QUESTIONS B22).
 - No storage of user data, ever. State lives in the browser and the share link.
-- The compiler is a pure function and never calls a model. The app's only network call is the certificate preview chat: it sends the compiled personality and one message to the preview proxy (`proxy/`), which stores nothing and logs only error counts (QUESTIONS B22, B23).
+- The compiler is a pure function and never calls a model. The app's only network call is the certificate preview chat: it sends the compiled personality, the session's earlier turns and one message to the preview proxy (`proxy/`), which stores nothing and logs only error counts (QUESTIONS B22, B23, B28).
 - No real people, no franchise characters, anywhere.
 - Chassis lines ship in every build and cannot be removed by any pick.
 - Blunt and warm never go below 1.

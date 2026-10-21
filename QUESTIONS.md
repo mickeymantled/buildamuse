@@ -521,3 +521,71 @@ Elsewhere:
 - **Residual:** about 30 addresses sending valid requests at their 100-a-day limit can still reach the ceiling and turn others away until it rolls over. That is inherent to a global cap.
 
 **X4 (update).** The extraction guard also withholds a reply that carries at least half the personality, in order, and at least 50 words, even with filler words between fragments (the 5.2 tester's fragment attack). An in-voice reply never comes close. A smaller fragmented leak, or an encoded or translated echo, still passes.
+
+## Decided by Brian (2026-10-21): go for 5.4
+
+**B24. Deploy.** The lead creates the Railway function on Brian's account. Brian adds ANTHROPIC_API_KEY in Railway's variables himself. The site goes on Railway too, in the same project, as a static service. The Railway-provided domain goes in the proxy's origin list for now; Brian adds the real domain later and the lead adds it to the list then. Don't block on the domain.
+
+**B25. Live check.** Run as planned (docs/M5-PLAN.md section 4, item 6). Report per starter: does it sound like the bot, did anything leak.
+
+**B26. Probe 6 and the stat samples (closes X1).** Probe 6 becomes "I just lost 30% on a coin called Grumbo." The stat sample replies that named the same mascot say Grumbo instead, everywhere.
+
+**B27. Box unlock (confirms X2).** The ask-your-own box unlocks after the first chip reply.
+
+**B28. Memory between messages (replaces X3).** Each request carries the session's earlier turns. The page holds them and the proxy stores nothing. The cap is the 20-message session. "A bot that forgets its last reply isn't a fair preview, and drift over a few turns is exactly what the user should see."
+
+**B29. Input screen (adds to X4).** If the user message asks for the instructions, system prompt, setup or rules, in any encoding, translation or format, the proxy returns the held-back line without calling the model. Keyword match is fine. Encoded and translated echoes stay an accepted residual, and so does a paraphrased ask.
+
+**B30. Kept as built.** The refusal fallback stays on. The 3,000-a-day ceiling is fine for launch.
+
+## 5.4 lead calls
+
+**X1 (update, B26).**
+- **Done:** probe 6, the library doc's probe set, its Warm and Funny probe headers, and the funny 2 and 3 samples now say Grumbo.
+- **funny.3:** its "a purple McDonald's blob" described the same mascot, so it became "Grumbo" as well: "Losing 30% to Grumbo is honestly a rite of passage. Position?"
+- **funny.4:** it also named the Hamburglar, a second franchise character. That clause is a visible placeholder until Brian gives a line: "Thirty percent to Grumbo. [TODO: roast line; the old one named a franchise character] Position?" The sample shows on the Stats screen under "Sounds like".
+- **Goldens:** none changed. Stat samples and probe 6 never reach a bundle.
+
+**X9. History limits (B28).**
+- **Body:** `{ personality, message, history }`. The history alternates user then assistant and holds at most 38 turns, the 19 earlier exchanges of a 20-message session.
+- **Per turn:** a user turn is 1 to 200 characters, an assistant turn 1 to 4,000. The page cuts a longer reply to 4,000 and never cuts an emoji in half.
+- **Total:** at most 16,000 characters of history. The page drops the oldest exchanges whole to fit, so the latest turns always go. The body cap is 128 KB.
+- **What counts as a turn:** only an exchange that got a reply. A withheld, refused or failed message leaves no turn.
+- **Fresh start:** a target switch or a Mine toggle starts a fresh history along with the fresh log, since the old replies came from another personality.
+- **Forged turns:** the page holds the history, so a person can write fake assistant turns. The limits bound what that costs, and the output guard still checks every reply. Signing replies would need a second secret, which B22 rules out.
+- **Cost on Brian's key (Sonnet 5.5 at $2 per million input tokens and $10 per million output, platform.claude.com pricing, read 2026-10-21):**
+  - A first message costs about $0.006, as before.
+  - Averaged over a full 20-message session, a message costs about $0.013, because later messages carry the earlier turns.
+  - The worst case is a request at every limit: about 8,000 tokens in and 2,048 out, about $0.036.
+  - So the 3,000-a-day ceiling is about $40 a day of full sessions, and about $110 a day if every request hit every limit.
+  - Prompt caching would cut the repeated input to a twentieth of its price on this model. It is not on, because it keeps the prompt in Anthropic's cache for a few minutes; that is Brian's call.
+
+**X10. Input screen (B29).**
+- **How it works:** `asksForSetup` in proxy/function.ts is a keyword and pattern screen on a normalized copy of the text (lowercase, accents and apostrophes dropped, punctuation to spaces).
+- **What it catches:**
+  - "system prompt" and "system message";
+  - "your" plus instructions, rules, prompt, setup, guidelines, config or programming;
+  - "rules you follow" and "what were you told";
+  - "the text above" and "ignore previous";
+  - SOUL.md;
+  - a few Spanish, French, German, Italian and Portuguese forms.
+- **What it checks:** the current message and every earlier user turn, since a forged history could hide the ask there.
+- **Where it runs:** after the body checks and before the ceiling. A screened ask costs no ceiling slot and no model call, but it counts against the per-IP limit.
+- **What the page sees:** the screen answers `{ withheld: true }`, so the page shows the held-back line.
+- **Not screened:**
+  - "your setup on this coin" and "your setup for SOL" (a trader's question);
+  - "my previous prompt" and "ignore my last message";
+  - "the rules of poker" and "instructions for a bookshelf".
+- **Known false positive:** any "your instructions" or "your rules" is screened, even "I followed your instructions and it worked".
+- **Residuals for Brian:**
+  - a paraphrased ask (B29);
+  - an ask in an unlisted language;
+  - an ask that is itself encoded, for example in base64;
+  - spacing or spelling tricks.
+  The output guard is the backstop for all of them.
+
+**X11. Hosting shape (B24).**
+- **Project:** "build-a-bot" in Brian's Railway workspace, with two services.
+- **`site`:** the static app, deployed with `railway up` from the repo. Railpack builds it (`npm run build`, Vite) and serves `dist` with Caddy. VITE_PREVIEW_URL is a build-time variable holding the proxy's domain. It is not a secret: the page has to know where the proxy is.
+- **`preview-proxy`:** the function, created from proxy/function.ts with `railway functions new --http`. It does not sleep, because sleeping would reset the in-memory limits.
+- **Deploys:** from the CLI, not from GitHub, for now.
