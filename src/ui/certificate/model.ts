@@ -61,6 +61,7 @@ export interface CertGroup {
 
 export interface CertCustomRules {
   caption: string;
+  settingLabel: string; // the label before each rule's setting
   rows: CustomRule[];
   note?: BundleNote;
 }
@@ -75,6 +76,7 @@ export interface CertStep {
 
 export type SummaryKind =
   | 'auto'
+  | 'floor'
   | 'over'
   | 'steer'
   | 'trimmed'
@@ -259,6 +261,7 @@ function draftGroups(
     mine: readonly string[];
     mergeStanding: boolean;
     takeRoleLead: () => BundleNote | undefined;
+    dot?: boolean;
   },
 ): Draft[] {
   const c = copy.certificate;
@@ -294,7 +297,14 @@ function draftGroups(
         const blocks = of(kind);
         if (blocks.length > 0) {
           groups.push({
-            heading: kind === 'skills' ? c.groups.skills : c.groups.routines,
+            heading:
+              kind === 'skills'
+                ? opts.dot === true
+                  ? c.groups.dotSkills
+                  : c.groups.skills
+                : opts.dot === true
+                  ? c.groups.dotRoutines
+                  : c.groups.routines,
             blocks,
             showFirst: SHOW_FIRST,
           });
@@ -537,6 +547,7 @@ export function certificateModel(input: CertInput, lib: Library = library): Cert
   const { result, build, profile, cap } = input;
   const c = copy.certificate;
   const target = copy.targetNames[build.target];
+  const isDot = profile.id === 'chatgpt-dot';
   // Mine shows only with its switch on. The switch is off by default (W12).
   const mineLines = input.mine?.on === true ? input.mine.lines : [];
   const deprecatedMode =
@@ -556,12 +567,14 @@ export function certificateModel(input: CertInput, lib: Library = library): Cert
     (at === -1 ? unplaced : byStep[at]).push(a);
   }
 
-  // Notes that move out of the plain list: the dot note goes with its table, the creation-off fact
-  // goes in the deprecated summary, and the first role note leads the first role group.
+  // Notes that move out of the plain list: the dot note goes with its table, the trade floor note
+  // goes in the summary, the creation-off fact goes in the deprecated summary, and the first role
+  // note leads the first role group.
   const dotNote =
     result.customRules.length > 0 && bundleSteps.length > 0
       ? result.noteItems.find((n) => n.id === DOT_NOTE_ID)
       : undefined;
+  const floorNote = isDot ? result.noteItems.find((n) => n.kind === 'floor') : undefined;
   const creationNote =
     deprecatedMode !== undefined ? result.noteItems.find((n) => n.id === GPT_CREATION_NOTE_ID) : undefined;
   let pendingRoleNote = artifacts.some((a) => a.role !== undefined)
@@ -576,7 +589,7 @@ export function certificateModel(input: CertInput, lib: Library = library): Cert
   };
 
   // The Custom Rules table sits at the step that shows it. With no such step it goes on the first
-  // step, so an enforced rule is never dropped from the page.
+  // step, so a requested rule is never dropped from the page.
   const rulesAt = result.customRules.length === 0 ? -1 : Math.max(stepOf('customRules'), 0);
   let n = 0;
   const steps: CertStep[] = bundleSteps.map((s, i) => {
@@ -585,6 +598,7 @@ export function certificateModel(input: CertInput, lib: Library = library): Cert
       mine: mineLines,
       mergeStanding: s.shows.includes('skills') && s.shows.includes('routines'),
       takeRoleLead,
+      dot: isDot,
     });
     return {
       id: s.id,
@@ -594,7 +608,8 @@ export function certificateModel(input: CertInput, lib: Library = library): Cert
       ...(i === rulesAt
         ? {
             customRules: {
-              caption: profile.rulesPath?.line ?? '',
+              caption: isDot ? c.customRules.caption : '',
+              settingLabel: isDot ? c.customRules.settingToRequest : c.customRules.setting,
               rows: result.customRules,
               ...(dotNote !== undefined ? { note: dotNote } : {}),
             },
@@ -605,7 +620,7 @@ export function certificateModel(input: CertInput, lib: Library = library): Cert
   const extraKinds = [...new Set(unplaced.map((a) => a.kind))];
   const extra = keyed(
     'extra',
-    draftGroups(extraKinds, unplaced, { lib, mine: mineLines, mergeStanding: false, takeRoleLead }),
+    draftGroups(extraKinds, unplaced, { lib, mine: mineLines, mergeStanding: false, takeRoleLead, dot: isDot }),
   );
 
   // Summary, in the order the page shows it.
@@ -614,20 +629,32 @@ export function certificateModel(input: CertInput, lib: Library = library): Cert
     .filter((g) => Object.hasOwn(result.gates, g.id) && result.gates[g.id] === 'auto')
     .map((g) => g.label);
   if (autoLabels.length > 0) {
-    summary.push({ key: 'summary-auto', kind: 'auto', text: c.summary.auto, items: autoLabels });
+    summary.push({
+      key: 'summary-auto',
+      kind: 'auto',
+      text: isDot ? c.summary.autoDot : c.summary.auto,
+      items: autoLabels,
+    });
+  }
+  // The dot raised a gate to its floor; the compiler wrote the finished line.
+  if (floorNote !== undefined) {
+    summary.push({ key: 'summary-floor', kind: 'floor', text: floorNote.text });
   }
   const over = result.length > cap;
   if (over) {
     summary.push({
       key: 'summary-over',
       kind: 'over',
-      text: c.summary.over(result.length - cap, cap, target),
+      text: isDot
+        ? c.summary.overDot(result.length - cap, cap)
+        : c.summary.over(result.length - cap, cap, target),
     });
   }
   if (over && profile.id === 'chatgpt-instructions' && (build.plan ?? 'free') === 'free') {
     summary.push({ key: 'summary-steer', kind: 'steer', text: copy.target.paidSteer });
   }
-  summary.push(...trimmedSummary(result.trimmed, target, lib, result));
+  // A dot's cap is Build a Bot's own budget, not a ChatGPT limit, so "To fit" names the budget there.
+  summary.push(...trimmedSummary(result.trimmed, isDot ? c.summary.dotBudget(cap) : target, lib, result));
   const dropped = droppedSummary(input.drops, lib);
   if (dropped !== undefined) summary.push(dropped);
   if (result.undelivered.length > 0) {
@@ -646,8 +673,8 @@ export function certificateModel(input: CertInput, lib: Library = library): Cert
       text: c.summary.undeliveredDot(target, dot.limits, dot.rules),
     });
   }
-  // A dot enforces an auto gate as "Take action without asking", so a limit line missing from its
-  // message leaves nothing to check it against. The two facts are tied in one line, shown only when a
+  // A dot is asked to run an auto gate as "Take action without asking", so a limit line missing from
+  // its message leaves nothing to check it against. The two facts are tied in one line, shown only when a
   // limit line is absent (final safety review advisory; QUESTIONS W40, B17).
   if (dot !== undefined && dot.limits > 0 && autoLabels.length > 0) {
     summary.push({
@@ -678,7 +705,11 @@ export function certificateModel(input: CertInput, lib: Library = library): Cert
 
   const notes = result.noteItems.filter(
     (note) =>
-      note.kind !== 'verify' && note !== dotNote && note !== creationNote && note !== roleLead,
+      note.kind !== 'verify' &&
+      note !== dotNote &&
+      note !== floorNote &&
+      note !== creationNote &&
+      note !== roleLead,
   );
   const zipFiles = result.files
     .filter((f) => f.delivery === 'file')

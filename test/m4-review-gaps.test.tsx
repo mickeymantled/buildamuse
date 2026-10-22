@@ -540,16 +540,19 @@ describe('Show more at the three block boundary', () => {
     expect(within(group).queryByRole('button', { name: copy.certificate.showMore })).toBeNull();
   });
 
-  it('shows three skills under Skills on Odds on the ChatGPT dot, and no Show more anywhere', () => {
+  it('shows three skills under Workflows on Odds on the ChatGPT dot, and no Show more anywhere', () => {
     const build = golden('odds.chatgpt-dot');
     const result = compile(build);
     expect(result.spoken.filter((s) => s.kind === 'skill')).toHaveLength(3);
 
     open(build);
-    const group = groupOf(copy.certificate.groups.skills);
+    // On the dot the groups are headed Workflows and Scheduled tasks (QUESTIONS D6).
+    expect(copy.certificate.groups.dotSkills).toBe('Workflows');
+    expect(copy.certificate.groups.dotRoutines).toBe('Scheduled tasks');
+    const group = groupOf(copy.certificate.groups.dotSkills);
     expect(blocksIn(group)).toHaveLength(3);
-    // The Routines group beside it holds two, which is under the limit as well.
-    expect(blocksIn(groupOf(copy.certificate.groups.routines))).toHaveLength(2);
+    // The Scheduled tasks group beside it holds two, which is under the limit as well.
+    expect(blocksIn(groupOf(copy.certificate.groups.dotRoutines))).toHaveLength(2);
     expect(showMore()).toHaveLength(0);
   });
 
@@ -567,9 +570,9 @@ describe('Show more at the three block boundary', () => {
     expect(showMore()).toHaveLength(0);
   });
 
-  it('shows exactly three of four skills before Show more on Marty on the ChatGPT dot (control)', () => {
+  it('shows exactly three of four workflows before Show more on Marty on the ChatGPT dot (control)', () => {
     open(golden('marty.chatgpt-dot'));
-    const group = groupOf(copy.certificate.groups.skills);
+    const group = groupOf(copy.certificate.groups.dotSkills);
     expect(blocksIn(group)).toHaveLength(3);
     expect(within(group).getAllByRole('button', { name: copy.certificate.showMore })).toHaveLength(1);
   });

@@ -14,8 +14,11 @@
 //     pre-edit profiles.json (git HEAD of the wave 2 gate), which held each clause inline. The new
 //     record is that clause, unchanged, and the step is the old step minus the clause.
 //   - The `when` tags: W32 Q1 (routine-only lines get routines), Q3 (roles on a verify line means
-//     the build picked roles, so the dot teams line shows on dot), and the plan's "role-only
-//     verify lines get when: roles".
+//     the build picked roles, so the dot's more-than-one-dot line shows on dot), and the plan's
+//     "role-only verify lines get when: roles".
+//   - The dot's verify lines 3 and 4: docs/DOT-FIX-PLAN.md section 4. The dot fix replaced the old
+//     "teams of dots" line (W32 Q3) and the "invite-only alpha" line (V19) with two lines that claim
+//     no capability; lines 1 and 2 stay as they were.
 //   - What a build delivers: the plan's any-of rule (a skill file or a spoken skill, a spoken
 //     routine), plus the library's own skill records (a skill of kind "schedule" is a routine).
 //
@@ -235,16 +238,38 @@ describe('W32 edit list: exact text', () => {
     expect(gpt?.id).not.toBe(project?.id);
   });
 
-  it('the dot teams line drops its code word (W32 Q3): "verify: when teams of dots arrive."', () => {
+  // The dot fix (docs/DOT-FIX-PLAN.md section 4) replaced the dot's "teams of dots" line (W32 Q3) with a
+  // plain question about the account. It keeps the W32 Q3 rule: no code word, and it is the role-only line.
+  it('the dot role-only line asks whether the account can run more than one dot, with no code word (W32 Q3)', () => {
     const lines = profileOf('chatgpt-dot').verify.map((v) => v.line);
-    expect(lines).toContain('verify: when teams of dots arrive.');
+    expect(lines).toContain('verify: whether your account can run more than one dot.');
+    expect(lines).not.toContain('verify: when teams of dots arrive.');
     expect(lines.join('\n')).not.toContain('supportsRoles');
+  });
+
+  // The dot's four verify records, in order (docs/DOT-FIX-PLAN.md section 4: lines 1 and 2 stay, 3 and 4
+  // are new). The removed V19 line said Teams access for dots was an invite-only alpha and that dots can't
+  // call you at launch; the dot fix dropped both claims because nothing in the library verifies them.
+  it('the dot has exactly four verify records, and the V19 alpha and launch claims are gone', () => {
+    const dot = profileOf('chatgpt-dot');
+    expect(dot.verify.map((v) => [v.id, v.line])).toEqual([
+      ['profile.chatgpt-dot.verify.1', 'verify: whether dots read the custom instructions fields.'],
+      ['profile.chatgpt-dot.verify.2', 'verify: whether a rule added mid-task applies to that task.'],
+      ['profile.chatgpt-dot.verify.3', 'verify: whether your account can run more than one dot.'],
+      [
+        'profile.chatgpt-dot.verify.4',
+        'verify: which permission settings, connected apps and scheduled tasks your account offers.',
+      ],
+    ]);
+    const text = dot.verify.map((v) => v.line).join('\n');
+    expect(text).not.toContain('invite-only');
+    expect(text).not.toContain('alpha');
+    expect(text).not.toContain('at launch');
   });
 
   it('the V19 and V20 lines stay verify records (W32 Q2), unchanged', () => {
     const staying: [string, string][] = [
       ['grok', 'verify: group chats hold 2 to 6 Bots and the Bots decide who answers; the coordinator is a convention, not a setting.'],
-      ['chatgpt-dot', "verify: Teams access for dots is an invite-only alpha, and dots can't call you at launch."],
       ['chatgpt-gpt', 'verify: scheduled tasks by plan (Free: 3 active, at most once a day).'],
       ['chatgpt-instructions', 'verify: whether custom instructions show one field or two on your plan.'],
     ];
@@ -428,14 +453,14 @@ const GROK_GROUP_CHATS =
 const GROK_RUNNING_ROUTINE = 'verify: whether a running routine picks up a profile edit.';
 const HERMES_DELEGATED = "verify: whether a delegated agent loads its role profile's SOUL.md.";
 const HERMES_ROUTINES = 'verify: whether Hermes keeps routines in files or in chat.';
-const DOT_TEAMS = 'verify: when teams of dots arrive.';
+const DOT_MORE_THAN_ONE = 'verify: whether your account can run more than one dot.';
 const TASKS = 'verify: whether your plan includes Tasks.';
 const GPT_SCHEDULED_BY_PLAN = 'verify: scheduled tasks by plan (Free: 3 active, at most once a day).';
 
 const WHEN_TAGS: Record<string, Record<string, StepWhen[]>> = {
   grok: { [GROK_GROUP_CHATS]: ['roles'], [GROK_RUNNING_ROUTINE]: ['routines'] },
   hermes: { [HERMES_DELEGATED]: ['roles'], [HERMES_ROUTINES]: ['routines'] },
-  'chatgpt-dot': { [DOT_TEAMS]: ['roles'] },
+  'chatgpt-dot': { [DOT_MORE_THAN_ONE]: ['roles'] },
   'chatgpt-gpt': { [GPT_SCHEDULED_BY_PLAN]: ['routines'], [TASKS]: ['routines'] },
   'chatgpt-project': { [TASKS]: ['routines'] },
 };
@@ -537,19 +562,19 @@ describe('role-only verify lines show when the build picked roles', () => {
     expect(compiled(specOf('rook.hermes.roles')).verify.map((v) => v.text)).toContain(HERMES_DELEGATED);
   });
 
-  it('dot verify.3 (teams of dots) shows on dot when roles are picked, though dot delivers no role files', () => {
+  it('dot verify.3 (more than one dot) shows on dot when roles are picked, though dot delivers no role files', () => {
     const base = buildFor(specOf('marty.chatgpt-dot'), library);
     const team = ['scout', 'risk-manager', 'journal'];
     const without = compile(base);
     const withTeam = compile({ ...base, roles: team });
 
     expect(base.roles).toBeUndefined();
-    expect(without.verify.map((v) => v.text)).not.toContain(DOT_TEAMS);
+    expect(without.verify.map((v) => v.text)).not.toContain(DOT_MORE_THAN_ONE);
 
     // Dot compiles no role files: a single dot gets a note, and no role artifact ships.
     expect(withTeam.files.filter((f) => f.role !== undefined || f.label.startsWith('Role '))).toEqual([]);
     expect(withTeam.steps.some((s) => s.shows.includes('roles'))).toBe(false);
-    expect(withTeam.verify.map((v) => v.text)).toContain(DOT_TEAMS);
+    expect(withTeam.verify.map((v) => v.text)).toContain(DOT_MORE_THAN_ONE);
     // The line is the dot record, in library order among the other dot verify lines.
     const dot = profileOf('chatgpt-dot');
     expect(withTeam.verify.map((v) => v.id)).toEqual(dot.verify.map((v) => v.id));

@@ -10,6 +10,7 @@ import type {
   Library,
   LimitId,
   Profile,
+  RaisedGate,
   Section,
   WorkflowPack,
 } from './types.js';
@@ -82,6 +83,29 @@ export function effectiveGates(build: Build, lib: Library): Record<ActionId, Gat
   );
 }
 
+// A profile with gate floors never lets a gate go looser than its floor (chatgpt-dot: trades).
+// The build and its share link are untouched; only the compiled gates are raised. `raised` says
+// which gates moved and from what, for the note the bundle shows.
+export function floorGates(
+  gates: Record<ActionId, GateSetting>,
+  profile: Profile,
+): { gates: Record<ActionId, GateSetting>; raised: RaisedGate[] } {
+  const floors = profile.gateFloors;
+  if (floors === undefined) {
+    return { gates, raised: [] };
+  }
+  const out = { ...gates };
+  const raised: RaisedGate[] = [];
+  for (const [action, from] of Object.entries(gates)) {
+    const floor = Object.hasOwn(floors, action) ? floors[action] : undefined;
+    if (floor !== undefined && STRICTNESS[floor.setting] > STRICTNESS[from]) {
+      out[action] = floor.setting;
+      raised.push({ action, from, floor });
+    }
+  }
+  return { gates: out, raised };
+}
+
 export function effectiveLimits(build: Build, lib: Library): Record<LimitId, number> {
   const limits = new Map<LimitId, number>();
   for (const pack of selectedPacks(build, lib)) {
@@ -125,6 +149,20 @@ export function gateSoulItems(gates: Record<ActionId, GateSetting>, lib: Library
     }
   }
   return items;
+}
+
+// A profile may replace the text of a gate's soul line (chatgpt-dot). The item keeps its place and
+// its id gains "@<profile id>", so the trace tells the variant from the library line.
+export function withGateSoulVariants(items: Item[], profile: Profile): Item[] {
+  const variants = profile.gateSoulVariants;
+  if (variants === undefined) {
+    return items;
+  }
+  return items.map((item) =>
+    item.kind === 'gate' && Object.hasOwn(variants, item.id)
+      ? { ...item, text: variants[item.id], id: `${item.id}@${profile.id}` }
+      : item,
+  );
 }
 
 // Rules-layer lines, in order: gates, limits, then each selected pack's own rules lines.

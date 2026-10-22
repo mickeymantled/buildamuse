@@ -241,6 +241,111 @@ describe('screen strings', () => {
   });
 });
 
+describe('the dot copy asks for permissions, it does not enforce them (docs/DOT-FIX-PLAN.md sections 3 and 5)', () => {
+  const PLAN = readFileSync(path.join(ROOT, 'docs', 'DOT-FIX-PLAN.md'), 'utf8').replaceAll('\\"', '"');
+  // Each literal below is the plan's text. The first check keeps this file honest: a string that is
+  // not in the plan fails there, so the tests never pin invented wording.
+  const NOTE_ON_GATES =
+    "On a dot, this setup doesn't place trades. Your dot researches and proposes, and you place each trade. Your pick still applies if you switch to another bot.";
+  const AUTO =
+    'Requested to run without asking. Set this up in your dot and check it saved:';
+  const NO_LIMITS_ONE =
+    'You asked for this one to run without asking, and your dot\'s message has no limits to check it against. Request "Ask before taking action" instead, or add your limits by hand first:';
+  const NO_LIMITS_MANY =
+    'You asked for these to run without asking, and your dot\'s message has no limits to check them against. Request "Ask before taking action" instead, or add your limits by hand first:';
+  const CAPTION =
+    "Permissions to request. Copying them doesn't set them: add each one in your dot if your account offers it, then check it saved.";
+  const DISCLOSURE =
+    "On a dot, this is a stand-in. It runs your dot's message on Build a Bot's preview model, not on ChatGPT. It doesn't test your permissions, connected apps, workflows, scheduled tasks or memory. It does remember recent messages in this preview.";
+
+  it('every pinned string is in the plan', () => {
+    for (const text of [NOTE_ON_GATES, AUTO, NO_LIMITS_ONE, NO_LIMITS_MANY, CAPTION, DISCLOSURE, 'Setting to request:']) {
+      expect(PLAN, text).toContain(text);
+    }
+    expect(PLAN).toContain(
+      "Your bot's personality is {n} characters over the {cap}-character budget Build a Bot uses for a dot message.",
+    );
+  });
+
+  it('the Gates screen note for Trades on the dot', () => {
+    expect(copy.gates.floorNotes.trade).toBe(NOTE_ON_GATES);
+  });
+
+  it('the summary lines on the dot', () => {
+    expect(copy.certificate.summary.autoDot).toBe(AUTO);
+    expect(copy.certificate.summary.dotAutoNoLimits(1)).toBe(NO_LIMITS_ONE);
+    expect(copy.certificate.summary.dotAutoNoLimits(2)).toBe(NO_LIMITS_MANY);
+    expect(copy.certificate.summary.dotAutoNoLimits(3)).toBe(NO_LIMITS_MANY);
+  });
+
+  it('the over-the-budget line, singular and plural', () => {
+    const over = copy.certificate.summary.overDot;
+    expect(over(1, 3600)).toBe(
+      "Your bot's personality is 1 character over the 3600-character budget Build a Bot uses for a dot message.",
+    );
+    expect(over(5, 3600)).toBe(
+      "Your bot's personality is 5 characters over the 3600-character budget Build a Bot uses for a dot message.",
+    );
+  });
+
+  it('the rules table caption and setting label', () => {
+    expect(copy.certificate.customRules.caption).toBe(CAPTION);
+    expect(copy.certificate.customRules.settingToRequest).toBe('Setting to request:');
+    // The label every other rule list uses is unchanged.
+    expect(copy.certificate.customRules.setting).toBe('Setting:');
+  });
+
+  it('the preview disclosure', () => {
+    expect(copy.chat.dotDisclosure).toBe(DISCLOSURE);
+    // The preview sends the panel's earlier turns, so the line says it remembers recent messages.
+    expect(copy.chat.dotDisclosure.endsWith('It does remember recent messages in this preview.')).toBe(true);
+  });
+
+  it('the dot group headings are Workflows and Scheduled tasks, and the general headings are unchanged', () => {
+    expect(copy.certificate.groups.dotSkills).toBe('Workflows');
+    expect(copy.certificate.groups.dotRoutines).toBe('Scheduled tasks');
+    expect(copy.certificate.groups.skills).toBe('Skills');
+    expect(copy.certificate.groups.routines).toBe('Routines');
+    expect(copy.certificate.groups.standing).toBe('Standing instructions');
+  });
+
+  it('the "To fit" target on the dot names Build a Bot\'s budget for a dot message', () => {
+    expect(copy.certificate.summary.dotBudget(3600)).toBe("Build a Bot's 3600-character budget for a dot message");
+    expect(copy.certificate.summary.dotBudget(1200)).toBe("Build a Bot's 1200-character budget for a dot message");
+    // It fills the generic line, so it reads as a sentence.
+    expect(copy.certificate.summary.trimmedPack(copy.certificate.summary.dotBudget(3600), 2, 'Personal ops')).toBe(
+      "To fit Build a Bot's 3600-character budget for a dot message, 2 rules from Personal ops were left out.",
+    );
+  });
+
+  it('the general (non-dot) lines are unchanged', () => {
+    expect(copy.certificate.summary.auto).toBe('Auto, no yes asked:');
+    expect(copy.certificate.summary.over(5, 3475, 'ChatGPT')).toBe(
+      "Your bot's personality is 5 characters over the 3475 limit for ChatGPT.",
+    );
+  });
+
+  it('no copy string on the dot says the rules are enforced by ChatGPT or lives at an assumed Settings path', () => {
+    const dotStrings = [
+      copy.gatesCopy['chatgpt-dot'],
+      copy.gates.floorNotes.trade,
+      copy.certificate.summary.autoDot,
+      copy.certificate.summary.dotAutoNoLimits(1),
+      copy.certificate.summary.dotAutoNoLimits(2),
+      copy.certificate.summary.overDot(5, 3600),
+      copy.certificate.customRules.caption,
+      copy.certificate.customRules.settingToRequest,
+      copy.certificate.summary.dotBudget(3600),
+      copy.certificate.groups.dotSkills,
+      copy.certificate.groups.dotRoutines,
+      copy.chat.dotDisclosure,
+    ];
+    for (const text of dotStrings) {
+      expect(text, text).not.toMatch(/enforce|outrank|Settings >/i);
+    }
+  });
+});
+
 describe('verbatim gates lines', () => {
   // Part E, "Gates screen" bullet: the copy per target, each line in double quotes.
   const gatesBullet = BRIEF.split('\n').find((l) => l.startsWith('- Gates screen:'));
@@ -255,8 +360,22 @@ describe('verbatim gates lines', () => {
     expect(Object.keys(copy.gatesCopy).sort()).toEqual(ids);
   });
 
-  it.each(Object.entries(copy.gatesCopy))('%s line appears verbatim, in quotes, in the brief', (_id, line) => {
+  // The dot's line was replaced by docs/DOT-FIX-PLAN.md section 5: the dot asks for permissions, it
+  // does not enforce them, so the brief's "Custom Rules in Settings, which ChatGPT enforces" is gone.
+  const DOT_GATES_LINE =
+    'these become permissions to request in your dot. They do nothing until you set them up there and check they saved.';
+  const OTHER_GATES = Object.entries(copy.gatesCopy).filter(([id]) => id !== 'chatgpt-dot');
+
+  it.each(OTHER_GATES)('%s line appears verbatim, in quotes, in the brief', (_id, line) => {
     expect(gatesBullet).toContain(`"${line}"`);
+  });
+
+  it('the chatgpt-dot line is the plan\'s line, and is no longer the brief\'s enforced-rules line', () => {
+    const plan = readFileSync(path.join(ROOT, 'docs', 'DOT-FIX-PLAN.md'), 'utf8');
+    expect(plan).toContain(`gatesCopy['chatgpt-dot']\`: "${DOT_GATES_LINE}"`);
+    expect(copy.gatesCopy['chatgpt-dot']).toBe(DOT_GATES_LINE);
+    expect(gatesBullet).not.toContain(`"${copy.gatesCopy['chatgpt-dot']}"`);
+    expect(copy.gatesCopy['chatgpt-dot']).not.toMatch(/enforce|Custom Rules/);
   });
 
   it('shares one line across the profiles the brief groups', () => {

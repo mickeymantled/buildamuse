@@ -589,3 +589,83 @@ Elsewhere:
 - **`site`:** the static app, deployed with `railway up` from the repo. Railpack builds it (`npm run build`, Vite) and serves `dist` with Caddy. VITE_PREVIEW_URL is a build-time variable holding the proxy's domain. It is not a secret: the page has to know where the proxy is.
 - **`preview-proxy`:** the function, created from proxy/function.ts with `railway functions new --http`. It does not sleep, because sleeping would reset the in-memory limits.
 - **Deploys:** from the CLI, not from GitHub, for now.
+
+## Decided by Brian (2026-10-21): ChatGPT dot review
+
+**B31. Fix the ChatGPT dot exports.** Brian's six asks, scoped to dot exports, their setup and preview UI, and tests; no deploy. The spec is docs/DOT-FIX-PLAN.md.
+1. Keep the full workflow contract.
+2. One consistent action-permission rule, with no blanket "custom rules outrank chat".
+3. Requested permissions, not activated ones. No promise that a dot places trades: research and proposals, the user executes, shown visibly.
+4. Honest setup steps: a normal chat message, workflows not installed skills, routines not active until confirmed, and ask for a missing time zone.
+5. No unverified capability, menu-path or availability claims. Roles are roles, not agents. 3,600 is Build a Bot's budget.
+6. An honest preview disclosure.
+
+**B32. Deploy on hold.** "Do not deploy." The 5.4 Railway deploy waits for Brian's go.
+
+## Dot review lead calls (docs/DOT-FIX-PLAN.md)
+
+**D1. Workflow contract (B31.1).**
+- **Pack workflows:** a dot pack workflow now carries Use it when, Inputs, Steps, Check before you answer, Return and Needs my approval first, verbatim from the pack. A pack scheduled task also carries its Schedule.
+- **Legacy chip workflows:** they keep one sentence ("Here's a workflow I'd like you to use: ...").
+- **Labels:** on the dot the certificate calls them Workflows and Scheduled tasks.
+- **Lengths:** none of this counts toward the 3,600 budget, which covers the personality message only.
+
+**D2. One permission rule (B31.2).**
+- **How:** dot-only chassis variants.
+  - The approval line keeps spend, send, post, sign and irreversible behind a yes "unless a setting below lets you go ahead".
+  - The old reversible line ("Only irreversible things wait for a yes") becomes "Act only on what I asked for, within the permissions I've given you. Being able to undo something doesn't make it OK to do."
+  - The outrank line becomes "Follow my saved settings and the platform's requirements. If something I say in chat conflicts with them, ask me before you act."
+- **Card wording:** the old "Make the card useful" was Muse's approval-card wording. On the dot it now reads "When you ask, give me the decision, the cost and your pick in three lines."
+- **Clash order:** the "If rules clash" order gets a dot variant: "Honesty first, then my instructions and saved settings, then brevity, then jokes." A chat instruction no longer reads as ranking above saved settings. This adds no new hierarchy.
+- **Send approve:** it gets a dot variant ("Send it only after my yes to that exact message"). The library line ("I send, or I turn on auto when I say so") disagreed with "Ask before taking action" and implied a chat message changes a saved setting.
+- **Pay:** unchanged, always "Hand off to you".
+
+**D3. The trade floor (B31.3).**
+- **What changes:** on the dot only, a Trades setting of auto or approve compiles to forbid ("Hand off to you").
+- **What stays:** the build object and share link keep the user's setting, and every other target is unchanged.
+- **What the user sees:**
+  - a summary line: "Your setting for Trades is "...". This setup doesn't let your dot place trades: it researches and proposes, and you place each trade yourself.";
+  - a note on the Gates screen's Trades row.
+  - The note says "setting", not "picked", because a pack default is not a pick.
+- **Trade workflows:** for a workflow whose only action is trade, which is every trade workflow in the library, the floor line replaces the pack's trade approval text. The pack's text granted the trade after a yes. The floor line also says how to read steps that mention placing or "my yes at the trade gate": give the proposal instead.
+- **Safety:** this is stricter than the brief's Part D default for trade (approve). Brian ordered it in B31.3; Part D stands for every other target.
+
+**D4. Requested, not enforced (B31.3).**
+- **Wording:** on the dot, the Gates screen, the summary, the rules table caption ("Permissions to request. Copying them doesn't set them ...") and the card label ("Setting to request:") all describe settings to request.
+- **The menu path:** "Settings > Personalization > Permissions > Custom rules" is gone.
+- **The setting names:** "Take action without asking", "Ask before taking action" and "Hand off to you" stay as the names to request. They are source content read from the dot docs on 2026-10-01, so no replacement labels were invented. They are shown "if your account offers it".
+
+**D5. Setup steps (B31.4).**
+- **The message:** step 3 says it is a normal chat message that gives the dot your preferences, and does not replace the dot's own instructions or retrain it. Brian's "preferences and workflows" covers the whole export: the workflows are separate messages, in step 5.
+- **Workflows:** each one ends by asking the dot what it can keep and use, what it needs connected and what it can't do.
+- **Scheduled tasks:** each one ends with a confirm line covering the schedule, the time zone (ask if unknown), the access it needs and creation. It "isn't running until then".
+
+**D6. Capability claims (B31.5).**
+- **Removed:**
+  - "on desktop" and "pick or generate the avatar";
+  - "Pro or Business Premium" (now "Recommended, if your plan includes dots.");
+  - "Teams access ... invite-only alpha, and dots can't call you at launch";
+  - "ChatGPT has no block setting";
+  - "Dots run one agent at launch".
+- **Replaced with account checks:** "verify: whether your account can run more than one dot." and "verify: which permission settings, connected apps and scheduled tasks your account offers."
+- **Roles note:** it now reads "Your roles aren't in this setup. It makes one dot, not a separate agent per role. Your roles: ...". That matches the summary's "Not included".
+- **The budget:** the over-cap and "To fit" lines on the dot name Build a Bot's 3,600-character budget.
+
+**D7. Preview disclosure (B31.6).** Brian's text said "single-message". The preview has sent the panel's recent turns since B28, so the line says what is true: "On a dot, this is a stand-in. It runs your dot's message on Build a Bot's preview model, not on ChatGPT. It doesn't test your permissions, connected apps, workflows, scheduled tasks or memory. It does remember recent messages in this preview."
+
+**D8. Unverified assumptions that remain (for Brian).**
+- **Settings and permissions:**
+  - that dots have per-action permission settings with those three names;
+  - that "Hand off to you" stops the dot and hands the step over.
+- **Scheduling and memory:**
+  - that dots can run scheduled tasks and say when one is created;
+  - that a dot keeps a workflow sent in chat;
+  - what the memory sentence does on a dot.
+- **Connections and limits:**
+  - which apps a dot can connect;
+  - the 3,600 budget itself (kept for compatibility).
+- **Docs:** whether the docs URL (read 2026-10-01) still says what the profile assumed.
+
+**D9. For Brian: the perps wallet rule on the dot.** `pack.perps.rule.1`, "The agent wallet is trade-only. It cannot withdraw.", comes from Brian's brief and is never cut. So it reaches the dot's Hard rules, where there is no agent wallet and the dot places no trades.
+- The lead left it unchanged because it is Brian's protected rule.
+- A possible dot wording that keeps the protection: "Never withdraw from any wallet or account."

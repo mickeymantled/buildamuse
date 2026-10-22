@@ -15,7 +15,7 @@ import type {
 } from './types.js';
 import { migrate } from './migrate.js';
 import { applyChassis, capOf, chassisFormOf, resolveProfile } from './profile.js';
-import { effectiveGates, effectiveLimits } from './gates.js';
+import { effectiveGates, effectiveLimits, floorGates, withGateSoulVariants } from './gates.js';
 import { validate, validateV2 } from './passes/validate.js';
 import { resolve } from './passes/resolve.js';
 import { assembleSoul, soulRenderOptions } from './passes/assemble.js';
@@ -80,6 +80,9 @@ export function compile(build: Build | BuildV1, lib: Library = library): Compile
   const form = chassisFormOf(profile, b);
   const cap = capOf(profile, b);
   const resolved = resolve(b, lib);
+  // A profile floor raises a gate here, so every reader of ctx.gates sees the floored setting
+  // while the build and its share link keep what the user picked.
+  const floored = floorGates(effectiveGates(b, lib), profile);
   // A pack the profile cannot deliver keeps its gates, limits and rules lines (they come from
   // the build), but adds nothing else, so the passes only see the packs this profile carries.
   const packs = b.packs
@@ -93,7 +96,8 @@ export function compile(build: Build | BuildV1, lib: Library = library): Compile
     cap,
     resolved,
     chassis: applyChassis(resolved.chassis, profile, form),
-    gates: effectiveGates(b, lib),
+    gates: floored.gates,
+    raised: floored.raised,
     limits: effectiveLimits(b, lib),
     packs,
     roles: normalizeRoles(b, lib),
@@ -107,7 +111,7 @@ export function compile(build: Build | BuildV1, lib: Library = library): Compile
   // cutting the author's pack rules lines is not enough.
   const settle = (c: CompileContext) => {
     const laid = layout(c, delivery);
-    const deduped = dedupe(laid.items, lib, resolved);
+    const deduped = dedupe(withGateSoulVariants(laid.items, c.profile), lib, resolved);
     const decontradicted = contradictions(deduped.items, b, lib);
     return {
       items: decontradicted.items,

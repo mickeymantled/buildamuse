@@ -20,6 +20,8 @@ export interface Toggle3Props {
   disabledOptions?: GateSetting[];
   /** Why those options are off. Shown as a caption and read as the group's description. */
   disabledHint?: string;
+  /** A standing note under the control, always shown and read as part of the group's description. */
+  note?: string;
   className?: string;
 }
 
@@ -36,18 +38,23 @@ export function Toggle3({
   lockedMessage,
   disabledOptions,
   disabledHint,
+  note,
   className,
 }: Toggle3Props) {
   const uid = useId();
   const labelId = `${uid}-l`;
   const lockId = `${uid}-k`;
   const hintId = `${uid}-h`;
+  const noteId = `${uid}-n`;
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const isOff = (option: GateSetting) => disabledOptions?.includes(option) ?? false;
   const showLock = locked && !!lockedMessage;
   const showHint = !!disabledHint && !!disabledOptions && disabledOptions.length > 0;
-  const describedBy = [showLock ? lockId : null, showHint ? hintId : null].filter(Boolean).join(' ');
+  const showNote = !!note;
+  const describedBy = [showLock ? lockId : null, showHint ? hintId : null, showNote ? noteId : null]
+    .filter(Boolean)
+    .join(' ');
 
   function select(next: GateSetting, focus: boolean) {
     if (locked || isOff(next)) return;
@@ -134,6 +141,11 @@ export function Toggle3({
       {showHint && (
         <p id={hintId} className="text-sm text-[color:var(--muted)]">
           {disabledHint}
+        </p>
+      )}
+      {showNote && (
+        <p id={noteId} className="text-sm text-[color:var(--muted)]">
+          {note}
         </p>
       )}
     </div>

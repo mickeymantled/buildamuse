@@ -412,6 +412,15 @@ export interface TargetCard {
   modes?: { id: ChatgptMode; label: string; note: Line; hidden?: boolean; deprecated?: Line }[]; // picker order; hidden modes stay in the compiler
 }
 
+// A profile's lower bound on one gate: a looser setting is raised to `setting`. `note` tells the
+// user their pick was overridden ({setting} is the label of the pick); `skill` rides on every
+// pack skill and routine that can take the action.
+export interface GateFloor {
+  setting: GateSetting;
+  note: Line;
+  skill: Line;
+}
+
 // A profile is the unit of delivery: everything about how a bundle is built for one runtime.
 export interface Profile {
   id: ProfileId;
@@ -427,6 +436,8 @@ export interface Profile {
   chassisForm: 'full' | 'short'; // 'short' uses each chassis line's `short` text
   chassisVariants: Record<string, string | null>; // chassis id -> replacement text, or null to omit
   chassisShortVariants?: Record<string, string>; // chassis id -> short text for this profile
+  gateSoulVariants?: Record<string, string>; // gate soul id -> replacement text; the item id gains "@<profile id>"
+  gateFloors?: Record<ActionId, GateFloor>; // chatgpt-dot only: no gate goes looser than its floor
   rulesDelivery: 'AGENTS.md' | 'RULES.md' | 'inline' | 'description' | 'custom-rules';
   rulesInSoul: 'none' | 'section' | 'top-and-bottom';
   skillsDelivery: 'files' | 'spoken' | 'inline' | 'knowledge';
@@ -439,10 +450,11 @@ export interface Profile {
   roleFallback: 'workspaces' | 'profiles' | 'team' | 'separate-bundles' | 'single-dot-note' | 'none';
   lengthCap: number | { free: number; paid: number };
   customRuleSettings?: Record<GateSetting, string>; // chatgpt-dot only
-  rulesPath?: Line; // chatgpt-dot only: the Settings path, the caption of the Custom Rules table
+  rulesPath?: Line; // no profile sets it now (the dot's table caption is UI copy); kept optional for readers
   templates: Record<string, Line>;
   notes?: Line[]; // certificate copy shown with the bundle (not verify lines)
   skillLabel?: string; // label for skill sentences on this profile (default "Skill"); Muse: "Standing instruction"
+  routineLabel?: string; // label for routine sentences on this profile (default "Routine"); dot: "Scheduled task"
 }
 
 // Pack skill: the six-field shape. Every profile renders a subset.
@@ -587,7 +599,7 @@ export interface BundleStep {
   closer: boolean;
 }
 
-export type NoteKind = 'verify' | 'note' | 'reload' | 'venue' | 'role' | 'actions';
+export type NoteKind = 'verify' | 'note' | 'floor' | 'reload' | 'venue' | 'role' | 'actions';
 
 export interface BundleNote {
   id: string;
@@ -638,6 +650,13 @@ export interface CompileResult extends BundleFields {
   warnings: string[]; // e.g. over-length, dropped lines
 }
 
+// A gate the profile's floor raised, with the setting the build had.
+export interface RaisedGate {
+  action: ActionId;
+  from: GateSetting;
+  floor: GateFloor;
+}
+
 // Shared state for the v2 layout, delivery and role passes (lead-defined so
 // parallel slices agree on one interface).
 export interface CompileContext {
@@ -648,7 +667,8 @@ export interface CompileContext {
   cap: number;
   resolved: Resolved; // v1 resolve on the build
   chassis: ChassisLine[]; // resolved.chassis after applyChassis(profile, form)
-  gates: Record<ActionId, GateSetting>; // effectiveGates
+  gates: Record<ActionId, GateSetting>; // effectiveGates, then the profile's floors
+  raised: RaisedGate[]; // the gates a floor raised, in gate order; [] on a profile with no floors
   limits: Record<LimitId, number>; // effectiveLimits
   packs: WorkflowPack[]; // selected packs the profile can deliver, in build order; gates, limits and rules lines come from the build, not from here
   roles: RolePack[]; // normalized roles, set member order; [] when none

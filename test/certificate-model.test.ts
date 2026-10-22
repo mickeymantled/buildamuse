@@ -11,6 +11,7 @@ import { describe, it, expect } from 'vitest';
 
 import { compile, library } from '../src/compiler/compile.js';
 import { migrate } from '../src/compiler/migrate.js';
+import { effectiveGates } from '../src/compiler/gates.js';
 import { capOf, resolveProfile } from '../src/compiler/profile.js';
 import { artifactKindOf } from '../src/compiler/types.js';
 import type {
@@ -42,9 +43,14 @@ const MUSE_STEPS = [
   "One at a time. It should confirm each. If it doesn't, say it again in a fresh chat.",
   'Then say hi.',
 ];
-// QUESTIONS B11 (the Paid steer) and W30 (the Dot rules path, verbatim from brief Part C).
+// QUESTIONS B11 (the Paid steer). The dot's table caption and setting label are docs/DOT-FIX-PLAN.md
+// section 5: the dot asks for these settings, it does not enforce them, and it has no assumed menu path.
 const PAID_STEER = 'Packs with money or email gates fit better on Paid. Switch to Paid?';
-const DOT_RULES_PATH = 'Settings > Personalization > Permissions > Custom rules';
+const DOT_RULES_CAPTION =
+  "Permissions to request. Copying them doesn't set them: add each one in your dot if your account offers it, then check it saved.";
+const DOT_SETTING_LABEL = 'Setting to request:';
+const DOT_NOTE_TEXT =
+  'Where a permission says "Hand off to you", your dot should stop and give that step to you. Check that it does before you rely on it.';
 const DOT_NOTE_ID = 'profile.chatgpt-dot.note.1';
 // The library record that carries the creation-off fact for mode gpt. W32 (slice 4.5b) moved it out of
 // verify.1 into a note, profile.chatgpt-gpt.note.1, and left the retirement date on the card. A guard
@@ -69,6 +75,7 @@ const GENERATED_TAGLINE: Record<string, string> = {
 // Plan section 4 summary order, and the engineer's group headings.
 const SUMMARY_ORDER: readonly SummaryKind[] = [
   'auto',
+  'floor',
   'over',
   'steer',
   'trimmed',
@@ -462,6 +469,12 @@ for (const c of CASES) {
       const consumed = new Set<string>();
       for (const s of c.model.steps) if (s.customRules?.note) consumed.add(s.customRules.note.id);
       for (const g of groupsOf(c.model)) if (g.lead) consumed.add(g.lead.id);
+      // The dot's trade floor note moves into the summary, where it reads as a line of its own.
+      for (const n of c.result.noteItems) {
+        if (n.kind !== 'floor') continue;
+        consumed.add(n.id);
+        expect(c.model.summary.map((s) => s.text), n.id).toContain(n.text);
+      }
       // W32 made the creation-off record a note, not a verify line: on a gpt certificate it moves into
       // the deprecated summary, so it is no longer in the plain notes list either.
       if (c.build.mode === 'gpt') consumed.add(GPT_CREATION_NOTE_ID);
@@ -479,6 +492,12 @@ for (const c of CASES) {
       if (autoGates.length > 0) {
         expect(summaryOf(m, 'auto')[0]?.items).toEqual(autoGates.map((g) => g.label));
       }
+      // The dot floors Trades to forbid, so its floor line shows exactly when the build's own effective
+      // trade gate (before the floor) exists and is looser than forbid, and never on another profile.
+      const pick = effectiveGates(c.build, library)['trade']; // undefined when no pack exposes Trades
+      const raised = c.profile.id === 'chatgpt-dot' && pick !== undefined && pick !== 'forbid';
+      expect(summaryOf(m, 'floor').length).toBe(raised ? 1 : 0);
+      expect(c.result.noteItems.filter((n) => n.kind === 'floor').length).toBe(raised ? 1 : 0);
       const over = c.result.length > c.input.cap;
       expect(summaryOf(m, 'over').length).toBe(over ? 1 : 0);
       const free = c.profile.id === 'chatgpt-instructions' && (c.build.plan ?? 'free') === 'free';
@@ -660,7 +679,11 @@ describe('Muse steps and Standing instructions', () => {
           expect(g.heading, c.id).toBe('Standing instructions');
         } else {
           expect(kinds.size, `${c.id} ${g.key}`).toBe(1);
-          expect(g.heading, `${c.id} ${g.key}`).toBe(kinds.has('skills') ? 'Skills' : 'Routines');
+          // On the dot they are workflows to send and scheduled tasks to confirm, not installed
+          // skills and routines (docs/DOT-FIX-PLAN.md section 2, QUESTIONS D6). Every other target keeps the plain words.
+          const dot = c.profile.id === 'chatgpt-dot';
+          const want = kinds.has('skills') ? (dot ? 'Workflows' : 'Skills') : dot ? 'Scheduled tasks' : 'Routines';
+          expect(g.heading, `${c.id} ${g.key}`).toBe(want);
         }
       }
     }
@@ -678,22 +701,34 @@ describe('ChatGPT Dot custom rules table', () => {
     expect(dotCases.length).toBe(9);
   });
 
-  it('the library holds the rulesPath record verbatim from the brief', () => {
-    const profile = library.targets.profiles.find((p) => p.id === 'chatgpt-dot');
-    expect(profile?.rulesPath?.id).toBe('profile.chatgpt-dot.rulesPath');
-    expect(profile?.rulesPath?.line).toBe(DOT_RULES_PATH);
+  it('the library holds no rulesPath record: the caption is UI copy, not an assumed menu path', () => {
+    for (const profile of library.targets.profiles) {
+      expect(profile.rulesPath, profile.id).toBeUndefined();
+    }
+    const dot = library.targets.profiles.find((p) => p.id === 'chatgpt-dot');
+    expect(JSON.stringify(dot)).not.toContain('rulesPath');
+    expect(JSON.stringify(dot)).not.toContain('Settings > Personalization');
+  });
+
+  it('the library holds the dot note as written in the plan', () => {
+    const libNote = library.targets.profiles
+      .find((p) => p.id === 'chatgpt-dot')
+      ?.notes?.find((n) => n.id === DOT_NOTE_ID);
+    expect(libNote?.line).toBe(DOT_NOTE_TEXT);
   });
 
   for (const c of dotCases) {
-    it(`${c.id}: the caption is the rulesPath line and the note is the dot note`, () => {
+    it(`${c.id}: the caption and setting label ask for permissions, and the note is the dot note`, () => {
       const table = c.model.steps.find((s) => s.customRules !== undefined)?.customRules;
       expect(table).toBeDefined();
-      expect(table?.caption).toBe(c.profile.rulesPath?.line);
-      expect(table?.caption).toBe(DOT_RULES_PATH);
+      expect(c.profile.rulesPath).toBeUndefined();
+      expect(table?.caption).toBe(DOT_RULES_CAPTION);
+      expect(table?.settingLabel).toBe(DOT_SETTING_LABEL);
       const libNote = c.profile.notes?.find((n) => n.id === DOT_NOTE_ID);
       expect(libNote).toBeDefined();
       expect(table?.note?.id).toBe(DOT_NOTE_ID);
       expect(table?.note?.text).toBe(libNote?.line);
+      expect(table?.note?.text).toBe(DOT_NOTE_TEXT);
       // The note goes with the table, so the plain notes list does not repeat it.
       expect(c.model.notes.map((n) => n.id)).not.toContain(DOT_NOTE_ID);
     });
@@ -743,6 +778,81 @@ describe('ChatGPT Dot custom rules table', () => {
     const noTable = modelWithResult(c, { noteItems: [note], customRules: [] });
     expect(noTable.steps.some((s) => s.customRules !== undefined)).toBe(false);
     expect(noTable.notes).toEqual([note]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ChatGPT Dot: workflows and scheduled tasks (docs/DOT-FIX-PLAN.md section 2, QUESTIONS D6)
+// On the dot the skills are workflow instructions to send and the routines are scheduled tasks to
+// confirm, so the group headings and the block titles say so. No other target changes its words.
+// ---------------------------------------------------------------------------
+
+describe('ChatGPT Dot: Workflows and Scheduled tasks', () => {
+  const dotCases = SPEC_CASES.filter((c) => c.profile.id === 'chatgpt-dot');
+  const otherCases = CASES.filter((c) => c.profile.id !== 'chatgpt-dot');
+
+  it('the library holds the two labels on the dot profile and nowhere else', () => {
+    const dot = library.targets.profiles.find((p) => p.id === 'chatgpt-dot');
+    expect(dot?.skillLabel).toBe('Workflow');
+    expect(dot?.routineLabel).toBe('Scheduled task');
+    for (const p of library.targets.profiles.filter((x) => x.id !== 'chatgpt-dot')) {
+      expect(p.routineLabel, p.id).toBeUndefined();
+      expect(p.skillLabel, p.id).not.toBe('Workflow');
+    }
+  });
+
+  for (const c of dotCases) {
+    it(`${c.id}: skill groups read Workflows, routine groups read Scheduled tasks, and nothing reads Skills or Routines`, () => {
+      const groups = groupsOf(c.model).filter((g) => g.blocks.some((b) => b.kind === 'skills' || b.kind === 'routines'));
+      expect(groups.length).toBeGreaterThan(0);
+      for (const g of groups) {
+        const kinds = new Set(g.blocks.map((b) => b.kind));
+        expect(kinds.size, g.key).toBe(1);
+        expect(g.heading, g.key).toBe(kinds.has('skills') ? 'Workflows' : 'Scheduled tasks');
+      }
+      const headings = groupsOf(c.model).map((g) => g.heading);
+      expect(headings).not.toContain('Skills');
+      expect(headings).not.toContain('Routines');
+      expect(headings).not.toContain('Standing instructions');
+    });
+
+    it(`${c.id}: each workflow block is titled "Workflow: <name>" and each routine "Scheduled task: <name>"`, () => {
+      const blocks = blocksOf(c.model);
+      const skills = blocks.filter((b) => b.kind === 'skills');
+      const routines = blocks.filter((b) => b.kind === 'routines');
+      // Every starter delivers at least one skill.
+      expect(skills.length).toBeGreaterThan(0);
+      for (const b of skills) expect(b.title, b.key).toMatch(/^Workflow: \S/);
+      for (const b of routines) expect(b.title, b.key).toMatch(/^Scheduled task: \S/);
+    });
+  }
+
+  it('a dot with routines (Odds) shows both headings, in step order: Workflows before Scheduled tasks', () => {
+    const odds = caseOf('odds.chatgpt-dot');
+    const headings = groupsOf(odds.model).map((g) => g.heading);
+    expect(headings).toContain('Workflows');
+    expect(headings).toContain('Scheduled tasks');
+    expect(headings.indexOf('Workflows')).toBeLessThan(headings.indexOf('Scheduled tasks'));
+  });
+
+  it('keeps the dot words in the Also included groups when no step shows the artifacts', () => {
+    const odds = caseOf('odds.chatgpt-dot');
+    const steps = odds.result.steps.map((s) => ({ ...s, shows: s.shows.filter((k) => k !== 'skills' && k !== 'routines') }));
+    const m = modelWithResult(odds, { steps });
+    const extra = m.extra.filter((g) => g.blocks.some((b) => b.kind === 'skills' || b.kind === 'routines'));
+    expect(extra.map((g) => g.heading).sort()).toEqual(['Scheduled tasks', 'Workflows']);
+    for (const g of extra) expect(g.showFirst).toBe(3);
+  });
+
+  it('no other target uses the dot words for a heading or a block title', () => {
+    for (const c of otherCases) {
+      for (const g of groupsOf(c.model)) {
+        expect(['Workflows', 'Scheduled tasks'], `${c.id} ${g.key}`).not.toContain(g.heading);
+      }
+      for (const b of blocksOf(c.model)) {
+        expect(b.title, `${c.id} ${b.key}`).not.toMatch(/^(Workflow|Scheduled task): /);
+      }
+    }
   });
 });
 
@@ -850,9 +960,29 @@ describe('summary: over and steer', () => {
     const m = modelWith(dot, { cap: dot.result.length - 5 });
     expect(summaryOf(m, 'over').length).toBe(1);
     expect(summaryOf(m, 'steer')).toEqual([]);
+    // The dot's cap is Build a Bot's own budget for a dot message, not a limit ChatGPT states
+    // (docs/DOT-FIX-PLAN.md section 5), so the line says so.
     expect(summaryOf(m, 'over')[0]?.text).toBe(
-      `Your bot's personality is 5 characters over the ${dot.result.length - 5} limit for ChatGPT.`,
+      `Your bot's personality is 5 characters over the ${dot.result.length - 5}-character budget Build a Bot uses for a dot message.`,
     );
+  });
+
+  it('says "1 character" for a single character over on the dot, and names the budget', () => {
+    const dot = caseOf('marty.chatgpt-dot');
+    const m = modelWith(dot, { cap: dot.result.length - 1 });
+    expect(summaryOf(m, 'over')[0]?.text).toBe(
+      `Your bot's personality is 1 character over the ${dot.result.length - 1}-character budget Build a Bot uses for a dot message.`,
+    );
+  });
+
+  it('the dot over line at the real cap names the 3600-character budget and never "limit for ChatGPT"', () => {
+    const dot = caseOf('marty.chatgpt-dot');
+    expect(dot.input.cap).toBe(3600);
+    const m = modelWithResult(dot, { length: 3605 });
+    expect(summaryOf(m, 'over')[0]?.text).toBe(
+      "Your bot's personality is 5 characters over the 3600-character budget Build a Bot uses for a dot message.",
+    );
+    expect(summaryOf(m, 'over')[0]?.text).not.toContain('limit for ChatGPT');
   });
 
   it('names the short target in the over line', () => {
@@ -964,6 +1094,23 @@ describe('summary: trimmed', () => {
     const texts = summaryOf(m, 'trimmed').map((s) => s.text);
     expect(texts[0]).toContain('rule');
     expect(texts[1]).toContain('shortened or left out');
+  });
+
+  it('names Build a Bot\'s budget, not ChatGPT, on the dot', () => {
+    // The dot's cap is Build a Bot's own budget (docs/DOT-FIX-PLAN.md sections 4 and 5). The plan does
+    // not give the exact "To fit" wording, so this pins what it does give: the budget and its size.
+    const c = caseOf('marty.chatgpt-dot');
+    const m = modelWithResult(c, { trimmed: [rule(0)] });
+    const [line] = summaryOf(m, 'trimmed');
+    expect(summaryOf(m, 'trimmed').length).toBe(1);
+    expect(line?.text.startsWith("To fit Build a Bot's 3600-character budget for a dot message,")).toBe(true);
+    expect(line?.text).toContain('1 rule from Personal ops was left out.');
+    expect(line?.text).not.toContain('ChatGPT');
+    // The whole line: the generic "To fit <target>, <n> rule from <pack> was left out." template with
+    // the budget phrase as the target.
+    expect(line?.text).toBe(
+      "To fit Build a Bot's 3600-character budget for a dot message, 1 rule from Personal ops was left out.",
+    );
   });
 
   it('names the target in each line', () => {

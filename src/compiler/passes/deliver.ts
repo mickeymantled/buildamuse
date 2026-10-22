@@ -181,14 +181,41 @@ function gateRules(
   return { texts, ids };
 }
 
+// A profile's gate floors give their skill line to every pack skill that can take the floored action,
+// whatever the build picked. Chip skills name no actions. `all` is true when every action the skill
+// takes is floored, so the pack's own approval text (which grants that action after a yes) no longer applies.
+function floorLines(ctx: CompileContext, e: Entry): { lines: Line[]; all: boolean } {
+  const floors = ctx.profile.gateFloors;
+  if (e.src !== 'pack' || floors === undefined) return { lines: [], all: false };
+  const hit = e.skill.actions.filter((a) => Object.hasOwn(floors, a));
+  return { lines: hit.map((a) => floors[a].skill), all: hit.length > 0 && hit.length === e.skill.actions.length };
+}
+
+// The skill's vars with its floor lines as the approval text. When the skill also takes an action the
+// floor leaves alone, the pack's approval text stays and the floor lines follow it on new lines.
+function varsWithFloors(
+  vars: Record<string, string>,
+  floors: { lines: Line[]; all: boolean },
+): Record<string, string> {
+  if (floors.lines.length === 0) return vars;
+  const lines = floors.lines.map((f) => f.line);
+  return { ...vars, requiresApproval: (floors.all ? lines : [vars.requiresApproval, ...lines]).join('\n') };
+}
+
 function skillSpoken(ctx: CompileContext, e: Entry): SpokenItem {
-  const vars = varsOf(e);
+  const floors = floorLines(ctx, e);
+  const vars = varsWithFloors(varsOf(e), floors);
   const main = filled(ctx, e.src === 'pack' ? 'skill.sentence' : 'skill.legacy', vars);
   const label = `${ctx.profile.skillLabel ?? 'Skill'}: ${e.skill.name}`;
 
   if (ctx.profile.id === 'chatgpt-dot') {
     const suffix = filled(ctx, 'skill.suffix', vars);
-    return { label, text: `${main.text} ${suffix.text}`, ids: [main.id, suffix.id, e.id], kind: 'skill' };
+    return {
+      label,
+      text: `${main.text}\n${suffix.text}`,
+      ids: [main.id, ...floors.lines.map((f) => f.id), suffix.id, e.id],
+      kind: 'skill',
+    };
   }
 
   if (ctx.profile.id === 'grok') {
@@ -215,7 +242,7 @@ function skillSpoken(ctx: CompileContext, e: Entry): SpokenItem {
 }
 
 function routineSpoken(ctx: CompileContext, e: Entry): SpokenItem {
-  const label = `Routine: ${e.skill.name}`;
+  const label = `${ctx.profile.routineLabel ?? 'Routine'}: ${e.skill.name}`;
   const vars = varsOf(e);
 
   // Grok reads the approval boundary from the routine, so it carries the build's rules lines.
@@ -235,6 +262,19 @@ function routineSpoken(ctx: CompileContext, e: Entry): SpokenItem {
       label,
       text: `${main.text}\n${suffix.text}`,
       ids: [main.id, suffix.id, ...rules.ids, e.id],
+      kind: 'routine',
+    };
+  }
+
+  // The dot repeats the schedule and time zone check after every routine, pack or chip.
+  if (ctx.profile.id === 'chatgpt-dot') {
+    const floors = floorLines(ctx, e);
+    const main = filled(ctx, e.src === 'pack' ? 'routine.sentence' : 'routine.legacy', varsWithFloors(vars, floors));
+    const confirm = filled(ctx, 'routine.confirm', vars);
+    return {
+      label,
+      text: `${main.text}\n${confirm.text}`,
+      ids: [main.id, ...floors.lines.map((f) => f.id), confirm.id, e.id],
       kind: 'routine',
     };
   }

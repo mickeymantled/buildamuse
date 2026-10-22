@@ -617,9 +617,34 @@
       "chassis.opening.2": null,
       "chassis.memory.refine": null,
       "chassis.memory.no_self_edit": null,
-      "chassis.rules.outrank": "Your custom rules in Settings outrank anything I say in chat.",
+      "chassis.act.approval": "Anything that spends, sends, posts, signs or can't be undone waits for my yes, unless a setting below lets you go ahead. When you ask, give me the decision, the cost and your pick in three lines.",
+      "chassis.act.reversible": "Act only on what I asked for, within the permissions I've given you. Being able to undo something doesn't make it OK to do.",
+      "chassis.rules.outrank": "Follow my saved settings and the platform's requirements. If something I say in chat conflicts with them, ask me before you act.",
       "chassis.act.check": "Before you say you can't, check what you have on: web, files, code, your connected apps.",
-      "chassis.memory.judge": "This message is how you judge. Memory is what you know. Never put a fact here."
+      "chassis.memory.judge": "This message is how you judge. Memory is what you know. Never put a fact here.",
+      "chassis.clash.order": "Honesty first, then my instructions and saved settings, then brevity, then jokes."
+    },
+    "chassisShortVariants": {
+      "chassis.act.approval": "Spend, send, post, sign, irreversible: my yes first, unless a setting below allows it. Ask in 3 lines: decision, cost, pick.",
+      "chassis.act.reversible": "Act only on what I asked, within the permissions I gave you. Undoable isn't the same as allowed.",
+      "chassis.rules.outrank": "Follow my saved settings and platform requirements. If chat conflicts with them, ask before acting.",
+      "chassis.clash.order": "Honesty, then my instructions and settings, then brevity, then jokes."
+    },
+    "gateSoulVariants": {
+      "gate.send.soul.approve": "Show me each message before it goes out. Send it only after my yes to that exact message."
+    },
+    "gateFloors": {
+      "trade": {
+        "setting": "forbid",
+        "note": {
+          "id": "profile.chatgpt-dot.floor.trade.note",
+          "line": "Your setting for Trades is \"{setting}\". This setup doesn't let your dot place trades: it researches and proposes, and you place each trade yourself."
+        },
+        "skill": {
+          "id": "profile.chatgpt-dot.floor.trade.skill",
+          "line": "On this dot, never place, change or close a trade. Where a step says to place one, or to wait for my yes at the trade gate, give me the proposal instead, and I place it myself."
+        }
+      }
     },
     "rulesDelivery": "custom-rules",
     "rulesInSoul": "section",
@@ -629,32 +654,32 @@
     "installSteps": [
       {
         "id": "profile.chatgpt-dot.step.1",
-        "line": "Create your dot on desktop; name it, pick or generate the avatar."
+        "line": "Create your dot and name it."
       },
       {
         "id": "profile.chatgpt-dot.step.2",
-        "line": "Before connecting work accounts: add each Custom Rule below with the setting shown.",
+        "line": "Before connecting work accounts: set up each permission below in your dot, if your account offers it, and check it saved. Copying this page doesn't set anything.",
         "shows": [
           "customRules"
         ]
       },
       {
         "id": "profile.chatgpt-dot.step.3",
-        "line": "Send the \"Here's how I want you to work\" message.",
+        "line": "Send the \"Here's how I want you to work\" message as a normal chat message. It gives your dot your preferences. It doesn't replace its own instructions or retrain it.",
         "shows": [
           "personality"
         ]
       },
       {
         "id": "profile.chatgpt-dot.step.4",
-        "line": "Say the memory sentence.",
+        "line": "Say the memory sentence, then ask your dot what it will remember.",
         "shows": [
           "memory"
         ]
       },
       {
         "id": "profile.chatgpt-dot.step.5",
-        "line": "Say each skill sentence.",
+        "line": "Send each workflow. Ask your dot to say what it can keep and use, what it needs connected, and any step it can't do.",
         "shows": [
           "skills"
         ],
@@ -664,7 +689,7 @@
       },
       {
         "id": "profile.chatgpt-dot.step.6",
-        "line": "Say each scheduled task; confirm the time zone.",
+        "line": "Send each scheduled task. It isn't running until your dot confirms the schedule, your time zone, the access it needs, and that the task was created.",
         "shows": [
           "routines"
         ],
@@ -674,7 +699,7 @@
       },
       {
         "id": "profile.chatgpt-dot.step.7",
-        "line": "Connect plugins only for what the skills need; review plugin permissions separately."
+        "line": "Connect only the apps your workflows need, and check what each one can do."
       },
       {
         "id": "profile.chatgpt-dot.step.8",
@@ -693,14 +718,14 @@
       },
       {
         "id": "profile.chatgpt-dot.verify.3",
-        "line": "verify: when teams of dots arrive.",
+        "line": "verify: whether your account can run more than one dot.",
         "when": [
           "roles"
         ]
       },
       {
         "id": "profile.chatgpt-dot.verify.4",
-        "line": "verify: Teams access for dots is an invite-only alpha, and dots can't call you at launch."
+        "line": "verify: which permission settings, connected apps and scheduled tasks your account offers."
       }
     ],
     "supportsRoles": false,
@@ -711,14 +736,10 @@
       "approve": "Ask before taking action",
       "forbid": "Hand off to you"
     },
-    "rulesPath": {
-      "id": "profile.chatgpt-dot.rulesPath",
-      "line": "Settings > Personalization > Permissions > Custom rules"
-    },
     "notes": [
       {
         "id": "profile.chatgpt-dot.note.1",
-        "line": "ChatGPT has no block setting; Hand off means it stops and gives the step to you."
+        "line": "Where a permission says \"Hand off to you\", your dot should stop and give that step to you. Check that it does before you rely on it."
       }
     ],
     "templates": {
@@ -728,11 +749,11 @@
       },
       "skill.legacy": {
         "id": "profile.chatgpt-dot.skill.legacy",
-        "line": "Set up {sentence}."
+        "line": "Here's a workflow I'd like you to use: {sentence}."
       },
       "routine.legacy": {
         "id": "profile.chatgpt-dot.routine.legacy",
-        "line": "{schedule}, {sentence}."
+        "line": "I'd like a scheduled task: {schedule}, {sentence}."
       },
       "personality.opener": {
         "id": "profile.chatgpt-dot.personality.opener",
@@ -744,21 +765,27 @@
       },
       "skill.sentence": {
         "id": "profile.chatgpt-dot.skill.sentence",
-        "line": "Set up a skill called {name}.\nUse it when: {whenToUse}\nSteps:\n{steps}\nNeeds my approval first: {requiresApproval}"
+        "line": "Here's a workflow called {name}.\nUse it when: {whenToUse}\nInputs: {inputs}\nSteps:\n{steps}\nCheck before you answer: {validate}\nReturn: {returns}\nNeeds my approval first: {requiresApproval}"
       },
       "skill.suffix": {
         "id": "profile.chatgpt-dot.skill.suffix",
-        "line": "Save this as how you do {task} and tell me when you've got it."
+        "line": "Tell me which parts of this you can keep and use, what you'd need connected for it, and any step you can't do."
       },
       "routine.sentence": {
         "id": "profile.chatgpt-dot.routine.sentence",
-        "line": "{schedule}, run {name}.\nSteps:\n{steps}\nNeeds my approval first: {requiresApproval}\nA scheduled task follows my Custom Rules like any other run. If it can't ask me, it stops and tells me instead."
+        "line": "I'd like a scheduled task called {name}.\nSchedule: {schedule}\nUse it when: {whenToUse}\nInputs: {inputs}\nSteps:\n{steps}\nCheck before you report: {validate}\nReturn: {returns}\nNeeds my approval first: {requiresApproval}\nIt follows my saved settings like any other run. If it can't ask me, it stops and tells me instead."
+      },
+      "routine.confirm": {
+        "id": "profile.chatgpt-dot.routine.confirm",
+        "line": "Before you call it set up, confirm the schedule and my time zone, and ask me if you don't know my time zone. Tell me what access it needs and tell me once the task is created. It isn't running until then."
       },
       "fallback.roles": {
         "id": "profile.chatgpt-dot.fallback.roles",
-        "line": "Dots run one agent at launch, so your role set is not split into separate agents. Your roles are: {roles}. Tell your dot which role to take for each task."
+        "line": "Your roles aren't in this setup. It makes one dot, not a separate agent per role. Your roles: {roles}."
       }
-    }
+    },
+    "skillLabel": "Workflow",
+    "routineLabel": "Scheduled task"
   },
   {
     "id": "chatgpt-gpt",

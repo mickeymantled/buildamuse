@@ -521,39 +521,51 @@ describe('Muse June', () => {
 });
 
 // ============================================================================
-// ChatGPT dot, Marty: the stacked Custom Rules table
+// ChatGPT dot, Marty: the stacked table of permissions to request
 // ============================================================================
 
 describe('Dot Marty', () => {
   const build = golden('marty.chatgpt-dot');
   const dot = profileById('chatgpt-dot');
 
+  // Strings from docs/DOT-FIX-PLAN.md section 5: the dot asks for these settings, it does not enforce
+  // them, and it has no assumed menu path.
+  const CAPTION =
+    "Permissions to request. Copying them doesn't set them: add each one in your dot if your account offers it, then check it saved.";
+  const SETTING_LABEL = 'Setting to request:';
+  const AUTO_LINE = 'Requested to run without asking. Set this up in your dot and check it saved:';
+  const OLD_AUTO_LINE = 'Auto, no yes asked:';
+  // Section 2: the plan's trade note, with {setting} filled by the label of the pick.
+  const floorNote = (picked: string): string =>
+    `Your setting for Trades is "${picked}". This setup doesn't let your dot place trades: it researches and proposes, and you place each trade yourself.`;
+
   // One rule per gate the memecoins pack sets, in gate registry order, with the library's setting label.
+  // The dot floors Trades to forbid whatever the build picked (section 2), so that row reads Hand off.
   function expectedRules(gates: Record<string, string>) {
     return library.gates
       .filter((g) => Object.hasOwn(gates, g.id))
       .map((g) => ({
         gate: g.id,
         action: g.customRuleText,
-        setting: (dot.customRuleSettings as Record<string, string>)[gates[g.id]],
+        setting: (dot.customRuleSettings as Record<string, string>)[g.id === 'trade' ? 'forbid' : gates[g.id]],
       }));
   }
   const packGates = packOf('memecoins').gatesDefault as Record<string, string>;
 
-  it('puts the rules path from the library over the table as its caption, once', () => {
+  it('puts the permissions caption over the table once, and shows no assumed menu path', () => {
     open(build);
-    const path = dot.rulesPath?.line as string;
-    expect(path).toBe('Settings > Personalization > Permissions > Custom rules');
-    expect(screen.getAllByText(path)).toHaveLength(1);
+    expect(dot.rulesPath).toBeUndefined();
+    expect(screen.getAllByText(CAPTION)).toHaveLength(1);
     const step2 = stepWith(dot.installSteps[1].line);
-    expect(textOf(step2)).toContain(path);
+    expect(textOf(step2)).toContain(CAPTION);
+    expect(textOf(main())).not.toContain('Settings > Personalization');
     // The caption comes before the first card.
-    const caption = within(step2).getByText(path);
+    const caption = within(step2).getByText(CAPTION);
     const firstCard = blocksIn(step2)[0];
     expect(caption.compareDocumentPosition(firstCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('shows one card per rule, with the action text and the setting label from the library', () => {
+  it('shows one card per rule, with the action text and the setting to request', () => {
     open(build);
     const step2 = stepWith(dot.installSteps[1].line);
     const rules = expectedRules(packGates);
@@ -562,7 +574,8 @@ describe('Dot Marty', () => {
     expect(cards).toHaveLength(rules.length);
     cards.forEach((card, i) => {
       expect(textOf(card.querySelector('p') as Element)).toBe(rules[i].action);
-      expect(within(card).getByText(copy.certificate.customRules.setting)).toBeTruthy();
+      expect(within(card).getByText(SETTING_LABEL)).toBeTruthy();
+      expect(within(card).queryByText('Setting:')).toBeNull();
       expect(within(card).getByText(rules[i].setting)).toBeTruthy();
     });
     // The three labels are the library's (QUESTIONS B6).
@@ -571,7 +584,11 @@ describe('Dot Marty', () => {
       approve: 'Ask before taking action',
       forbid: 'Hand off to you',
     });
-    expect(within(cards[0]).getByText('Ask before taking action')).toBeTruthy();
+    // Marty's memecoins pack asks trades to be approved, but the dot floors Trades to forbid, so both
+    // cards read Hand off to you.
+    expect(packGates['trade']).toBe('approve');
+    expect(within(cards[0]).getByText('Hand off to you')).toBeTruthy();
+    expect(within(cards[0]).queryByText('Ask before taking action')).toBeNull();
     expect(within(cards[1]).getByText('Hand off to you')).toBeTruthy();
   });
 
@@ -616,15 +633,94 @@ describe('Dot Marty', () => {
     expect(blocksIn(stepWith(dot.installSteps[0].line))).toHaveLength(0);
   });
 
-  it('shows a rule set to auto with the library auto label, and lists the gate in the summary', () => {
+  it('shows a send rule set to auto as Take action without asking, and lists the gate as requested in the summary', () => {
+    // The dot floors Trades to forbid, so the auto gate here is Outbound messages (send), which the
+    // dot does not floor and which has an auto line. The sales pack exposes send.
+    open({ ...build, packs: ['memecoins', 'sales'], gates: { send: 'auto' } });
+    const step2 = stepWith(dot.installSteps[1].line);
+    const send = gateOf('send');
+    const card = blocksIn(step2).find((c) => textOf(c.querySelector('p') as Element) === send.customRuleText);
+    expect(card).toBeDefined();
+    expect(within(card as HTMLElement).getByText('Take action without asking')).toBeTruthy();
+    const summary = screen.getByText(AUTO_LINE).closest('li') as HTMLElement;
+    expect(within(summary).getByText(send.label)).toBeTruthy();
+    // The dot asks, it does not enforce, so the page never uses the general "no yes asked" line.
+    expect(screen.queryByText(OLD_AUTO_LINE)).toBeNull();
+  });
+
+  it('trade on auto: the card reads Hand off to you, the summary says the dot will not place trades, and no auto line shows', () => {
     open({ ...build, gates: { trade: 'auto' } });
     const step2 = stepWith(dot.installSteps[1].line);
     const trade = gateOf('trade');
     const card = blocksIn(step2).find((c) => textOf(c.querySelector('p') as Element) === trade.customRuleText);
     expect(card).toBeDefined();
-    expect(within(card as HTMLElement).getByText('Take action without asking')).toBeTruthy();
-    const summary = screen.getByText(copy.certificate.summary.auto).closest('li') as HTMLElement;
-    expect(within(summary).getByText(trade.label)).toBeTruthy();
+    expect(within(card as HTMLElement).getByText('Hand off to you')).toBeTruthy();
+    expect(within(card as HTMLElement).queryByText('Take action without asking')).toBeNull();
+    // The summary names what the user picked and says what the dot does instead, once.
+    expect(screen.getAllByText(floorNote('Take action without asking'))).toHaveLength(1);
+    expect(screen.queryByText(AUTO_LINE)).toBeNull();
+    expect(screen.queryByText(OLD_AUTO_LINE)).toBeNull();
+    // The line sits in the summary, not again in the Notes list.
+    expect(screen.queryByRole('heading', { name: copy.certificate.notes })).toBeNull();
+  });
+
+  it('trade on approve (Marty\'s default): the summary names Ask before taking action', () => {
+    open(build);
+    expect(screen.getAllByText(floorNote('Ask before taking action'))).toHaveLength(1);
+  });
+
+  it('trade on forbid: no floor line, because nothing was overridden', () => {
+    open({ ...build, gates: { trade: 'forbid' } });
+    expect(screen.queryByText(/This setup doesn't let your dot place trades/)).toBeNull();
+    const step2 = stepWith(dot.installSteps[1].line);
+    const trade = gateOf('trade');
+    const card = blocksIn(step2).find((c) => textOf(c.querySelector('p') as Element) === trade.customRuleText);
+    expect(within(card as HTMLElement).getByText('Hand off to you')).toBeTruthy();
+  });
+
+  it('a build with no Trades gate shows no trade floor line on the dot', () => {
+    open(golden('june.chatgpt-dot'));
+    expect(screen.queryByText(/This setup doesn't let your dot place trades/)).toBeNull();
+  });
+
+  it('other targets keep a trade rule on auto with no floor line', () => {
+    open({ ...golden('marty.openclaw'), gates: { trade: 'auto' } });
+    expect(screen.queryByText(/This setup doesn't let your dot place trades/)).toBeNull();
+    expect(screen.getByText(copy.certificate.summary.auto)).toBeTruthy();
+    expect(screen.queryByText(AUTO_LINE)).toBeNull();
+  });
+
+  // QUESTIONS D6: on the dot the skills are workflows to send and the routines are scheduled tasks to
+  // confirm, so the page says so. Odds carries both.
+  it('heads the groups Workflows and Scheduled tasks and titles each block with the dot label', () => {
+    open(golden('odds.chatgpt-dot'));
+    expandAll();
+    const headingOf = (text: string) =>
+      Array.from(main().querySelectorAll<HTMLElement>('h2')).find((h) => textOf(h) === text);
+    const workflows = headingOf('Workflows');
+    const tasks = headingOf('Scheduled tasks');
+    expect(workflows).toBeTruthy();
+    expect(tasks).toBeTruthy();
+    const workflowTitles = blockTitles(workflows?.parentElement as HTMLElement);
+    const taskTitles = blockTitles(tasks?.parentElement as HTMLElement);
+    expect(workflowTitles.length).toBeGreaterThan(0);
+    expect(taskTitles.length).toBeGreaterThan(0);
+    for (const t of workflowTitles) expect(t).toMatch(/^Workflow: \S/);
+    for (const t of taskTitles) expect(t).toMatch(/^Scheduled task: \S/);
+    // The general words do not appear as headings or as block titles on the dot.
+    expect(headingOf('Skills')).toBeUndefined();
+    expect(headingOf('Routines')).toBeUndefined();
+    const allTitles = blocksIn(main()).map((b) => b.querySelector('h2, h3')?.textContent ?? '');
+    expect(allTitles.filter((t) => /^(Skill|Routine): /.test(t))).toEqual([]);
+  });
+
+  it('other targets keep Skills and Routines, with no Workflows or Scheduled tasks heading', () => {
+    open(golden('odds.openclaw'));
+    expandAll();
+    const headings = Array.from(main().querySelectorAll<HTMLElement>('h2')).map(textOf);
+    expect(headings).not.toContain('Workflows');
+    expect(headings).not.toContain('Scheduled tasks');
+    expect(headings).toContain('Skills');
   });
 });
 

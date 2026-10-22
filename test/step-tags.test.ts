@@ -1,8 +1,9 @@
 // Step tags (M4 slice 4.4; QUESTIONS W3 and W30; docs/M4-PLAN.md section 2).
 //
 // What is under test: the `shows`, `when` and `closer` tags on every profile install step in
-// src/library/profiles.json, the profile.chatgpt-dot.rulesPath record, and what the tags do to the
-// compiled bundle (CompileResult.steps) and to the committed goldens (the "## Steps" section).
+// src/library/profiles.json, the absence of the profile.chatgpt-dot.rulesPath record (the dot fix
+// removed it), and what the tags do to the compiled bundle (CompileResult.steps) and to the committed
+// goldens (the "## Steps" section).
 //
 // Where the expected values come from. Nothing here is copied from compiler output.
 //   - The tag table: docs/M4-PLAN.md section 2, written out below. Three rows are the engineer's
@@ -21,7 +22,11 @@
 //   - The Steps section format: plan section 2 ("n. text [shows]" plus closer), numbering after
 //     hiding. Reading picked by the engineer and pinned here: an empty `shows` renders "[none]" and
 //     the closer renders as "closer: text [shows]".
-//   - The rules path: the v2 brief (docs/Build-a-Bot-v2-Brief.md), verbatim.
+//   - The dot's install step text: docs/DOT-FIX-PLAN.md section 4, written out below. The dot fix
+//     reworded all eight dot steps by design, so the byte-identity block takes the dot's text from the
+//     plan and everything else from the pre-tag commit.
+//   - The rules path: W30 added it from the v2 brief; the dot fix removed the record (an assumed menu
+//     path), and section 9 pins that it is gone.
 //
 // Re-pinned by slice 4.5b (W4 verify cleanup, QUESTIONS W32): the byte-identity block still compares
 // step text to the pre-tag commit, except for the five edits W32 makes by design. Four steps
@@ -50,7 +55,6 @@ import type {
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const GOLDEN_DIR = fileURLToPath(new URL('./golden/v2/', import.meta.url));
 const PROFILES_PATH = 'src/library/profiles.json';
-const BRIEF_PATH = fileURLToPath(new URL('../docs/Build-a-Bot-v2-Brief.md', import.meta.url));
 
 // ---------------------------------------------------------------------------------------------
 // Helpers.
@@ -377,7 +381,24 @@ const W32_STEP_EDITS: Record<string, string> = {
 // W32 d1: removed outright, its text now lives in the Hermes reload note.
 const W32_REMOVED_STEPS = ['profile.hermes.step.6'];
 
-describe('step text is byte-identical to the pre-tag library (git), except the W32 edits', () => {
+// The dot fix (docs/DOT-FIX-PLAN.md section 4) reworded every dot install step; ids, order, shows and
+// when are unchanged. These are the plan's strings, straight ASCII quotes, no em dash.
+const DOT_FIX_STEP_TEXT: Record<string, string> = {
+  'profile.chatgpt-dot.step.1': 'Create your dot and name it.',
+  'profile.chatgpt-dot.step.2':
+    "Before connecting work accounts: set up each permission below in your dot, if your account offers it, and check it saved. Copying this page doesn't set anything.",
+  'profile.chatgpt-dot.step.3':
+    'Send the "Here\'s how I want you to work" message as a normal chat message. It gives your dot your preferences. It doesn\'t replace its own instructions or retrain it.',
+  'profile.chatgpt-dot.step.4': 'Say the memory sentence, then ask your dot what it will remember.',
+  'profile.chatgpt-dot.step.5':
+    "Send each workflow. Ask your dot to say what it can keep and use, what it needs connected, and any step it can't do.",
+  'profile.chatgpt-dot.step.6':
+    "Send each scheduled task. It isn't running until your dot confirms the schedule, your time zone, the access it needs, and that the task was created.",
+  'profile.chatgpt-dot.step.7': 'Connect only the apps your workflows need, and check what each one can do.',
+  'profile.chatgpt-dot.step.8': 'Give it one project first.',
+};
+
+describe('step text is byte-identical to the pre-tag library (git), except the W32 edits and the dot fix text', () => {
   it.skipIf(baseline === null)('found a pre-tag profiles.json in git with the eight profiles', () => {
     expect(baseline?.profiles.map((p) => p.id)).toEqual(PROFILE_IDS);
   });
@@ -403,11 +424,19 @@ describe('step text is byte-identical to the pre-tag library (git), except the W
         const a = after.installSteps[i];
         expect(a?.id).toBe(b.id);
         const clause = W32_STEP_EDITS[b.id];
-        const expected = clause === undefined ? b.line : b.line.replace(clause, '');
+        const fixed = DOT_FIX_STEP_TEXT[b.id];
+        const expected = fixed !== undefined ? fixed : clause === undefined ? b.line : b.line.replace(clause, '');
         expect(Buffer.from(a?.line ?? '', 'utf8').equals(Buffer.from(expected, 'utf8')), `${b.id} text bytes`).toBe(true);
       });
     });
   }
+
+  it('the plan text covers exactly the eight dot steps, and no other profile', () => {
+    expect(Object.keys(DOT_FIX_STEP_TEXT)).toEqual(profileOf('chatgpt-dot').installSteps.map((s) => s.id));
+    for (const text of Object.values(DOT_FIX_STEP_TEXT)) {
+      expect(text).not.toContain(String.fromCharCode(0x2014));
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -455,8 +484,6 @@ describe('`when` sits only on skill, routine and role steps', () => {
       'profile.hermes.step.2',
       'profile.grok.step.6',
       'profile.grok.step.7',
-      'profile.chatgpt-dot.step.2',
-      'profile.chatgpt-dot.step.7',
       'profile.chatgpt-gpt.step.7',
       'profile.chatgpt-gpt.step.10',
     ]) {
@@ -465,6 +492,22 @@ describe('`when` sits only on skill, routine and role steps', () => {
     for (const s of named) {
       expect(s.when ?? [], s.id).toEqual([]);
     }
+  });
+
+  // The dot fix reworded dot steps 2 and 7 (docs/DOT-FIX-PLAN.md section 4): they no longer say "Custom
+  // Rule" or "plugin", so the word check above cannot see them. They are the permissions step and the
+  // connect-apps step the rule exists to protect, so they are pinned here by their new words instead.
+  it('the dot permissions step and connect-apps step still name what they protect, and are never hidden', () => {
+    const dot = profileOf('chatgpt-dot');
+    const permissions = dot.installSteps.find((s) => s.id === 'profile.chatgpt-dot.step.2');
+    const apps = dot.installSteps.find((s) => s.id === 'profile.chatgpt-dot.step.7');
+    expect(permissions?.line).toContain('permission');
+    expect(permissions?.shows).toEqual(['customRules']);
+    expect(permissions?.when ?? []).toEqual([]);
+    expect(apps?.line).toContain('apps');
+    expect(apps?.line).toMatch(/^Connect /);
+    expect(apps?.shows ?? []).toEqual([]);
+    expect(apps?.when ?? []).toEqual([]);
   });
 
   it('never hides a step that carries rules or customRules', () => {
@@ -521,7 +564,7 @@ describe('rules and customRules are under exactly one step', () => {
         }
       }
     }
-    // chatgpt-dot step 7 connects plugins.
+    // chatgpt-dot step 7 connects apps.
     expect(checked).toBeGreaterThan(0);
   });
 
@@ -1110,37 +1153,41 @@ describe('goldens pin the tags in a Steps section', () => {
 });
 
 // ---------------------------------------------------------------------------------------------
-// 9. profile.chatgpt-dot.rulesPath (W30).
+// 9. profile.chatgpt-dot.rulesPath is gone (added by W30, removed by the dot fix).
 
-describe('profile.chatgpt-dot.rulesPath', () => {
-  const RULES_PATH = 'Settings > Personalization > Permissions > Custom rules';
-  const dot = profileOf('chatgpt-dot');
+// docs/DOT-FIX-PLAN.md section 4: "rulesPath: removed (an assumed menu path). The table caption becomes
+// UI copy." No profile carries the record any more, so nothing can print the path the plan called
+// assumed. The Custom Rules table caption on the dot is UI copy now (section 5).
+describe('profile.chatgpt-dot.rulesPath is removed', () => {
+  const OLD_PATH = 'Settings > Personalization > Permissions > Custom rules';
+  const OLD_ID = 'profile.chatgpt-dot.rulesPath';
 
-  it('has the exact text and the record id', () => {
-    expect(dot.rulesPath).toEqual({ id: 'profile.chatgpt-dot.rulesPath', line: RULES_PATH });
-    expect(dot.rulesPath?.line).toBe(RULES_PATH);
-  });
-
-  it('is verbatim from the v2 brief', () => {
-    expect(readFileSync(BRIEF_PATH, 'utf8')).toContain(RULES_PATH);
-  });
-
-  it('is a trace id, so the caption traces to a library record', () => {
-    expect(libraryIds(library).has('profile.chatgpt-dot.rulesPath')).toBe(true);
-  });
-
-  it('is on chatgpt-dot and no other profile', () => {
+  it('no profile has a rulesPath, the dot included', () => {
     for (const p of library.targets.profiles) {
-      if (p.id === 'chatgpt-dot') {
-        expect(p.rulesPath).toBeDefined();
-      } else {
-        expect(p.rulesPath, p.id).toBeUndefined();
-      }
+      expect(p.rulesPath, p.id).toBeUndefined();
+      expect(Object.hasOwn(p, 'rulesPath'), p.id).toBe(false);
     }
   });
 
-  it('has no em dash', () => {
-    expect(RULES_PATH).not.toContain(String.fromCharCode(0x2014));
-    expect(dot.rulesPath?.line ?? '').not.toContain(String.fromCharCode(0x2014));
+  it('its id is no longer a library id, so no caption can trace to it', () => {
+    expect(libraryIds(library).has(OLD_ID)).toBe(false);
+  });
+
+  it('the assumed menu path appears nowhere in profiles.json or in a dot bundle', () => {
+    expect(readFileSync(`${ROOT}${PROFILES_PATH}`, 'utf8')).not.toContain(OLD_PATH);
+    expect(readFileSync(`${ROOT}${PROFILES_PATH}`, 'utf8')).not.toContain(OLD_ID);
+    for (const spec of GOLDEN_SPECS.filter((g) => g.target === 'chatgpt' && g.mode === 'dot')) {
+      const result = compiled(spec);
+      const everything = [
+        result.soul,
+        ...result.spoken.map((x) => x.text),
+        ...result.notes,
+        ...result.installSteps,
+        ...result.verify.map((v) => v.text),
+      ];
+      for (const text of everything) {
+        expect(text, spec.id).not.toContain('Settings > Personalization');
+      }
+    }
   });
 });

@@ -46,7 +46,12 @@ const NO_AUTO_GATES: readonly ActionId[] = ['publish', 'delete', 'write_query', 
 // Gates that keep auto: each has soul text for auto in gates.json.
 const AUTO_GATES: readonly ActionId[] = ['trade', 'refund', 'send', 'deploy', 'rollback'];
 const DOT_AUTO_LABEL = 'Take action without asking'; // QUESTIONS V14, profiles.json customRuleSettings.auto
+const DOT_FORBID_LABEL = 'Hand off to you'; // QUESTIONS V14, profiles.json customRuleSettings.forbid
 const EM_DASH = String.fromCharCode(0x2014);
+// DOT-FIX-PLAN section 2: the dot floors trade to forbid. The note names the setting the user picked.
+const DOT_FLOOR_NOTE_ID = 'profile.chatgpt-dot.floor.trade.note';
+const DOT_TRADE_FLOOR_NOTE_FROM_AUTO = `Your setting for Trades is "${DOT_AUTO_LABEL}". This setup doesn't let your dot place trades: it researches and proposes, and you place each trade yourself.`;
+const DOT_FLOORED: readonly ActionId[] = ['trade'];
 
 // ---------------------------------------------------------------------------
 // Library lookups
@@ -77,6 +82,12 @@ const forbidSoul = (id: ActionId) => line(gateOf(id).soulLine.forbid, `${id} sou
 
 const exposedBy = (packs: readonly PackId[]): Set<ActionId> =>
   new Set(packs.flatMap((id) => Object.keys(packOf(id).gatesDefault)));
+
+// The auto-capable gates a pack set exposes that stay auto on this profile. The dot floors trade to
+// forbid (DOT-FIX-PLAN section 2), so on the dot the auto mechanism is checked on the gates it does
+// not floor: send, refund, deploy and rollback.
+const autoKept = (p: { profile: ProfileId }, exposed: ReadonlySet<ActionId>): ActionId[] =>
+  AUTO_GATES.filter((id) => exposed.has(id) && !(p.profile === 'chatgpt-dot' && DOT_FLOORED.includes(id)));
 
 // ---------------------------------------------------------------------------
 // Matrix: the roster, the visible profiles, and packs that carry all four gates
@@ -379,12 +390,13 @@ for (const set of PACK_SETS) {
               expect(c.result.gates.pay).toBe('forbid');
             });
 
-            it('gates that offer auto stay auto in the compiled result', () => {
+            it('gates that offer auto stay auto in the compiled result, except the trade the dot floors to forbid', () => {
               const c = at();
               const exposed = exposedBy(set.packs);
-              for (const id of AUTO_GATES) {
-                if (exposed.has(id)) expect(c.result.gates[id], id).toBe('auto');
-              }
+              const kept = autoKept(p, exposed);
+              // The pack sets expose at least one auto-capable gate the dot does not floor, so this is never empty.
+              expect(kept.length, 'auto-capable gates checked').toBeGreaterThan(0);
+              for (const id of kept) expect(c.result.gates[id], id).toBe('auto');
             });
 
             it('no custom rule for the four gates reads the dot auto text', () => {
@@ -413,14 +425,36 @@ for (const set of PACK_SETS) {
                 }
               });
 
-              it('dot: a gate that offers auto still reads the dot auto text', () => {
+              it('dot: a gate that offers auto and is not floored still reads the dot auto text', () => {
                 const c = at();
-                const exposed = exposedBy(set.packs);
-                for (const id of AUTO_GATES) {
-                  if (!exposed.has(id)) continue;
+                const kept = autoKept(p, exposedBy(set.packs));
+                expect(kept.length, 'auto-capable gates checked').toBeGreaterThan(0);
+                for (const id of kept) {
                   const rule = c.result.customRules.find((r) => r.gate === id);
                   expect(rule?.setting, id).toBe(DOT_AUTO_LABEL);
                 }
+              });
+
+              // DOT-FIX-PLAN section 2: trade never goes looser than forbid on the dot. The build says
+              // auto (it is what the share link keeps); the compile reads forbid and says so.
+              it('dot: trade set to auto is floored to forbid, with the "Hand off to you" rule and one floor note naming the pick', () => {
+                const c = at();
+                if (!exposedBy(set.packs).has('trade')) {
+                  expect(Object.hasOwn(c.result.gates, 'trade')).toBe(false);
+                  expect(c.result.noteItems.filter((n) => n.kind === 'floor')).toEqual([]);
+                  return;
+                }
+                expect(c.build.gates.trade).toBe('auto');
+                expect(c.gates.trade, 'the gates module still says auto').toBe('auto');
+                expect(c.result.gates.trade).toBe('forbid');
+                expect(c.result.customRules.filter((r) => r.gate === 'trade').map((r) => r.setting)).toEqual([
+                  DOT_FORBID_LABEL,
+                ]);
+                expect(c.result.soul).toContain(forbidSoul('trade'));
+                expect(c.result.soul).not.toContain(line(gateOf('trade').soulLine.auto, 'trade soulLine.auto'));
+                expect(
+                  c.result.noteItems.filter((n) => n.kind === 'floor').map((n) => ({ id: n.id, text: n.text })),
+                ).toEqual([{ id: DOT_FLOOR_NOTE_ID, text: DOT_TRADE_FLOOR_NOTE_FROM_AUTO }]);
               });
             }
 

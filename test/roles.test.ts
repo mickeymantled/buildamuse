@@ -668,10 +668,20 @@ describe('Role library: profiles without role support', () => {
     expect(line.toLowerCase()).toContain('manual');
   });
 
-  it('the dot fallback says dots run one agent', () => {
+  // The dot fix (docs/DOT-FIX-PLAN.md section 4, reworded again in review) says the roles are not in this
+  // setup: it makes one dot, not a separate agent per role, and the line no longer claims anything about
+  // what dots do "at launch" or tells the user to hand roles to the dot one task at a time.
+  it('the dot fallback says the roles are not in this setup and it makes one dot, not a separate agent per role', () => {
     const dot = library.targets.profiles.find((p) => p.id === 'chatgpt-dot');
     const line = dot?.templates['fallback.roles'].line ?? '';
-    expect(line).toContain('one agent');
+    expect(line).toBe(
+      "Your roles aren't in this setup. It makes one dot, not a separate agent per role. Your roles: {roles}.",
+    );
+    expect(line).toContain('{roles}');
+    expect(line).toContain('one dot');
+    expect(line).toContain('not a separate agent per role');
+    expect(line).not.toContain('launch');
+    expect(line).not.toContain('Tell your dot');
   });
 
   // W33: a profile that ships role files with no install step that shows roles gets its
@@ -1121,6 +1131,9 @@ for (const c of CASES) {
               expect(wildcard, role.label).toContain(role.label);
             }
             expect(notesMatching(template, baseline().notes)).toEqual([]);
+            // The note reads the dot fallback line from the library table, with the roles filled in.
+            expect(matched[0].startsWith("Your roles aren't in this setup. It makes one dot, not a separate agent per role. Your roles: ")).toBe(true);
+            expect(matched[0].endsWith('.')).toBe(true);
           });
 
           it('the only notes the roles add are that fallback.roles note and the role-only verify line', () => {

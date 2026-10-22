@@ -217,6 +217,11 @@ export const copy = {
     locked: 'Locked',
     payLocked: 'Payments are always off.',
     autoNotOffered: "Auto isn't offered for this one; it asks first.",
+    // Under a gate the dot's profile floors (profile.gateFloors), keyed by gate id. The pick still stands.
+    floorNotes: {
+      trade:
+        "On a dot, this setup doesn't place trades. Your dot researches and proposes, and you place each trade. Your pick still applies if you switch to another bot.",
+    },
     none: 'Nothing to approve for your picks.',
     switchToPaid: 'Switch to Paid',
   },
@@ -227,7 +232,8 @@ export const copy = {
     openclaw: 'these also go in AGENTS.md so they survive delegation',
     hermes: 'these also go in AGENTS.md so they survive delegation',
     grok: "these go in the Bot description and in every skill's approval field",
-    'chatgpt-dot': 'these become Custom Rules in Settings, which ChatGPT enforces',
+    'chatgpt-dot':
+      'these become permissions to request in your dot. They do nothing until you set them up there and check they saved.',
     'chatgpt-gpt':
       'these go at the top and bottom of your instructions; ChatGPT has no approval surface beyond this, so they do all the work.',
     'chatgpt-instructions':

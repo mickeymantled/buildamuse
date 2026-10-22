@@ -338,8 +338,9 @@ export function assembleSoul(ctx: CompileContext): Item[] {
   ]);
 
   // rules: one block in a section, or the same block at top and bottom. A custom-rules profile
-  // leaves the gate lines out, because Custom Rules enforce the gates; the section is the prose
-  // backstop for the limits and the pack rules lines.
+  // leaves the gate rules lines out: its gate soul lines are already in the message and its rule
+  // table asks the user to set the permissions (B31). The section carries the limits and the pack
+  // rules lines.
   if (profile.rulesInSoul === 'section') {
     const gates = profile.rulesDelivery === 'custom-rules' ? {} : ctx.gates;
     bySection.set('rules', rulesItems(build, gates, ctx.limits, lib, 'rules'));

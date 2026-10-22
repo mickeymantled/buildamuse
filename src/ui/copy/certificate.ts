@@ -48,9 +48,13 @@ export const certificateCopy = {
     },
     showMore: 'Show more',
 
-    // The ChatGPT dot rules table. Each rule is a card: the action text, then its setting.
+    // The ChatGPT dot rules table. Each rule is a card: the action text, then its setting. The dot
+    // asks for these, it does not enforce them, so its label and caption say "request".
     customRules: {
       setting: 'Setting:',
+      settingToRequest: 'Setting to request:',
+      caption:
+        "Permissions to request. Copying them doesn't set them: add each one in your dot if your account offers it, then check it saved.",
     },
 
     // Page sections that have no heading in the model.
@@ -92,8 +96,14 @@ export const certificateCopy = {
     // Summary lines, in plain words. The model fills the slots from the build and the library.
     summary: {
       auto: 'Auto, no yes asked:',
+      autoDot: 'Requested to run without asking. Set this up in your dot and check it saved:',
       over: (n: number, cap: number, target: string) =>
         `Your bot's personality is ${n} ${plural(n, 'character', 'characters')} over the ${cap} limit for ${target}.`,
+      // The dot's cap is Build a Bot's own budget for one message, not a limit ChatGPT states.
+      overDot: (n: number, cap: number) =>
+        `Your bot's personality is ${n} ${plural(n, 'character', 'characters')} over the ${cap}-character budget Build a Bot uses for a dot message.`,
+      // Fills "To fit ..." on a dot, where the cap is Build a Bot's budget, not a ChatGPT limit.
+      dotBudget: (cap: number) => `Build a Bot's ${cap}-character budget for a dot message`,
       trimmedPack: (target: string, n: number, pack: string) =>
         `To fit ${target}, ${n} ${plural(n, 'rule', 'rules')} from ${pack} ${plural(n, 'was', 'were')} left out.`,
       // Cut from the personality text only: a rules file still carries the rule. `where` is the
@@ -114,8 +124,8 @@ export const certificateCopy = {
       // A dot with an auto gate and a limit line missing from its message (QUESTIONS W40, B17).
       dotAutoNoLimits: (n: number) =>
         n === 1
-          ? 'This one runs on auto, and your dot has no limits to check it against. Set it to Ask before taking action, or add your limits by hand first:'
-          : 'These run on auto, and your dot has no limits to check them against. Set them to Ask before taking action, or add your limits by hand first:',
+          ? "You asked for this one to run without asking, and your dot's message has no limits to check it against. Request \"Ask before taking action\" instead, or add your limits by hand first:"
+          : "You asked for these to run without asking, and your dot's message has no limits to check them against. Request \"Ask before taking action\" instead, or add your limits by hand first:",
       // The limit and pack rules lines absent from a dot's message. `limits` and `rules` are counts;
       // either may be 0, never both. Reads "your limits", "N pack rules" or "your limits and N pack rules".
       undeliveredDot: (target: string, limits: number, rules: number) => {
@@ -131,6 +141,9 @@ export const certificateCopy = {
     groups: {
       skills: 'Skills',
       routines: 'Routines',
+      // On a dot they are workflow instructions to send, not installed skills (Brian's review, D6).
+      dotSkills: 'Workflows',
+      dotRoutines: 'Scheduled tasks',
       standing: 'Standing instructions',
       starters: 'Conversation starters',
       leftOut: 'Left out',

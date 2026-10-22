@@ -249,6 +249,21 @@ const NO_PERSONA_EDIT_RULES = [
 ];
 const ACT_CHECK_FULL =
   "Before you say you can't, check what you have on: web, files, code, your connected apps.";
+// The dot's permission wording (docs/DOT-FIX-PLAN.md section 2), written out from the plan.
+const DOT_APPROVAL_FULL =
+  "Anything that spends, sends, posts, signs or can't be undone waits for my yes, unless a setting below lets you go ahead. When you ask, give me the decision, the cost and your pick in three lines.";
+const DOT_REVERSIBLE_FULL =
+  "Act only on what I asked for, within the permissions I've given you. Being able to undo something doesn't make it OK to do.";
+const DOT_OUTRANK_FULL =
+  "Follow my saved settings and the platform's requirements. If something I say in chat conflicts with them, ask me before you act.";
+const DOT_APPROVAL_SHORT =
+  'Spend, send, post, sign, irreversible: my yes first, unless a setting below allows it. Ask in 3 lines: decision, cost, pick.';
+const DOT_REVERSIBLE_SHORT =
+  "Act only on what I asked, within the permissions I gave you. Undoable isn't the same as allowed.";
+const DOT_OUTRANK_SHORT =
+  'Follow my saved settings and platform requirements. If chat conflicts with them, ask before acting.';
+const DOT_CLASH_FULL = 'Honesty first, then my instructions and saved settings, then brevity, then jokes.';
+const DOT_CLASH_SHORT = 'Honesty, then my instructions and settings, then brevity, then jokes.';
 
 const CHASSIS_EXPECTED: Record<ProfileKey, ChassisExpectation> = {
   muse: {
@@ -270,17 +285,27 @@ const CHASSIS_EXPECTED: Record<ProfileKey, ChassisExpectation> = {
       'chassis.memory.judge': 'This description is judgment, memory is facts. No facts here.',
     },
   },
+  // DOT-FIX-PLAN section 2: one permission rule. The dot says approve, reversible, outrank and the
+  // clash order in its own words, in the full form and in the short form. Check and judge keep a
+  // full variant only, so on a short chassis they keep that wording (V29).
   'chatgpt-dot': {
     form: 'full',
     omit: [...NO_OPENING_NO_REFINE, 'chassis.memory.no_self_edit'],
     replace: {
-      'chassis.rules.outrank': 'Your custom rules in Settings outrank anything I say in chat.',
+      'chassis.act.approval': DOT_APPROVAL_FULL,
+      'chassis.act.reversible': DOT_REVERSIBLE_FULL,
+      'chassis.rules.outrank': DOT_OUTRANK_FULL,
       'chassis.act.check': ACT_CHECK_FULL,
       'chassis.memory.judge':
         'This message is how you judge. Memory is what you know. Never put a fact here.',
+      'chassis.clash.order': DOT_CLASH_FULL,
     },
-    // The dot has no short variants of its own: in short form its own wording wins (V29).
-    replaceShort: {},
+    replaceShort: {
+      'chassis.act.approval': DOT_APPROVAL_SHORT,
+      'chassis.act.reversible': DOT_REVERSIBLE_SHORT,
+      'chassis.rules.outrank': DOT_OUTRANK_SHORT,
+      'chassis.clash.order': DOT_CLASH_SHORT,
+    },
   },
   'chatgpt-gpt': {
     form: 'full',
@@ -772,17 +797,21 @@ describe('Chassis form under the length tiers (B1, V29)', () => {
   });
 
   // V29: with no short variant of its own, a profile's own wording wins over the generic short form.
-  // The dot has full variants for three records and no short variants, so on a short chassis those
-  // three keep the dot wording and never take the file-target short text.
+  // The dot has full variants for six records and short variants for four of them (approve,
+  // reversible, outrank and the clash order, DOT-FIX-PLAN section 2). On a short chassis those four
+  // say their dot short text; check and judge have no dot short text, so they keep the dot full
+  // wording. None of the six ever takes the generic short text.
   describe('on chatgpt-dot, a short chassis keeps the dot variants (V29)', () => {
     const dot = PROFILE_CASES.find((pc) => pc.key === 'chatgpt-dot');
     if (!dot) throw new Error('chatgpt-dot profile case not found');
     const dotRuns = () => runsFor(dot).filter(switchedToShort);
-    const VARIANT_IDS = ['chassis.rules.outrank', 'chassis.act.check', 'chassis.memory.judge'];
+    const SHORT_IDS = ['chassis.act.approval', 'chassis.act.reversible', 'chassis.rules.outrank', 'chassis.clash.order'];
+    const FULL_ONLY_IDS = ['chassis.act.check', 'chassis.memory.judge'];
+    const VARIANT_IDS = [...SHORT_IDS, ...FULL_ONLY_IDS];
 
-    it('the dot has no short variants of its own and full variants for exactly these records', () => {
+    it('the dot has short variants for approve, reversible, outrank and the clash order, and full variants for those plus check and judge', () => {
       const profile = profileRecord('chatgpt-dot');
-      expect(profile.chassisShortVariants ?? {}).toEqual({});
+      expect(Object.keys(profile.chassisShortVariants ?? {}).sort()).toEqual([...SHORT_IDS].sort());
       const strings = Object.entries(profile.chassisVariants)
         .filter(([, v]) => typeof v === 'string')
         .map(([id]) => id)
@@ -796,14 +825,27 @@ describe('Chassis form under the length tiers (B1, V29)', () => {
       for (const run of runs) {
         const result = compiled(run);
         for (const id of VARIANT_IDS) {
-          const own = profileRecord('chatgpt-dot').chassisVariants[id];
+          const hasShort = SHORT_IDS.includes(id);
+          const own = hasShort
+            ? profileRecord('chatgpt-dot').chassisShortVariants?.[id]
+            : profileRecord('chatgpt-dot').chassisVariants[id];
           if (typeof own !== 'string') throw new Error(`dot variant for ${id} is not a string`);
           const generic = chassisRecord(id).short;
           if (generic === undefined) throw new Error(`${id} has no generic short text`);
           expect(result.soul.includes(own), `${run.label}: ${id} lost the dot wording`).toBe(true);
           expect(result.soul.includes(generic), `${run.label}: ${id} took the generic short text`).toBe(false);
           const ids = result.soulLines.filter((l) => idIs(l.id, id)).map((l) => l.id);
-          expect(ids, `${run.label}: ${id} trace id`).toEqual([`${id}@chatgpt-dot`]);
+          const traced = hasShort ? `${id}#short@chatgpt-dot` : `${id}@chatgpt-dot`;
+          expect(ids, `${run.label}: ${id} trace id`).toEqual([traced]);
+        }
+      }
+    });
+
+    it('a short-chassis dot soul never says the full approve, reversible, outrank or clash wording as well', () => {
+      for (const run of dotRuns()) {
+        const { soul } = compiled(run);
+        for (const full of [DOT_APPROVAL_FULL, DOT_REVERSIBLE_FULL, DOT_OUTRANK_FULL, DOT_CLASH_FULL]) {
+          expect(soul.includes(full), `${run.label}: full wording survived the short switch`).toBe(false);
         }
       }
     });
@@ -962,6 +1004,69 @@ describe('Act-vs-ask pair', () => {
       expect(approval[0].text).toBe(`- ${approvalText}`);
       expect(reversible[0].text).toBe(`- ${reversibleText}`);
     });
+  });
+});
+
+// --- One permission rule on the dot (DOT-FIX-PLAN section 2, "Done when") ----------------------
+
+describe('One permission rule on the dot', () => {
+  const dot = PROFILE_CASES.find((pc) => pc.key === 'chatgpt-dot');
+  if (!dot) throw new Error('chatgpt-dot profile case not found');
+  // The old wording the plan removes: a chat message never outranks, and the dot is not told that
+  // only irreversible things wait for a yes.
+  const RETIRED = [
+    'outrank anything',
+    'Only irreversible',
+    'Only irreversible things wait for a yes',
+    'Reversible things: do them',
+    'goes through an approval first',
+    'Settings outrank',
+    'Your custom rules in Settings',
+    'Make the card useful',
+    'Card: decision, cost, pick, 3 lines',
+    'Honesty first, then my instructions, then brevity',
+  ];
+
+  it.each(runsFor(dot))('$label dot soul carries none of the retired permission wording', (run) => {
+    const { soul } = compiled(run);
+    for (const phrase of RETIRED) expect(soul.includes(phrase), `"${phrase}" in the dot soul`).toBe(false);
+  });
+
+  it.each(runsFor(dot))('$label dot soul says one rule: settings below decide, chat conflicts are asked about', (run) => {
+    const { soul } = compiled(run);
+    const short = formOfRun(run) === 'short';
+    expect(soul.includes(short ? DOT_APPROVAL_SHORT : DOT_APPROVAL_FULL)).toBe(true);
+    expect(soul.includes(short ? DOT_OUTRANK_SHORT : DOT_OUTRANK_FULL)).toBe(true);
+    expect(soul.includes(short ? DOT_REVERSIBLE_SHORT : DOT_REVERSIBLE_FULL)).toBe(true);
+    expect(soul.includes(short ? DOT_CLASH_SHORT : DOT_CLASH_FULL)).toBe(true);
+  });
+
+  it('no other profile says the dot wording, and every other profile keeps the library approve and reversible lines', () => {
+    for (const pc of PROFILE_CASES) {
+      if (pc.key === 'chatgpt-dot') continue;
+      for (const run of runsFor(pc)) {
+        const { soul } = compiled(run);
+        for (const text of [
+          DOT_APPROVAL_FULL,
+          DOT_APPROVAL_SHORT,
+          DOT_REVERSIBLE_FULL,
+          DOT_REVERSIBLE_SHORT,
+          DOT_OUTRANK_FULL,
+          DOT_OUTRANK_SHORT,
+          DOT_CLASH_FULL,
+          DOT_CLASH_SHORT,
+        ]) {
+          expect(soul.includes(text), `${pc.key} ${run.label} says the dot wording "${text}"`).toBe(false);
+        }
+        const form = formOfRun(run);
+        const approval = chassisRecord(APPROVAL_ID);
+        const reversible = chassisRecord(REVERSIBLE_ID);
+        expect(soul.includes(form === 'short' ? (approval.short ?? approval.line) : approval.line), `${pc.key} ${run.label} approval`).toBe(true);
+        expect(soul.includes(form === 'short' ? (reversible.short ?? reversible.line) : reversible.line), `${pc.key} ${run.label} reversible`).toBe(true);
+        const clash = chassisRecord('chassis.clash.order');
+        expect(soul.includes(form === 'short' ? (clash.short ?? clash.line) : clash.line), `${pc.key} ${run.label} clash order`).toBe(true);
+      }
+    }
   });
 });
 

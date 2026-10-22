@@ -277,3 +277,21 @@ Done when: docs/M5-PLAN.md section 4. Decisions B22, B23; readings X1 to X7. Sub
   5. VITE_PREVIEW_URL on `site`, then `railway up`;
   6. Brian adds ANTHROPIC_API_KEY;
   7. /health, then the probe run.
+
+## Dot review (Brian, 2026-10-21; QUESTIONS B31, B32, D1 to D9; docs/DOT-FIX-PLAN.md)
+
+| # | Slice | Agents | Status |
+| --- | --- | --- | --- |
+| R1 | compiler and library: workflow contract, permission rule, trade floor, setup steps, claims | engineer | done |
+| R2 | UI: requested-permission copy, Trades note, budget wording, preview disclosure | engineer | done |
+| R3 | tests: 16 files re-pinned, test/dot-review.test.tsx (355 tests), safety on the 9 dot goldens | 2 workflows: testers, safety, 4 reviewers, 2 verifiers | done, safety PASS |
+
+- Two review rounds, each verified adversarially:
+  - Round 1: 35 findings, 16 confirmed, 7 distinct. The lead fixed six (trade workflow approval text, clash order, role note, the "You picked" wording, "below", the D entries) and left the perps wallet rule for Brian (D9). It also took three cheap ones the verifier had rejected: the Workflow and Scheduled task labels, the card wording, and the "recent messages" wording.
+  - Round 2: 8 findings, 2 confirmed, both fixed (the step 3 wording and a stale "enforce" comment).
+- Only the 9 dot goldens changed; the other 46 are byte-identical, and the length cuts in every dot golden match HEAD. The deploy is on hold (B32).
+- Environment: the repo sits on an iCloud-synced Desktop. macOS evicted about 9,300 files (node_modules, .git, docs) and left conflict copies (`.git/index 2`, `node_modules/.vite/deps 2`). A test run there went from 13 seconds to 16 minutes. The final checks ran on a copy on local disk with a clean `npm ci`, and the git-baseline tests ran in the repo:
+  - 51 files, 17,000 passed, 2 expected fail, 1 todo;
+  - typecheck clean;
+  - golden byte-identical to the repo;
+  - build and check:bundle pass (first paint 77.2 kB gzip).

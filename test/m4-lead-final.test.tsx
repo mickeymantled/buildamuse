@@ -43,56 +43,89 @@ function modelFor(build: Build, without: readonly string[] = []) {
   });
 }
 
-// Marty's three limit lines on a dot, from the library limit templates (limits.json rulesTemplate) at
-// the memecoins pack defaults 1, 3 and 10.
-const MARTY_LIMIT_LINES = [
-  'Never put more than 1% of the account into one trade.',
-  'Stop trading for the day once losses reach 3% of the account, and tell the user.',
-  'Never place more than 10 trades in one day.',
-];
+// The limit lines of a dot on the sales and support packs, from the library limit templates
+// (limits.json rulesTemplate) at the pack defaults: 30 sends a day (sales) and a 100 refund ceiling
+// (support). The dot floors Trades to forbid (docs/DOT-FIX-PLAN.md section 2), so the auto gate that
+// W40 is about is Outbound messages (send), which the dot does not floor and which has an auto line.
+const SEND_LIMIT_LINE = 'Never send more than 30 outbound messages in one day.';
+const REFUND_LIMIT_LINE = library.limits.find((l) => l.id === 'refund_ceiling')!.rulesTemplate.replaceAll('{value}', '100');
+const DOT_LIMIT_LINES = [SEND_LIMIT_LINE, REFUND_LIMIT_LINE];
 
 describe('a dot with an auto gate and a limit line missing from its message (W40, B17)', () => {
-  const auto = { ...martyOn('chatgpt', 'dot'), gates: { trade: 'auto' as const } };
+  const auto = { ...martyOn('chatgpt', 'dot'), packs: ['sales', 'support'], gates: { send: 'auto' as const } };
 
-  it('guards the literal limit lines against the library templates', () => {
+  it('guards the literal limit lines against the library templates and pack defaults', () => {
     const fill = (id: string, value: number) =>
       library.limits.find((l) => l.id === id)!.rulesTemplate.replaceAll('{value}', String(value));
-    expect(MARTY_LIMIT_LINES).toEqual([fill('per_trade_pct', 1), fill('daily_loss_pct', 3), fill('max_trades_per_day', 10)]);
+    expect(library.packs.find((p) => p.id === 'sales')!.limitsDefault).toEqual({ max_sends_per_day: 30 });
+    expect(library.packs.find((p) => p.id === 'support')!.limitsDefault).toEqual({ refund_ceiling: 100 });
+    expect(DOT_LIMIT_LINES).toEqual([fill('max_sends_per_day', 30), fill('refund_ceiling', 100)]);
   });
 
   it('ties the auto gate to the missing limits in one summary line', () => {
-    const m = modelFor(auto, MARTY_LIMIT_LINES);
+    const m = modelFor(auto, DOT_LIMIT_LINES);
     const line = m.summary.find((s) => s.key === 'summary-dot-auto');
     expect(line).toBeDefined();
     expect(line!.text).toBe(copy.certificate.summary.dotAutoNoLimits(1));
-    expect(line!.items).toEqual([library.gates.find((g) => g.id === 'trade')!.label]);
+    // The plan's wording: the dot is asked, not enforcing, and "Ask before taking action" is requested.
+    expect(line!.text).toBe(
+      'You asked for this one to run without asking, and your dot\'s message has no limits to check it against. Request "Ask before taking action" instead, or add your limits by hand first:',
+    );
+    expect(line!.items).toEqual([library.gates.find((g) => g.id === 'send')!.label]);
+  });
+
+  it('uses the plural wording for several auto gates', () => {
+    const several = { ...auto, packs: ['sales', 'devops'], gates: { send: 'auto' as const, deploy: 'auto' as const } };
+    const m = modelFor(several, DOT_LIMIT_LINES);
+    const line = m.summary.find((s) => s.key === 'summary-dot-auto');
+    expect(line!.text).toBe(
+      'You asked for these to run without asking, and your dot\'s message has no limits to check them against. Request "Ask before taking action" instead, or add your limits by hand first:',
+    );
+    // The devops pack's own default puts Rollbacks on auto too (packs/devops.json gatesDefault).
+    const label = (id: string) => library.gates.find((g) => g.id === id)!.label;
+    expect(line!.items).toEqual([label('send'), label('deploy'), label('rollback')]);
   });
 
   it('also fires when only one limit line is missing', () => {
-    const m = modelFor(auto, [MARTY_LIMIT_LINES[1]!]);
+    const m = modelFor(auto, [REFUND_LIMIT_LINE]);
     expect(m.summary.some((s) => s.key === 'summary-dot-auto')).toBe(true);
   });
 
   it('says nothing extra on a real build, whose message carries the limits (B17)', () => {
     const m = modelFor(auto);
-    for (const line of MARTY_LIMIT_LINES) expect(compile(auto).soul).toContain(line);
+    for (const line of DOT_LIMIT_LINES) expect(compile(auto).soul).toContain(line);
     expect(m.summary.some((s) => s.key === 'summary-dot-auto')).toBe(false);
   });
 
   it('says nothing extra when only pack rules are missing from the message', () => {
-    const rules = library.packs.find((p) => p.id === 'memecoins')!.rulesLines.map((l) => l.line);
+    const rules = ['sales', 'support'].flatMap((id) => library.packs.find((p) => p.id === id)!.rulesLines.map((l) => l.line));
     const m = modelFor(auto, rules);
     expect(m.summary.some((s) => s.key === 'summary-dot-auto')).toBe(false);
   });
 
   it('says nothing extra when no gate is on auto, even with limit lines missing', () => {
-    const m = modelFor(martyOn('chatgpt', 'dot'), MARTY_LIMIT_LINES);
+    const m = modelFor({ ...auto, gates: {} }, DOT_LIMIT_LINES);
     expect(m.summary.some((s) => s.key === 'summary-dot-auto')).toBe(false);
   });
 
   it('says nothing extra off the dot, where limits are delivered', () => {
-    const build = { ...martyOn('openclaw'), gates: { trade: 'auto' as const } };
+    const build = { ...martyOn('openclaw'), packs: ['sales', 'support'], gates: { send: 'auto' as const } };
     expect(modelFor(build).summary.some((s) => s.key === 'summary-dot-auto')).toBe(false);
+  });
+
+  it('says nothing extra for trade on auto: the dot floors it to forbid, so no gate runs on auto', () => {
+    // Trade on auto used to be the W40 case. Now it compiles to forbid, carries the floor line, and has
+    // no auto gate to tie to a missing limit, even with every limit line taken out of the message.
+    const trade = { ...martyOn('chatgpt', 'dot'), gates: { trade: 'auto' as const } };
+    expect(compile(trade).gates['trade']).toBe('forbid');
+    const m = modelFor(trade, [
+      'Never put more than 1% of the account into one trade.',
+      'Stop trading for the day once losses reach 3% of the account, and tell the user.',
+      'Never place more than 10 trades in one day.',
+    ]);
+    expect(m.summary.some((s) => s.key === 'summary-dot-auto')).toBe(false);
+    expect(m.summary.some((s) => s.key === 'summary-auto')).toBe(false);
+    expect(m.summary.some((s) => s.kind === 'floor')).toBe(true);
   });
 });
 

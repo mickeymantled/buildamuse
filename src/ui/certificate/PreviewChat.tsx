@@ -186,7 +186,7 @@ function Message({ entry }: { entry: Entry }) {
 const CHIP =
   'inline-flex min-h-[44px] max-w-full items-center rounded-xl border border-border bg-surface px-4 py-2 text-left text-sm font-medium leading-5 text-text [overflow-wrap:anywhere] disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:opacity-60';
 
-function ChatPanel({ url, personality }: { url: string; personality: string }) {
+function ChatPanel({ url, personality, dot }: { url: string; personality: string; dot: boolean }) {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(session.sent);
@@ -298,6 +298,7 @@ function ChatPanel({ url, personality }: { url: string; personality: string }) {
           {c.heading}
         </h2>
         <p className="text-sm leading-5 text-text">{c.label}</p>
+        {dot && <p className="text-sm leading-5 text-text">{c.dotDisclosure}</p>}
       </div>
 
       <div className="flex flex-col gap-2">
@@ -409,5 +410,5 @@ export function PreviewChat() {
   const [url] = useState(previewUrl);
   if (url === undefined || 'error' in input) return null;
   const personality = input.result.soul;
-  return <ChatPanel key={personality} url={url} personality={personality} />;
+  return <ChatPanel key={personality} url={url} personality={personality} dot={input.profile.id === 'chatgpt-dot'} />;
 }

@@ -40,7 +40,8 @@
 import { describe, it, expect } from 'vitest';
 
 import { compile, library } from '../src/compiler/compile.js';
-import { traceBundle } from '../src/compiler/trace.js';
+import { effectiveGates } from '../src/compiler/gates.js';
+import { libraryIds, traceBundle } from '../src/compiler/trace.js';
 import { artifactKindOf } from '../src/compiler/types.js';
 import { GOLDEN_SPECS, buildFor } from '../tools/golden.js';
 import type { GoldenSpec } from '../tools/golden.js';
@@ -143,7 +144,7 @@ function spokenLabelKind(item: SpokenItem, profile: Profile): SpokenItem['kind']
   if (item.label === 'Personality') return 'personality';
   if (item.label === 'Memory sentence') return 'memory';
   if (item.label === 'First task') return 'firstTask';
-  if (item.label.startsWith('Routine: ')) return 'routine';
+  if (item.label.startsWith(`${profile.routineLabel ?? 'Routine'}: `)) return 'routine';
   if (item.label.startsWith(`${profile.skillLabel ?? 'Skill'}: `)) return 'skill';
   throw new Error(`unclassified spoken label "${item.label}"`);
 }
@@ -440,6 +441,7 @@ describe.each(GOLDEN_SPECS)('bundle fields: $id', (spec) => {
       const allowed: Record<string, string[]> = {
         verify: profile.verify.map((v) => v.id),
         note: (profile.notes ?? []).map((n) => n.id),
+        floor: Object.values(profile.gateFloors ?? {}).map((f) => f.note.id),
         reload: profile.reloadNote ? [profile.reloadNote.id] : [],
         venue: venueIds,
         actions: profile.templates['actions.consequential'] ? [profile.templates['actions.consequential'].id] : [],
@@ -449,6 +451,33 @@ describe.each(GOLDEN_SPECS)('bundle fields: $id', (spec) => {
         expect(Object.keys(allowed), `unknown note kind ${n.kind}`).toContain(n.kind);
         if (n.kind === 'role' && n.text.startsWith('[TODO:')) continue;
         expect(allowed[n.kind], `note ${n.id} of kind ${n.kind}`).toContain(n.id);
+      }
+    });
+
+    it('a gate the profile floor raises gets one floor note naming the pick; a profile with no floors, and a pick at the floor, get none (DOT-FIX-PLAN section 2)', () => {
+      // The gates the build would have had without the floor, from the gates module. Strictness is
+      // auto < approve < forbid. The note text is the profile's note template with {setting} filled
+      // by the customRuleSettings label of the pick.
+      const strict = { auto: 0, approve: 1, forbid: 2 } as const;
+      const had = effectiveGates(build, library);
+      const labels = profile.customRuleSettings;
+      const expected = Object.entries(profile.gateFloors ?? {})
+        .filter(([action, floor]) => had[action] !== undefined && strict[floor.setting] > strict[had[action]])
+        .map(([action, floor]) => ({
+          id: floor.note.id,
+          text: floor.note.line.replace('{setting}', () => {
+            if (labels === undefined) throw new Error(`profile ${profile.id} has a floor and no customRuleSettings`);
+            return labels[had[action]];
+          }),
+          kind: 'floor',
+        }));
+      expect(result.noteItems.filter((n) => n.kind === 'floor')).toEqual(expected);
+      for (const n of expected) {
+        expect(n.text, 'no placeholder survives').not.toContain('{');
+        expect(n.text).not.toContain(String.fromCharCode(0x2014));
+      }
+      if (profile.gateFloors === undefined) {
+        expect(expected).toEqual([]);
       }
     });
 
@@ -1266,6 +1295,30 @@ describe('the role fallback line as an install step (W33)', () => {
     expect(result.notes).toContain(record.line.replaceAll('{roles}', ROLE_LABELS.join(', ')));
   });
 
+  // The dot's role note says the dot is one agent (DOT-FIX-PLAN, review fixes), written out from the
+  // lead's call so a library edit that changes it shows up here.
+  it('the dot role note reads "Your roles aren\'t in this setup..." with the role labels filled in', () => {
+    const result = compile(withRoles('chatgpt', 'dot'));
+    const roleNotes = result.noteItems.filter((n) => n.kind === 'role');
+    expect(roleNotes.map((n) => n.text)).toEqual([
+      `Your roles aren't in this setup. It makes one dot, not a separate agent per role. Your roles: ${ROLE_LABELS.join(', ')}.`,
+    ]);
+    expect(roleNotes[0].id).toBe('profile.chatgpt-dot.fallback.roles');
+  });
+
+  it("the dot's profile note says a \"Hand off to you\" permission should stop and give the step to the user, to be checked", () => {
+    const result = compile(withRoles('chatgpt', 'dot'));
+    const notes = result.noteItems.filter((n) => n.kind === 'note');
+    expect(notes).toEqual([
+      {
+        id: 'profile.chatgpt-dot.note.1',
+        text: 'Where a permission says "Hand off to you", your dot should stop and give that step to you. Check that it does before you rely on it.',
+        kind: 'note',
+      },
+    ]);
+    expect(result.notes).toContain(notes[0].text);
+  });
+
   it.each([
     ['muse', 'muse', undefined, undefined],
     ['chatgpt-instructions free', 'chatgpt', 'instructions', 'free'],
@@ -1685,6 +1738,60 @@ describe('traceBundle on the structured fields', () => {
   it('throws when notes no longer match noteItems', () => {
     const bogus: CompileResult = { ...result, notes: [...result.notes.slice(1)] };
     expect(() => traceBundle(bogus, library)).toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// 8b. The dot's floor and variant ids trace (DOT-FIX-PLAN section 2, "every id traces").
+
+describe('traceBundle on the dot floor and gate variant ids', () => {
+  const FLOOR_NOTE = 'profile.chatgpt-dot.floor.trade.note';
+  const FLOOR_SKILL = 'profile.chatgpt-dot.floor.trade.skill';
+  const SEND_VARIANT = 'gate.send.soul.approve@chatgpt-dot';
+  const marty = compiled(specOf('marty.chatgpt-dot'));
+  const dash = compiled(specOf('dash.chatgpt-dot'));
+
+  it('the library id set holds the send variant id, the floor note id and the floor skill id', () => {
+    const ids = libraryIds(library);
+    for (const id of [SEND_VARIANT, FLOOR_NOTE, FLOOR_SKILL]) expect(ids.has(id), id).toBe(true);
+  });
+
+  it('the id set holds no dot variant for a gate line the dot does not replace', () => {
+    const ids = libraryIds(library);
+    expect(ids.has('gate.trade.soul.approve@chatgpt-dot')).toBe(false);
+    expect(ids.has('gate.send.soul.forbid@chatgpt-dot')).toBe(false);
+    expect(ids.has('gate.send.soul.approve@muse')).toBe(false);
+  });
+
+  it('the marty dot bundle (trade approve, floored) traces its floor note and the floor skill line', () => {
+    expect(() => traceBundle(marty, library)).not.toThrow();
+    expect(marty.noteItems.map((n) => n.id)).toContain(FLOOR_NOTE);
+    expect(marty.soulLines.map((l) => l.id)).toContain('gate.trade.soul.forbid');
+    const skillIds = marty.spoken.flatMap((s) => s.ids);
+    expect(skillIds).toContain(FLOOR_SKILL);
+  });
+
+  it('the dash dot bundle (send approve) traces the send variant line, not the library line', () => {
+    expect(() => traceBundle(dash, library)).not.toThrow();
+    const ids = dash.soulLines.map((l) => l.id);
+    expect(ids).toContain(SEND_VARIANT);
+    expect(ids).not.toContain('gate.send.soul.approve');
+  });
+
+  it('throws for a gate variant id the dot does not define', () => {
+    const bogus: CompileResult = {
+      ...dash,
+      soulLines: dash.soulLines.map((l) => (l.id === SEND_VARIANT ? { ...l, id: 'gate.delete.soul.approve@chatgpt-dot' } : l)),
+    };
+    expect(() => traceBundle(bogus, library)).toThrow(/gate\.delete\.soul\.approve@chatgpt-dot/);
+  });
+
+  it('throws when the floor note id is bogus', () => {
+    const bogus: CompileResult = {
+      ...marty,
+      noteItems: marty.noteItems.map((n) => (n.id === FLOOR_NOTE ? { ...n, id: 'profile.chatgpt-dot.floor.pay.note' } : n)),
+    };
+    expect(() => traceBundle(bogus, library)).toThrow(/profile\.chatgpt-dot\.floor\.pay\.note/);
   });
 });
 

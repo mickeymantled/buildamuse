@@ -54,6 +54,13 @@ function addV2Ids(ids: Set<string>, lib: Library): void {
     for (const chassisId of Object.keys(profile.chassisShortVariants ?? {})) {
       ids.add(`${chassisId}#short@${profile.id}`);
     }
+    for (const key of Object.keys(profile.gateSoulVariants ?? {})) {
+      ids.add(`${key}@${profile.id}`);
+    }
+    for (const floor of Object.values(profile.gateFloors ?? {})) {
+      ids.add(floor.note.id);
+      ids.add(floor.skill.id);
+    }
     for (const setting of Object.keys(profile.customRuleSettings ?? {})) {
       ids.add(`profile.${profile.id}.setting.${setting}`);
     }

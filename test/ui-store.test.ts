@@ -852,6 +852,11 @@ describe('packs the profile cannot deliver are kept in the draft and left out of
     expect(st().draft.packs).toEqual(['coding']);
   });
 
+  // Gate soul lines the chatgpt-dot profile replaces (gateSoulVariants), keyed "<action> <setting>".
+  const DOT_GATE_SOUL_LINES: Record<string, string> = {
+    'send approve': 'Show me each message before it goes out. Send it only after my yes to that exact message.',
+  };
+
   const OTHER_PROFILES: { name: string; target: TargetId; mode?: ChatgptMode }[] = [
     { name: 'openclaw', target: 'openclaw' },
     { name: 'hermes', target: 'hermes' },
@@ -879,10 +884,13 @@ describe('packs the profile cannot deliver are kept in the draft and left out of
       expect(restricted.gates).toEqual(open.gates);
       expect(restricted.limits).toEqual(open.limits);
       for (const [action, setting] of Object.entries(coding.gatesDefault)) {
-        const line = library.gates.find((g) => g.id === action)?.soulLine[setting];
-        if (line !== null && line !== undefined) {
-          expect(restricted.soul, `${action} ${setting}`).toContain(line);
-        }
+        const libraryLine = library.gates.find((g) => g.id === action)?.soulLine[setting];
+        if (libraryLine === null || libraryLine === undefined) continue;
+        // The dot replaces the send/approve soul line with the plan's text (docs/DOT-FIX-PLAN.md section 2),
+        // so on the dot that gate is checked against the plan line and the library line must be gone.
+        const planLine = mode === 'dot' ? DOT_GATE_SOUL_LINES[`${action} ${setting}`] : undefined;
+        expect(restricted.soul, `${action} ${setting}`).toContain(planLine ?? libraryLine);
+        if (planLine !== undefined) expect(restricted.soul, `${action} ${setting}`).not.toContain(libraryLine);
       }
 
       // A rules line the delivered compile carries is still carried.

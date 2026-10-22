@@ -7,7 +7,7 @@ import type { CertCustomRules } from './model.js';
 
 // One rule as a card: the action text with its copy button, and the setting to choose under it. The
 // button is named from the rule's gate label, because the action text is too long to name it.
-function RuleCard({ rule }: { rule: CustomRule }) {
+function RuleCard({ rule, settingLabel }: { rule: CustomRule; settingLabel: string }) {
   const actionId = useId();
   const actionRef = useRef<HTMLParagraphElement>(null);
   const c = copy.certificate;
@@ -34,14 +34,14 @@ function RuleCard({ rule }: { rule: CustomRule }) {
         selectRef={actionRef}
       />
       <p className="col-span-2 min-w-0 text-sm leading-5 text-text [overflow-wrap:anywhere]">
-        <span className="text-muted">{c.customRules.setting}</span> <span className="font-medium">{rule.setting}</span>
+        <span className="text-muted">{settingLabel}</span> <span className="font-medium">{rule.setting}</span>
       </p>
     </div>
   );
 }
 
-// The ChatGPT dot's Custom Rules, stacked so they fit a narrow screen: the Settings path as the
-// caption, one card per rule, then the note that goes with them.
+// The ChatGPT dot's permissions to request, stacked so they fit a narrow screen: the caption, one
+// card per rule, then the note that goes with them.
 export function CustomRules({ table }: { table: CertCustomRules }) {
   return (
     <div className="flex flex-col gap-3">
@@ -51,7 +51,7 @@ export function CustomRules({ table }: { table: CertCustomRules }) {
       <ul role="list" className="flex list-none flex-col gap-3 p-0">
         {table.rows.map((rule, i) => (
           <li key={`${i}-${rule.gate}`}>
-            <RuleCard rule={rule} />
+            <RuleCard rule={rule} settingLabel={table.settingLabel} />
           </li>
         ))}
       </ul>

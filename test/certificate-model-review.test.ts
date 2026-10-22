@@ -49,6 +49,7 @@ const DOT_KEY = 'summary-undelivered-dot';
 
 const SUMMARY_ORDER: readonly SummaryKind[] = [
   'auto',
+  'floor',
   'over',
   'steer',
   'trimmed',
@@ -476,19 +477,23 @@ describe('ChatGPT dot: a personality message that lacks some lines', () => {
 });
 
 describe('ChatGPT dot: a gate set to auto', () => {
-  const autoBuild = dotBuild('marty', { gates: { trade: 'auto' } });
-  const tradeLabel = library.gates.find((g) => g.id === 'trade')?.label ?? '?trade';
+  // The dot floors the trade gate to forbid (docs/DOT-FIX-PLAN.md section 2), so trade can no longer
+  // carry the auto mechanism. These tests use send, which the dot does not floor and which has an auto
+  // line, on the sales pack (daily send limit) and the support pack (refund ceiling): two limit lines.
+  const autoBuild = dotBuild('marty', { packs: ['sales', 'support'], gates: { send: 'auto' } });
+  const sendLabel = library.gates.find((g) => g.id === 'send')?.label ?? '?send';
 
-  it('compiles with the trade gate on auto', () => {
-    expect(compile(autoBuild).gates['trade']).toBe('auto');
+  it('compiles with the send gate on auto', () => {
+    expect(compile(autoBuild).gates['send']).toBe('auto');
   });
 
   it('keeps the Auto line first and lists the same Left out as the same build without auto', () => {
-    const base = caseOf('marty.chatgpt-dot');
+    const base = modelOfBuild(dotBuild('marty', { packs: ['sales', 'support'] }));
     const auto = modelOfBuild(autoBuild);
     const missing = missingFrom([...limitLines(autoBuild), ...packRuleLines(autoBuild)], auto.result.soul);
     const keys = auto.model.summary.map((s) => s.key);
     expect(keys).toContain('summary-auto');
+    expect(base.model.summary.map((s) => s.key)).not.toContain('summary-auto');
     if (missing.length > 0) {
       expect(keys).toContain(DOT_KEY);
       expect(keys.indexOf('summary-auto')).toBeLessThan(keys.indexOf(DOT_KEY));
@@ -500,10 +505,10 @@ describe('ChatGPT dot: a gate set to auto', () => {
 
   it('keeps the gate lines out of Left out when the gate is auto', () => {
     const { model } = modelWithMissing(autoBuild, everything);
-    const trade = library.gates.find((g) => g.id === 'trade');
+    const send = library.gates.find((g) => g.id === 'send');
     const texts = (model.leftOut?.blocks ?? []).map((b) => b.text);
     expect(texts.length).toBeGreaterThan(0);
-    for (const line of [trade?.rulesLine.auto, trade?.rulesLine.approve, trade?.rulesLine.forbid]) {
+    for (const line of [send?.rulesLine.auto, send?.rulesLine.approve, send?.rulesLine.forbid]) {
       expect(texts).not.toContain(line);
     }
     expect((model.leftOut?.blocks ?? []).every((b) => !(b.ids[0] ?? '').startsWith('gate.'))).toBe(true);
@@ -511,6 +516,7 @@ describe('ChatGPT dot: a gate set to auto', () => {
 
   it('real compile: the limits are in the message, so an auto gate gets no "no limits" line', () => {
     const { result, model } = modelOfBuild(autoBuild);
+    expect(limitLines(autoBuild).length).toBe(2);
     for (const l of limitLines(autoBuild)) expect(result.soul, l.id).toContain(l.text);
     expect(model.summary.map((s) => s.key)).not.toContain('summary-dot-auto');
   });
@@ -520,12 +526,16 @@ describe('ChatGPT dot: a gate set to auto', () => {
     const line = summaryByKey(model, 'summary-dot-auto');
     expect(line).toBeDefined();
     expect(line?.kind).toBe('auto');
+    expect(line?.text).toBe(
+      'You asked for this one to run without asking, and your dot\'s message has no limits to check it against. Request "Ask before taking action" instead, or add your limits by hand first:',
+    );
     expect(line?.text).toBe(copy.certificate.summary.dotAutoNoLimits(1));
-    expect(line?.items).toEqual([tradeLabel]);
+    expect(line?.items).toEqual([sendLabel]);
   });
 
   it('one limit line missing is enough for the "no limits" line', () => {
-    const { model } = modelWithMissing(autoBuild, (l) => [l[0] as Line]);
+    const { model, limits } = modelWithMissing(autoBuild, (l) => [l[0] as Line]);
+    expect(limits.length).toBe(2);
     expect(summaryByKey(model, 'summary-dot-auto')).toBeDefined();
   });
 
@@ -580,6 +590,78 @@ describe('ChatGPT dot: a gate set to auto', () => {
     const want = missingFrom([...limitLines(build), ...packRuleLines(build)], result.soul);
     expect((model.leftOut?.blocks ?? []).map((b) => b.text)).toEqual(want.map((l) => l.text));
     expect(model.summary.map((s) => s.key).includes(DOT_KEY)).toBe(want.length > 0);
+  });
+});
+
+describe('ChatGPT dot: the trade floor (docs/DOT-FIX-PLAN.md section 2)', () => {
+  // The plan's note text, with {setting} filled by the profile's customRuleSettings label of the pick.
+  const noteFor = (picked: string): string =>
+    `Your setting for Trades is "${picked}". This setup doesn't let your dot place trades: it researches and proposes, and you place each trade yourself.`;
+  const AUTO_LABEL = 'Take action without asking';
+  const APPROVE_LABEL = 'Ask before taking action';
+  const floorLines = (m: CertModel) => m.summary.filter((s) => s.kind === 'floor');
+  const sendLabel = library.gates.find((g) => g.id === 'send')?.label ?? '?send';
+
+  it('trade on auto compiles to forbid on the dot, and the build keeps the pick', () => {
+    const build = dotBuild('marty', { gates: { trade: 'auto' } });
+    expect(compile(build).gates['trade']).toBe('forbid');
+    expect(build.gates['trade']).toBe('auto');
+  });
+
+  it('trade on approve compiles to forbid on the dot too', () => {
+    const build = dotBuild('marty', { gates: { trade: 'approve' } });
+    expect(compile(build).gates['trade']).toBe('forbid');
+    expect(build.gates['trade']).toBe('approve');
+  });
+
+  it('the trade rule row reads Hand off to you, whatever was picked', () => {
+    for (const pick of ['auto', 'approve', 'forbid'] as const) {
+      const { result } = modelOfBuild(dotBuild('marty', { gates: { trade: pick } }));
+      expect(result.customRules.find((r) => r.gate === 'trade')?.setting, pick).toBe('Hand off to you');
+    }
+  });
+
+  it('trade on auto: one floor line in the summary names the pick, and there is no Auto line for it', () => {
+    const { model } = modelOfBuild(dotBuild('marty', { gates: { trade: 'auto' } }));
+    expect(floorLines(model).length).toBe(1);
+    expect(floorLines(model)[0]?.text).toBe(noteFor(AUTO_LABEL));
+    expect(floorLines(model)[0]?.items).toBeUndefined();
+    expect(model.summary.map((s) => s.key)).not.toContain('summary-auto');
+    // The line sits in the summary only, not again in the plain notes list.
+    expect(model.notes.some((n) => n.kind === 'floor')).toBe(false);
+    expect(model.notes.map((n) => n.text)).not.toContain(noteFor(AUTO_LABEL));
+  });
+
+  it('trade on approve: the floor line names Ask before taking action', () => {
+    const { model } = modelOfBuild(dotBuild('marty', { gates: { trade: 'approve' } }));
+    expect(floorLines(model).map((s) => s.text)).toEqual([noteFor(APPROVE_LABEL)]);
+  });
+
+  it('trade on forbid adds no floor line and no floor note', () => {
+    const { result, model } = modelOfBuild(dotBuild('marty', { gates: { trade: 'forbid' } }));
+    expect(floorLines(model)).toEqual([]);
+    expect(result.noteItems.some((n) => n.kind === 'floor')).toBe(false);
+  });
+
+  it('a send gate on auto still shows its Auto line beside the trade floor line, and trade is not in it', () => {
+    const build = dotBuild('marty', { packs: ['memecoins', 'sales'], gates: { trade: 'auto', send: 'auto' } });
+    const { result, model } = modelOfBuild(build);
+    expect(result.gates['trade']).toBe('forbid');
+    expect(result.gates['send']).toBe('auto');
+    expect(summaryByKey(model, 'summary-auto')?.items).toEqual([sendLabel]);
+    expect(floorLines(model).map((s) => s.text)).toEqual([noteFor(AUTO_LABEL)]);
+    const keys = model.summary.map((s) => s.key);
+    expect(keys.indexOf('summary-auto')).toBeLessThan(keys.indexOf('summary-floor'));
+  });
+
+  it('other targets keep trade on auto and show no floor line', () => {
+    const marty = library.roster.find((r) => r.id === 'marty');
+    if (!marty) throw new Error('no marty');
+    const build: Build = { ...migrate(marty.build, { target: 'openclaw' }), gates: { trade: 'auto' } };
+    const { result, model } = modelOfBuild(build);
+    expect(result.gates['trade']).toBe('auto');
+    expect(floorLines(model)).toEqual([]);
+    expect(result.noteItems.some((n) => n.kind === 'floor')).toBe(false);
   });
 });
 

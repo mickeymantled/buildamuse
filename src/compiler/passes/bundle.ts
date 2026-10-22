@@ -244,9 +244,10 @@ function stepsOf(ctx: CompileContext, has: Delivered): BundleStep[] {
   return [...steps.filter((s) => !s.closer), ...steps.filter((s) => s.closer)];
 }
 
-// Verify lines, the profile's own notes, the reload note, each pack's venue note, role notes,
-// then (custom GPT) the Actions note. A verify line with a `when` shows only if the bundle
-// delivers one of those artifacts, except that `roles` means the build picked roles.
+// Verify lines, the profile's own notes, a floor note for each raised gate, the reload note, each
+// pack's venue note, role notes, then (custom GPT) the Actions note. A verify line with a `when`
+// shows only if the bundle delivers one of those artifacts, except that `roles` means the build
+// picked roles.
 // Grok, Project and GPT deliver role artifacts with no install step of their own, only a role
 // fallback note that says what to do with them. When role files ship and no step shows roles, that
 // note becomes the step that shows them, so a role's gate block always sits under a step (wave 2
@@ -291,6 +292,18 @@ function noteItemsOf(ctx: CompileContext, roleNotes: RoleNote[], has: Delivered)
   }
   for (const line of profile.notes ?? []) {
     notes.push(note(line, 'note'));
+  }
+  // One note per gate the profile's floor raised, naming the setting the user had picked.
+  const labels = profile.customRuleSettings;
+  for (const { from, floor } of ctx.raised) {
+    if (!labels) {
+      throw new Error(`Profile ${profile.id} has no customRuleSettings`);
+    }
+    notes.push({
+      id: floor.note.id,
+      text: fill(floor.note.line, { setting: labels[from] }),
+      kind: 'floor',
+    });
   }
   if (profile.reloadNote) {
     notes.push(note(profile.reloadNote, 'reload'));

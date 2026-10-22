@@ -26,6 +26,9 @@ export function Gates() {
   const steer = profile.id === 'chatgpt-instructions' && (plan ?? 'free') === 'free' && overCap;
   // ChatGPT dot names the three settings as Custom Rule settings, in the library.
   const labels = profile.customRuleSettings ?? copy.gates.settings;
+  // Gates the dot raises to a floor whatever the pick (Trades). The note says so; the pick is untouched.
+  const floors = profile.id === 'chatgpt-dot' ? profile.gateFloors : undefined;
+  const floorNotes: Readonly<Record<string, string>> = copy.gates.floorNotes;
 
   if (rows.length === 0) {
     return (
@@ -73,6 +76,7 @@ export function Gates() {
           const value = values[id] ?? 'forbid';
           // Pay stays locked; the other gates with no auto line show Auto off and say why.
           const noAuto = !locked && !autoOffered(id, library);
+          const floored = floors !== undefined && Object.hasOwn(floors, id) && Object.hasOwn(floorNotes, id);
           return (
             <Toggle3
               key={id}
@@ -85,6 +89,7 @@ export function Gates() {
               lockedMessage={locked ? copy.gates.payLocked : undefined}
               disabledOptions={noAuto ? ['auto'] : undefined}
               disabledHint={noAuto ? copy.gates.autoNotOffered : undefined}
+              note={floored ? floorNotes[id] : undefined}
             />
           );
         })}

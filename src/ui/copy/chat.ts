@@ -23,6 +23,9 @@ export const chatCopy = {
     heading: 'Try your bot',
     // B22, verbatim.
     label: "Close to what your bot will do. Your real bot also has its runtime's built-in rules.",
+    // Shown under the label on a dot only (docs/DOT-FIX-PLAN.md section 5, QUESTIONS D7).
+    dotDisclosure:
+      "On a dot, this is a stand-in. It runs your dot's message on Build a Bot's preview model, not on ChatGPT. It doesn't test your permissions, connected apps, workflows, scheduled tasks or memory. It does remember recent messages in this preview.",
     chipsHint: 'Tap a message to see how your bot answers.',
     askLabel: 'Ask your own',
     // X2: the box opens after the first reply to a chip.

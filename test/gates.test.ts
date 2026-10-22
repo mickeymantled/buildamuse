@@ -19,6 +19,13 @@
 //
 // Expected text comes from the library tables (src/library/gates.json, targets.json, packs/*.json)
 // and from the brief, never from copying compiler output.
+//
+// ChatGPT dot (docs/DOT-FIX-PLAN.md section 2, QUESTIONS D1 to D8). Two things differ on the dot
+// only. The trade gate has a floor: whatever the build picked, the compiled gate reads forbid, and
+// the bundle carries a floor note naming the pick. And the send approve soul line is replaced by
+// the dot's own wording. The gates module (effectiveGates) is not floored, so the helpers below keep
+// two views of a build: `picked` (the gates module) and `gates` (what the compiled result must read,
+// the picked set with the dot floors applied by hand from the plan).
 
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
@@ -50,6 +57,25 @@ const DOT_AUTO_LABEL = 'Take action without asking'; // QUESTIONS V14
 const EM_DASH = String.fromCharCode(0x2014);
 const GUARDED_CLASSES = new Set(['money', 'mail', 'data']);
 
+// DOT-FIX-PLAN section 2, written out. The send approve soul line the dot says instead of the
+// library line (the library line offers "I turn on auto when I say so", which a chat message cannot do).
+const DOT_SEND_APPROVE_LINE =
+  'Show me each message before it goes out. Send it only after my yes to that exact message.';
+const DOT_FLOOR_NOTE_ID = 'profile.chatgpt-dot.floor.trade.note';
+const DOT_FLOOR_SKILL_LINE =
+  'On this dot, never place, change or close a trade. Where a step says to place one, or to wait for my yes at the trade gate, give me the proposal instead, and I place it myself.';
+// The dot's floors: trade never goes looser than forbid. Pay is forbid everywhere already.
+const DOT_FLOORS: Record<string, GateSetting> = { trade: 'forbid' };
+const STRICTNESS: Record<GateSetting, number> = { auto: 0, approve: 1, forbid: 2 };
+const DOT_LABELS: Record<GateSetting, string> = {
+  auto: DOT_AUTO_LABEL,
+  approve: DOT_APPROVE_LABEL,
+  forbid: DOT_FORBID_LABEL,
+};
+// The floor note, with {setting} filled by the dot label of the pick (DOT-FIX-PLAN section 2).
+const dotTradeNote = (pick: GateSetting): string =>
+  `Your setting for Trades is "${DOT_LABELS[pick]}". This setup doesn't let your dot place trades: it researches and proposes, and you place each trade yourself.`;
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -73,19 +99,37 @@ function packOf(id: string): WorkflowPack {
 interface Compiled {
   build: Build;
   profileId: ProfileId;
-  gates: Record<string, GateSetting>;
+  picked: Record<string, GateSetting>; // the gates module's set: pack defaults under the build's picks
+  gates: Record<string, GateSetting>; // what the compiled result must read: picked, with the dot floors applied
   result: CompileResult;
+}
+
+// The dot floors applied by hand: a gate looser than its floor is raised to it. Other profiles are untouched.
+function withDotFloors(
+  picked: Record<string, GateSetting>,
+  profileId: ProfileId,
+): Record<string, GateSetting> {
+  if (profileId !== 'chatgpt-dot') return picked;
+  const out = { ...picked };
+  for (const [action, floor] of Object.entries(DOT_FLOORS)) {
+    if (Object.hasOwn(out, action) && STRICTNESS[floor] > STRICTNESS[out[action]]) out[action] = floor;
+  }
+  return out;
+}
+
+// The soul line a compiled build must carry for a gate at a setting: the library line, except for
+// the dot's send approve variant.
+function expectedSoulLine(profileId: ProfileId, id: string, setting: GateSetting): string | null {
+  if (profileId === 'chatgpt-dot' && id === 'send' && setting === 'approve') return DOT_SEND_APPROVE_LINE;
+  return gateOf(id).soulLine[setting];
 }
 
 const cache = new Map<string, Compiled>();
 
 function compiledBuild(build: Build): Compiled {
-  return {
-    build,
-    profileId: resolveProfile(build, library).id,
-    gates: effectiveGates(build, library),
-    result: compile(build),
-  };
+  const profileId = resolveProfile(build, library).id;
+  const picked = effectiveGates(build, library);
+  return { build, profileId, picked, gates: withDotFloors(picked, profileId), result: compile(build) };
 }
 
 function compiled(spec: GoldenSpec): Compiled {
@@ -143,7 +187,7 @@ function isLine(line: string | null | undefined): line is string {
 function personalityMisses(c: Compiled): string[] {
   const misses: string[] = [];
   for (const [id, setting] of enforced(c.gates)) {
-    const line = gateOf(id).soulLine[setting];
+    const line = expectedSoulLine(c.profileId, id, setting);
     if (!isLine(line)) {
       misses.push(`${id}=${setting}: gates.json soulLine.${setting} is ${line === null ? 'null' : 'empty'}`);
       continue;
@@ -283,10 +327,13 @@ describe('Gate in both layers (Brief Part C)', () => {
     expect(bad).toEqual([]);
   });
 
-  it('the compiler reports the same effective gates the gates module computes', () => {
+  it('the compiler reports the effective gates the gates module computes, with the dot floors applied and nothing else changed', () => {
     for (const spec of GOLDEN_SPECS) {
       const c = compiled(spec);
       expect(c.result.gates, spec.id).toEqual(c.gates);
+      if (c.profileId !== 'chatgpt-dot') {
+        expect(c.result.gates, `${spec.id}: a profile with no floors reads the gates module's set`).toEqual(c.picked);
+      }
     }
   });
 
@@ -568,6 +615,353 @@ describe('Dot custom rules (QUESTIONS V14)', () => {
       if (c.profileId === 'chatgpt-dot') continue;
       expect(c.result.customRules, spec.id).toEqual([]);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Test 2b. One permission rule on the dot (DOT-FIX-PLAN section 2; QUESTIONS D1 to D8).
+// The trade gate never goes looser than forbid on the dot, whatever the build picked, and says so in
+// a visible floor note. The send approve soul line is the dot's own wording. Nothing else moves, and
+// no other profile has a floor or a variant.
+// ---------------------------------------------------------------------------
+
+describe('Dot permission rule: trade floor and send wording (DOT-FIX-PLAN section 2)', () => {
+  const marty = library.roster.find((r) => r.id === 'marty');
+  if (!marty) throw new Error('roster starter marty is missing');
+  const dotBase = migrate(marty.build, { target: 'chatgpt', mode: 'dot' });
+  const dotProfile = library.targets.profiles.find((p) => p.id === 'chatgpt-dot');
+  const picks: GateSetting[] = ['auto', 'approve', 'forbid'];
+  const tradePacks = library.packs.filter((p) => Object.hasOwn(p.gatesDefault, 'trade')).map((p) => p.id);
+
+  const dotBuild = (packs: string[], gates: Build['gates']): Build => ({ ...dotBase, packs, gates, limits: {} });
+  const floorNotes = (r: CompileResult) => r.noteItems.filter((n) => n.kind === 'floor');
+
+  it('the packs that carry a trade gate are the four trading packs', () => {
+    expect([...tradePacks].sort()).toEqual(['memecoins', 'perps', 'prediction-markets', 'spot']);
+  });
+
+  it('the dot profile holds the plan text for its floor and its send variant; no other profile holds either', () => {
+    expect(dotProfile?.gateSoulVariants).toEqual({ 'gate.send.soul.approve': DOT_SEND_APPROVE_LINE });
+    expect(dotProfile?.gateFloors).toEqual({
+      trade: {
+        setting: 'forbid',
+        note: {
+          id: DOT_FLOOR_NOTE_ID,
+          line: dotTradeNote('approve').replace(DOT_APPROVE_LABEL, '{setting}'),
+        },
+        skill: { id: 'profile.chatgpt-dot.floor.trade.skill', line: DOT_FLOOR_SKILL_LINE },
+      },
+    });
+    for (const profile of library.targets.profiles) {
+      if (profile.id === 'chatgpt-dot') continue;
+      expect(profile.gateFloors, `${profile.id} gateFloors`).toBeUndefined();
+      expect(profile.gateSoulVariants, `${profile.id} gateSoulVariants`).toBeUndefined();
+    }
+  });
+
+  it('the floor note and the dot send line carry no em dash and no placeholder once filled', () => {
+    for (const text of [dotTradeNote('auto'), dotTradeNote('approve'), DOT_SEND_APPROVE_LINE, DOT_FLOOR_SKILL_LINE]) {
+      expect(text.includes(EM_DASH)).toBe(false);
+      expect(text).not.toContain('{');
+    }
+  });
+
+  for (const packId of tradePacks) {
+    describe(`trade pack ${packId} on the dot`, () => {
+      for (const pick of picks) {
+        describe(`trade picked ${pick}`, () => {
+          const build = dotBuild([packId], { trade: pick });
+          const before = JSON.stringify(build);
+          const c = compiledBuild(build);
+          const { result } = c;
+
+          it('the gates module still reports the pick; the compiled gate reads forbid', () => {
+            expect(c.picked.trade).toBe(pick);
+            expect(result.gates.trade).toBe('forbid');
+            expect(result.gates.pay).toBe('forbid');
+          });
+
+          it('the build, and so its share link, keeps what the user picked', () => {
+            expect(JSON.stringify(build)).toBe(before);
+            expect(build.gates.trade).toBe(pick);
+          });
+
+          it('the custom rule for trades is "Hand off to you", once', () => {
+            const rules = result.customRules.filter((r) => r.gate === 'trade');
+            expect(rules.map((r) => r.setting)).toEqual([DOT_FORBID_LABEL]);
+            expect(rules[0].action).toBe(gateOf('trade').customRuleText);
+          });
+
+          it('the soul says the forbid line for trades and neither the approve nor the auto line', () => {
+            expect(result.soul).toContain(gateOf('trade').soulLine.forbid);
+            expect(result.soul).not.toContain(gateOf('trade').soulLine.approve);
+            expect(result.soul).not.toContain(gateOf('trade').soulLine.auto as string);
+            expect(result.soul).not.toContain(TRADE_APPROVE_LINE);
+          });
+
+          if (pick === 'forbid') {
+            it('forbid adds no floor note', () => {
+              expect(floorNotes(result)).toEqual([]);
+            });
+          } else {
+            it('approve and auto fall back with one visible floor note naming the pick', () => {
+              expect(floorNotes(result)).toEqual([{ id: DOT_FLOOR_NOTE_ID, text: dotTradeNote(pick), kind: 'floor' }]);
+              expect(result.notes).toContain(dotTradeNote(pick));
+            });
+          }
+        });
+      }
+    });
+  }
+
+  it('a trade pack with no pick at all (pack default approve) floors to forbid with the note for "Ask before taking action"', () => {
+    for (const packId of tradePacks) {
+      const { result } = compiledBuild(dotBuild([packId], {}));
+      expect(result.gates.trade, packId).toBe('forbid');
+      expect(floorNotes(result), packId).toEqual([{ id: DOT_FLOOR_NOTE_ID, text: dotTradeNote('approve'), kind: 'floor' }]);
+    }
+  });
+
+  it('a dot build with no trade gate has no floor note, no trade rule and no trade key', () => {
+    for (const packs of [[], ['research'], ['sales'], ['coding', 'devops']]) {
+      const { result } = compiledBuild(dotBuild(packs, {}));
+      expect(Object.hasOwn(result.gates, 'trade'), packs.join('+')).toBe(false);
+      expect(floorNotes(result), packs.join('+')).toEqual([]);
+      expect(result.customRules.filter((r) => r.gate === 'trade'), packs.join('+')).toEqual([]);
+    }
+  });
+
+  it('pay is forbid on the dot with no floor note for it', () => {
+    const { result } = compiledBuild(dotBuild(['memecoins', 'support'], {}));
+    expect(result.gates.pay).toBe('forbid');
+    expect(floorNotes(result).map((n) => n.id)).toEqual([DOT_FLOOR_NOTE_ID]);
+  });
+
+  it('no other profile floors trade: every target and mode reads the pick, with no floor note and no dot wording', () => {
+    const targets: { target: Build['target']; mode?: Build['mode']; plan?: Build['plan'] }[] = [
+      { target: 'muse' },
+      { target: 'hermes' },
+      { target: 'grok' },
+      { target: 'openclaw' },
+      { target: 'chatgpt', mode: 'project' },
+      { target: 'chatgpt', mode: 'instructions', plan: 'free' },
+      { target: 'chatgpt', mode: 'instructions', plan: 'paid' },
+    ];
+    for (const t of targets) {
+      for (const pick of picks) {
+        const base = migrate(marty.build, t);
+        const c = compiledBuild({ ...base, packs: ['memecoins'], gates: { trade: pick }, limits: {} });
+        const tag = `${c.profileId} trade=${pick}`;
+        expect(c.result.gates.trade, tag).toBe(pick);
+        expect(floorNotes(c.result), tag).toEqual([]);
+        expect(c.result.soul, tag).toContain(gateOf('trade').soulLine[pick] as string);
+        expect(c.result.soul, tag).not.toContain(DOT_FLOOR_SKILL_LINE);
+        expect(c.result.notes.join('\n'), tag).not.toContain("doesn't let your dot place trades");
+      }
+    }
+  });
+
+  describe('send approve soul line', () => {
+    const sendPacks = library.packs.filter((p) => Object.hasOwn(p.gatesDefault, 'send')).map((p) => p.id);
+
+    it('the packs that carry a send gate are coding, devops, personal-ops, sales and support', () => {
+      expect([...sendPacks].sort()).toEqual(['coding', 'devops', 'personal-ops', 'sales', 'support']);
+    });
+
+    it('on the dot, send approve says the dot wording and not the library line', () => {
+      for (const packId of sendPacks) {
+        const c = compiledBuild(dotBuild([packId], { send: 'approve' }));
+        expect(c.result.gates.send, packId).toBe('approve');
+        expect(c.result.soul, packId).toContain(DOT_SEND_APPROVE_LINE);
+        expect(c.result.soul, packId).not.toContain(gateOf('send').soulLine.approve);
+        expect(c.result.soul, packId).not.toContain('I turn on auto when I say so');
+      }
+    });
+
+    it('on the dot, send forbid and send auto keep the library lines, and the dot wording is absent', () => {
+      for (const setting of ['forbid', 'auto'] as const) {
+        const c = compiledBuild(dotBuild(['sales'], { send: setting }));
+        expect(c.result.gates.send, setting).toBe(setting);
+        expect(c.result.soul, setting).toContain(gateOf('send').soulLine[setting] as string);
+        expect(c.result.soul, setting).not.toContain(DOT_SEND_APPROVE_LINE);
+      }
+    });
+
+    it('the dot wording leaves every other gate soul line as the library says it', () => {
+      const c = compiledBuild(dotBuild(['devops'], { send: 'approve' }));
+      for (const [id, setting] of enforced(c.gates)) {
+        if (id === 'send') continue;
+        expect(c.result.soul, `${id}=${setting}`).toContain(gateOf(id).soulLine[setting] as string);
+      }
+    });
+
+    it('off the dot, send approve keeps the library line', () => {
+      for (const t of [{ target: 'muse' }, { target: 'hermes' }, { target: 'grok' }, { target: 'openclaw' }] as const) {
+        const base = migrate(marty.build, t);
+        const c = compiledBuild({ ...base, packs: ['sales'], gates: { send: 'approve' }, limits: {} });
+        expect(c.result.soul, c.profileId).toContain(gateOf('send').soulLine.approve);
+        expect(c.result.soul, c.profileId).not.toContain(DOT_SEND_APPROVE_LINE);
+      }
+    });
+
+    it('the dot rule for send reads the same settings the soul line does: approve is "Ask before taking action"', () => {
+      const c = compiledBuild(dotBuild(['sales'], { send: 'approve' }));
+      expect(c.result.customRules.find((r) => r.gate === 'send')?.setting).toBe(DOT_APPROVE_LABEL);
+    });
+  });
+
+  // The floor skill line (profiles.json gateFloors.trade.skill) rides on every pack skill and
+  // routine that can take the floored action, whatever the build picked. When every action the skill
+  // takes is floored (all four trade skills), it REPLACES the pack's own approval text, because that
+  // text grants the action after a yes. When the skill also takes an action the floor leaves alone, it
+  // FOLLOWS the pack's approval text on a new line. Chip skills name no actions and never get it.
+  describe('floor skill line on the dot skills and scheduled tasks', () => {
+    const APPROVAL_LABEL = 'Needs my approval first: ';
+    const FLOOR_SKILL_ID = 'profile.chatgpt-dot.floor.trade.skill';
+    const tradeSkills = library.packs.flatMap((pack) =>
+      pack.skills.filter((skill) => skill.actions.includes('trade')).map((skill) => ({ pack, skill })),
+    );
+    const spokenOf = (result: CompileResult, label: string) => {
+      const items = result.spoken.filter((item) => item.label === label);
+      expect(items.length, label).toBe(1);
+      return items[0];
+    };
+    const occurrences = (text: string, part: string) => text.split(part).length - 1;
+
+    it('the four trade skills in the library name no action but trade', () => {
+      expect(tradeSkills.map((t) => `${t.pack.id}/${t.skill.id}`).sort()).toEqual([
+        'memecoins/edge-gone-exit',
+        'perps/stop-placer',
+        'prediction-markets/edge-calc',
+        'spot/earnings-prep',
+      ]);
+      for (const { pack, skill } of tradeSkills) {
+        expect(skill.actions, `${pack.id}/${skill.id}`).toEqual(['trade']);
+      }
+    });
+
+    for (const { pack, skill } of tradeSkills) {
+      for (const pick of picks) {
+        it(`${pack.id} / ${skill.name} with trade picked ${pick}: the approval field is the floor line and nothing else, and the pack approval text is absent`, () => {
+          const { result } = compiledBuild(dotBuild([pack.id], { trade: pick }));
+          const item = spokenOf(result, `Workflow: ${skill.name}`);
+          expect(item.kind).toBe('skill');
+          expect(skill.requiresApproval.length, 'the pack approval text is not empty').toBeGreaterThan(0);
+          expect(item.text).toContain(`${APPROVAL_LABEL}${DOT_FLOOR_SKILL_LINE}\n`);
+          expect(occurrences(item.text, DOT_FLOOR_SKILL_LINE), 'floor line once').toBe(1);
+          expect(item.text).not.toContain(skill.requiresApproval);
+          expect(item.ids).toContain(FLOOR_SKILL_ID);
+          expect(item.ids).toContain(`pack.${pack.id}.skill.${skill.id}`);
+        });
+      }
+
+      it(`${pack.id} / ${skill.name}: the other skills of the pack and the chip skills carry no floor line`, () => {
+        const { result } = compiledBuild(dotBuild([pack.id], { trade: 'approve' }));
+        const carrying = result.spoken.filter((item) => item.text.includes(DOT_FLOOR_SKILL_LINE));
+        expect(carrying.map((item) => item.label)).toEqual([`Workflow: ${skill.name}`]);
+        for (const item of result.spoken) {
+          if (item.label === `Workflow: ${skill.name}`) continue;
+          expect(item.ids, item.label).not.toContain(FLOOR_SKILL_ID);
+        }
+        for (const other of pack.skills) {
+          if (other.id === skill.id) continue;
+          const spoken = result.spoken.find((item) => item.label.endsWith(`: ${other.name}`));
+          if (spoken === undefined) continue;
+          expect(spoken.text, other.name).toContain(other.requiresApproval);
+        }
+      });
+
+      // The pack approval text is only gone from the dot. Every other target still delivers it.
+      for (const target of [
+        { target: 'muse' },
+        { target: 'hermes' },
+        { target: 'grok' },
+        { target: 'openclaw' },
+        { target: 'chatgpt', mode: 'project' },
+      ] as const) {
+        it(`${pack.id} / ${skill.name} on ${target.target}${'mode' in target ? ' ' + target.mode : ''}: the pack approval text is delivered and the floor line is not`, () => {
+          const base = migrate(marty.build, target);
+          const { result } = compiledBuild({ ...base, packs: [pack.id], gates: { trade: 'approve' }, limits: {} });
+          const delivered = [
+            ...result.spoken.map((item) => item.text),
+            ...result.files.map((file) => file.content),
+          ].join('\n');
+          expect(delivered, 'the pack approval text').toContain(skill.requiresApproval);
+          const everything = [delivered, result.soul, ...result.notes].join('\n');
+          expect(everything).not.toContain(DOT_FLOOR_SKILL_LINE);
+          expect(result.spoken.flatMap((item) => item.ids)).not.toContain(FLOOR_SKILL_ID);
+        });
+      }
+    }
+
+    it('a skill that takes the floored action and another: the pack approval text stays and the floor line follows it on a new line', () => {
+      const lib = structuredClone(library);
+      const spot = lib.packs.find((p) => p.id === 'spot');
+      const target = spot?.skills.find((sk) => sk.id === 'earnings-prep');
+      if (spot === undefined || target === undefined) throw new Error('spot/earnings-prep is not in the library');
+      const approval = target.requiresApproval;
+      target.actions = ['trade', 'send'];
+      // The sales pack exposes the send gate, so the build may pick it.
+      const result = compile(dotBuild(['spot', 'sales'], { trade: 'approve', send: 'approve' }), lib);
+      const item = spokenOf(result, `Workflow: ${target.name}`);
+      expect(item.text).toContain(`${APPROVAL_LABEL}${approval}\n${DOT_FLOOR_SKILL_LINE}\n`);
+      expect(occurrences(item.text, approval), 'pack approval once').toBe(1);
+      expect(occurrences(item.text, DOT_FLOOR_SKILL_LINE), 'floor line once').toBe(1);
+      expect(item.ids).toContain(FLOOR_SKILL_ID);
+    });
+
+    it('a skill that takes only an unfloored action keeps its own approval text and has no floor line', () => {
+      const lib = structuredClone(library);
+      const spot = lib.packs.find((p) => p.id === 'spot');
+      const target = spot?.skills.find((sk) => sk.id === 'earnings-prep');
+      if (spot === undefined || target === undefined) throw new Error('spot/earnings-prep is not in the library');
+      target.actions = ['send'];
+      const result = compile(dotBuild(['spot', 'sales'], { trade: 'approve', send: 'approve' }), lib);
+      const item = spokenOf(result, `Workflow: ${target.name}`);
+      expect(item.text).toContain(`${APPROVAL_LABEL}${target.requiresApproval}\n`);
+      expect(item.text).not.toContain(DOT_FLOOR_SKILL_LINE);
+      expect(item.ids).not.toContain(FLOOR_SKILL_ID);
+    });
+
+    it('a scheduled trade task is a "Scheduled task" whose approval field is the floor line, followed by the schedule check', () => {
+      const lib = structuredClone(library);
+      const memecoins = lib.packs.find((p) => p.id === 'memecoins');
+      const target = memecoins?.skills.find((sk) => sk.id === 'edge-gone-exit');
+      if (memecoins === undefined || target === undefined) throw new Error('memecoins/edge-gone-exit is not in the library');
+      const approval = target.requiresApproval;
+      target.kind = 'schedule';
+      target.schedule = 'Every weekday at 9am';
+      const result = compile(dotBuild(['memecoins'], { trade: 'approve' }), lib);
+      expect(result.spoken.some((item) => item.label === `Workflow: ${target.name}`)).toBe(false);
+      const item = spokenOf(result, `Scheduled task: ${target.name}`);
+      expect(item.kind).toBe('routine');
+      expect(item.text).toContain(`${APPROVAL_LABEL}${DOT_FLOOR_SKILL_LINE}\n`);
+      expect(item.text).not.toContain(approval);
+      expect(occurrences(item.text, DOT_FLOOR_SKILL_LINE), 'floor line once').toBe(1);
+      const dot = lib.targets.profiles.find((p) => p.id === 'chatgpt-dot');
+      const confirm = dot?.templates['routine.confirm'];
+      if (confirm === undefined) throw new Error('the dot has no routine.confirm template');
+      expect(item.text).toContain(confirm.line);
+      expect(item.ids).toContain(FLOOR_SKILL_ID);
+      expect(item.ids).toContain(confirm.id);
+    });
+
+    it('the dot labels its skills "Workflow" and its scheduled tasks "Scheduled task"; no other profile sets a routine label', () => {
+      const dot = library.targets.profiles.find((p) => p.id === 'chatgpt-dot');
+      expect(dot?.skillLabel).toBe('Workflow');
+      expect(dot?.routineLabel).toBe('Scheduled task');
+      for (const profile of library.targets.profiles) {
+        if (profile.id === 'chatgpt-dot') continue;
+        expect(profile.routineLabel, `${profile.id} routineLabel`).toBeUndefined();
+      }
+      const { result } = compiledBuild(dotBuild(['memecoins'], { trade: 'approve' }));
+      const labels = result.spoken.filter((item) => item.kind === 'skill' || item.kind === 'routine');
+      expect(labels.length).toBeGreaterThan(0);
+      for (const item of labels) {
+        expect(item.label.startsWith(item.kind === 'skill' ? 'Workflow: ' : 'Scheduled task: '), item.label).toBe(true);
+      }
+      expect(labels.some((item) => item.kind === 'routine'), 'memecoins ships a scheduled task').toBe(true);
+    });
   });
 });
 

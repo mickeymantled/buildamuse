@@ -23,6 +23,14 @@
 // "none" to "section" and a `rules.heading` template ("## Hard rules") was added. Both are stripped from
 // both sides for that one profile, and nothing else about it; test/dot-hard-rules.test.ts pins the new
 // values, and the test below says the dot is the only profile whose rulesInSoul moved.
+// The ChatGPT dot fix (docs/DOT-FIX-PLAN.md, QUESTIONS D1 to D8) edited the dot record and the ChatGPT
+// card by design: the dot's three chassis wording variants, its short variants, gateSoulVariants,
+// gateFloors, seven templates, the skillLabel and routineLabel fields, and the card's promise and dot mode
+// note. Review then added a fourth chassis variant (chassis.clash.order) and reworded the floor note and
+// skill line, the approval variant and the roles fallback. Those are stripped from both sides too, and
+// pinned to the plan's own strings in the "dot fix edits" block at the end of this file.
+// (The dot's install steps keep their ids here and their text in test/step-tags.test.ts; its verify
+// and notes records are in test/verify-cleanup.test.ts.)
 // It is valid until the next M4 or M5 content edit to another profile record; re-pin or retire it in the
 // slice that makes that edit. The structural blocks stay.
 
@@ -126,6 +134,40 @@ function withoutStepTags(p: Profile): Profile {
 const REMOVED_STEP_IDS = ['profile.hermes.step.6'];
 const EDITED_TEMPLATES = ['skill.file', 'skill.chipFile', 'actions.consequential'];
 
+// The dot fix (docs/DOT-FIX-PLAN.md sections 1, 2, 4): the chassis variants it reworded or added, the
+// profile fields it added, and the templates it reworded or added. The dot's other chassis variants
+// (opening, memory) and its other templates (memory.sentence, personality.opener) stay compared.
+const DOT_FIX_CHASSIS_VARIANTS = [
+  'chassis.act.approval',
+  'chassis.act.reversible',
+  'chassis.rules.outrank',
+  'chassis.clash.order',
+];
+const DOT_FIX_TEMPLATES = [
+  'skill.sentence',
+  'skill.legacy',
+  'skill.suffix',
+  'routine.sentence',
+  'routine.legacy',
+  'routine.confirm',
+  'fallback.roles',
+];
+
+// Cards, less the two strings the dot fix reworded: the ChatGPT promise and the dot mode note.
+function comparableCard(c: TargetCard): Record<string, unknown> {
+  const copy = structuredClone(c) as unknown as Record<string, unknown>;
+  if (c.id === 'chatgpt') {
+    delete copy.promise;
+    copy.modes = (copy.modes as Record<string, unknown>[]).map((m) => {
+      if (m.id !== 'dot') return m;
+      const rest = { ...m };
+      delete rest.note;
+      return rest;
+    });
+  }
+  return copy;
+}
+
 function comparable(p: Profile): Record<string, unknown> {
   const copy = withoutStepTags(p) as unknown as Record<string, unknown>;
   copy.installSteps = p.installSteps.map((s) => s.id).filter((id) => !REMOVED_STEP_IDS.includes(id));
@@ -138,6 +180,16 @@ function comparable(p: Profile): Record<string, unknown> {
   if (p.id === 'chatgpt-dot') {
     delete copy.rulesInSoul;
     delete templates['rules.heading'];
+    // The dot fix: reworded chassis variants, the short and floor fields, the reworded templates.
+    const variants = copy.chassisVariants as Record<string, unknown>;
+    for (const key of DOT_FIX_CHASSIS_VARIANTS) delete variants[key];
+    delete copy.chassisShortVariants;
+    delete copy.gateSoulVariants;
+    delete copy.gateFloors;
+    // The dot's item labels: "Workflow" for skill sentences and "Scheduled task" for routines.
+    delete copy.skillLabel;
+    delete copy.routineLabel;
+    for (const key of DOT_FIX_TEMPLATES) delete templates[key];
   }
   return copy;
 }
@@ -264,8 +316,8 @@ describe('pre-split baseline (migration check; step tags, rulesPath and the reco
     expect(baseline?.profiles).toHaveLength(8);
   });
 
-  it.skipIf(baseline === null)('cards equal the old targets array', () => {
-    expect(cards).toEqual(baseline?.targets);
+  it.skipIf(baseline === null)('cards equal the old targets array, less the two strings the dot fix reworded', () => {
+    expect(cards.map(comparableCard)).toEqual((baseline?.targets ?? []).map(comparableCard));
   });
 
   it.skipIf(baseline === null)('profiles equal the old profiles array once the step tags, rulesPath and the 4.5b edited records are stripped', () => {
@@ -273,7 +325,7 @@ describe('pre-split baseline (migration check; step tags, rulesPath and the reco
   });
 
   it.skipIf(baseline === null)('serialize to the same text once stripped, so key order is unchanged too', () => {
-    expect(JSON.stringify(cards)).toBe(JSON.stringify(baseline?.targets));
+    expect(JSON.stringify(cards.map(comparableCard))).toBe(JSON.stringify((baseline?.targets ?? []).map(comparableCard)));
     expect(JSON.stringify(profiles.map(comparable))).toBe(JSON.stringify((baseline?.profiles ?? []).map(comparable)));
   });
 
@@ -318,5 +370,133 @@ describe('pre-split baseline (migration check; step tags, rulesPath and the reco
     const before = (baseline?.profiles ?? []).map((p) => p.id).sort();
     const after = library.targets.profiles.map((p) => p.id).sort();
     expect(after).toEqual(before);
+  });
+});
+
+// The records the dot fix edited (docs/DOT-FIX-PLAN.md sections 1, 2 and 4), stripped from the baseline
+// comparison above and pinned here to the plan's own strings. Straight ASCII quotes, no em dash.
+describe('dot fix edits (docs/DOT-FIX-PLAN.md): the strings the baseline comparison strips', () => {
+  const dot = profiles.find((p) => p.id === 'chatgpt-dot') as Profile;
+  const chatgptCard = cards.find((c) => c.id === 'chatgpt') as TargetCard;
+
+  it('the ChatGPT card promise and the dot mode note are the plan strings, with their ids', () => {
+    expect(chatgptCard.promise).toEqual({
+      id: 'target.chatgpt.promise',
+      line: 'Messages to send your dot, plus permissions to set up.',
+    });
+    const mode = chatgptCard.modes?.find((m) => m.id === 'dot');
+    expect(mode?.note).toEqual({
+      id: 'target.chatgpt.mode.dot',
+      line: 'Recommended, if your plan includes dots.',
+    });
+  });
+
+  it('the dot chassis variants (full) are the plan strings', () => {
+    expect(dot.chassisVariants['chassis.act.approval']).toBe(
+      "Anything that spends, sends, posts, signs or can't be undone waits for my yes, unless a setting below lets you go ahead. When you ask, give me the decision, the cost and your pick in three lines.",
+    );
+    expect(dot.chassisVariants['chassis.act.reversible']).toBe(
+      "Act only on what I asked for, within the permissions I've given you. Being able to undo something doesn't make it OK to do.",
+    );
+    expect(dot.chassisVariants['chassis.rules.outrank']).toBe(
+      "Follow my saved settings and the platform's requirements. If something I say in chat conflicts with them, ask me before you act.",
+    );
+    expect(dot.chassisVariants['chassis.clash.order']).toBe(
+      'Honesty first, then my instructions and saved settings, then brevity, then jokes.',
+    );
+  });
+
+  it('the dot chassis short variants are the plan strings', () => {
+    expect(dot.chassisShortVariants).toEqual({
+      'chassis.act.approval':
+        'Spend, send, post, sign, irreversible: my yes first, unless a setting below allows it. Ask in 3 lines: decision, cost, pick.',
+      'chassis.act.reversible': "Act only on what I asked, within the permissions I gave you. Undoable isn't the same as allowed.",
+      'chassis.rules.outrank': 'Follow my saved settings and platform requirements. If chat conflicts with them, ask before acting.',
+      'chassis.clash.order': 'Honesty, then my instructions and settings, then brevity, then jokes.',
+    });
+  });
+
+  it('every dot short variant is shorter than its full variant, and each variant keys a chassis line', () => {
+    const chassisIds = new Set(library.chassis.lines.map((l) => l.id));
+    for (const [id, short] of Object.entries(dot.chassisShortVariants ?? {})) {
+      expect(chassisIds.has(id), `${id} is a chassis line`).toBe(true);
+      const full = dot.chassisVariants[id];
+      expect(typeof full, `${id} has a full variant`).toBe('string');
+      expect(short.length, id).toBeLessThan((full as string).length);
+    }
+  });
+
+  it('the dot gate soul variant and the trade floor are the plan strings', () => {
+    expect(dot.gateSoulVariants).toEqual({
+      'gate.send.soul.approve': 'Show me each message before it goes out. Send it only after my yes to that exact message.',
+    });
+    expect(dot.gateFloors).toEqual({
+      trade: {
+        setting: 'forbid',
+        note: {
+          id: 'profile.chatgpt-dot.floor.trade.note',
+          line: 'Your setting for Trades is "{setting}". This setup doesn\'t let your dot place trades: it researches and proposes, and you place each trade yourself.',
+        },
+        skill: {
+          id: 'profile.chatgpt-dot.floor.trade.skill',
+          line: 'On this dot, never place, change or close a trade. Where a step says to place one, or to wait for my yes at the trade gate, give me the proposal instead, and I place it myself.',
+        },
+      },
+    });
+  });
+
+  it('only the dot has the new profile fields', () => {
+    for (const p of profiles) {
+      if (p.id === 'chatgpt-dot') continue;
+      expect(p.gateFloors, p.id).toBeUndefined();
+      expect(p.gateSoulVariants, p.id).toBeUndefined();
+      expect(p.routineLabel, p.id).toBeUndefined();
+    }
+  });
+
+  it('the dot labels its skill sentences "Workflow" and its routines "Scheduled task"', () => {
+    expect(dot.skillLabel).toBe('Workflow');
+    expect(dot.routineLabel).toBe('Scheduled task');
+  });
+
+  it('the only other profile with a skill label is Muse ("Standing instruction"), and no other profile has a routine label', () => {
+    const labelled = profiles.filter((p) => p.skillLabel !== undefined).map((p) => [p.id, p.skillLabel]);
+    expect(labelled).toEqual([
+      ['muse', 'Standing instruction'],
+      ['chatgpt-dot', 'Workflow'],
+    ]);
+    expect(profiles.filter((p) => p.routineLabel !== undefined).map((p) => p.id)).toEqual(['chatgpt-dot']);
+  });
+
+  it('the dot templates are the plan strings', () => {
+    const t = (key: string) => dot.templates[key].line;
+    expect(t('skill.sentence')).toBe(
+      "Here's a workflow called {name}.\nUse it when: {whenToUse}\nInputs: {inputs}\nSteps:\n{steps}\nCheck before you answer: {validate}\nReturn: {returns}\nNeeds my approval first: {requiresApproval}",
+    );
+    expect(t('skill.legacy')).toBe("Here's a workflow I'd like you to use: {sentence}.");
+    expect(t('skill.suffix')).toBe(
+      "Tell me which parts of this you can keep and use, what you'd need connected for it, and any step you can't do.",
+    );
+    expect(t('routine.sentence')).toBe(
+      "I'd like a scheduled task called {name}.\nSchedule: {schedule}\nUse it when: {whenToUse}\nInputs: {inputs}\nSteps:\n{steps}\nCheck before you report: {validate}\nReturn: {returns}\nNeeds my approval first: {requiresApproval}\nIt follows my saved settings like any other run. If it can't ask me, it stops and tells me instead.",
+    );
+    expect(t('routine.legacy')).toBe("I'd like a scheduled task: {schedule}, {sentence}.");
+    expect(t('routine.confirm')).toBe(
+      "Before you call it set up, confirm the schedule and my time zone, and ask me if you don't know my time zone. Tell me what access it needs and tell me once the task is created. It isn't running until then.",
+    );
+    expect(t('fallback.roles')).toBe(
+      "Your roles aren't in this setup. It makes one dot, not a separate agent per role. Your roles: {roles}.",
+    );
+  });
+
+  it('each template keeps its record id', () => {
+    for (const key of DOT_FIX_TEMPLATES) {
+      expect(dot.templates[key].id, key).toBe(`profile.chatgpt-dot.${key}`);
+    }
+  });
+
+  it('the dot fix did not touch the other dot templates the baseline still compares', () => {
+    expect(dot.templates['memory.sentence'].line).toBe('{seed}');
+    expect(dot.templates['personality.opener'].line).toBe("Here's how I want you to work:");
   });
 });

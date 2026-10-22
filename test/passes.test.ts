@@ -351,8 +351,15 @@ function overflowBuild(profile: SoulProfile = MUSE): Build {
 // The six-chip build with no peeves and the perps pack, which carries Brian's rules line and three
 // author lines. No other pack and no peeves keep the protected floor low enough that the base line
 // can place every point of the pipeline around the caps. Used by the constructed cases.
+//
+// The dot is the exception on the heart. Its short soul has grown (its own approve, outrank and clash
+// order wording), so with the 77-character d1.check_my_work line the irreducible soul of this build is
+// 3,604 characters on a 3,600 cap even with a one-character base line: no base line could place Tier B
+// under the cap. The dot case takes the tapped engineering chip's d1Suggest (28 characters, a valid d1
+// by validate rule 9), which leaves about 40 characters of room, and changes nothing else.
 function perpsBuild(profile: SoulProfile): Build {
-  return { ...overflowBuild(profile), peeves: [], packs: ['perps'] };
+  const build: Build = { ...overflowBuild(profile), peeves: [], packs: ['perps'] };
+  return profile === CHATGPT_DOT ? { ...build, heart: { ...build.heart, d1: 'd1.chip.engineering' } } : build;
 }
 
 // Hand-written from the pack JSON, in soul order: every pack rules line of perpsBuild except
@@ -488,6 +495,30 @@ function candidateSize(lib: Library, id: string): number {
 
 // ---- Library-derived expectations -----------------------------------------------------------
 
+// The gates a compile reads on a profile: the gates module's set, with the profile's floors applied
+// (the dot floors trade to forbid, DOT-FIX-PLAN section 2). Strictness is auto < approve < forbid.
+// A profile with no floors reads the gates module's set unchanged.
+const GATE_STRICTNESS = { auto: 0, approve: 1, forbid: 2 } as const;
+function gatesOf(build: Build, lib: Library): ReturnType<typeof effectiveGates> {
+  const gates = { ...effectiveGates(build, lib) };
+  const floors = resolveProfile(build, lib).gateFloors ?? {};
+  for (const [action, floor] of Object.entries(floors)) {
+    if (Object.hasOwn(gates, action) && GATE_STRICTNESS[floor.setting] > GATE_STRICTNESS[gates[action]]) {
+      gates[action] = floor.setting;
+    }
+  }
+  return gates;
+}
+
+// The traced id of a gate soul line on a profile: the library id, plus "@<profile id>" where the
+// profile replaces that line's text (the dot's send approve wording).
+function gateSoulIdOf(profile: Profile, gateId: string, setting: string): string {
+  const id = `gate.${gateId}.soul.${setting}`;
+  return profile.gateSoulVariants !== undefined && Object.hasOwn(profile.gateSoulVariants, id)
+    ? `${id}@${profile.id}`
+    : id;
+}
+
 // Every pack rules line of the build's packs, in soul order.
 function packRuleIdsOf(build: Build, lib: Library): string[] {
   return build.packs.flatMap((id) => lib.packs.find((p) => p.id === id)!.rulesLines.map((r) => r.id));
@@ -500,7 +531,7 @@ function authorRuleIdsOf(build: Build, lib: Library): string[] {
 
 // The rules-layer lines AGENTS.md carries, from the library tables: gates, limits, pack rules.
 function rulesLinesOf(build: Build, lib: Library): { id: string; text: string }[] {
-  const gates = effectiveGates(build, lib);
+  const gates = gatesOf(build, lib);
   const limits = effectiveLimits(build, lib);
   const out: { id: string; text: string }[] = [];
   for (const gate of lib.gates) {
@@ -829,13 +860,14 @@ function expectProtectedLinesPresent(build: Build, lib: Library, result: Compile
   }
   expect(result.soulLines.filter((l) => l.kind === 'example').length).toBe(4);
 
-  // Gate soul lines: one per effective gate whose setting has soul text.
-  const gates = effectiveGates(build, lib);
+  // Gate soul lines: one per effective gate whose setting has soul text, read after the profile's
+  // floors, under the profile's variant id where it replaces the line.
+  const gates = gatesOf(build, lib);
   for (const gate of lib.gates) {
     if (!Object.hasOwn(gates, gate.id)) continue;
     const setting = gates[gate.id];
     if (gate.soulLine[setting] !== null) {
-      expect(ids).toContain(`gate.${gate.id}.soul.${setting}`);
+      expect(ids).toContain(gateSoulIdOf(profile, gate.id, setting));
     }
   }
 
@@ -895,6 +927,38 @@ function expectProtectedLinesPresent(build: Build, lib: Library, result: Compile
     expect(dropped, `length drops ${id}`).not.toContain(id);
     const dedupedAway = result.warnings.some((w) => w.startsWith(`dedupe: dropped ${id} `));
     expect(ids.includes(id) || dedupedAway, `first trigger ${id}`).toBe(true);
+  }
+}
+
+// The dot's gate soul lines through the whole length pass (DOT-FIX-PLAN section 2): every effective
+// gate with soul text keeps its line under the dot's id and wording, even when nothing fits. Trade
+// reads the floor (forbid, never the approve or auto line the build asked for), and the send approve
+// line is the dot's own wording, traced "@chatgpt-dot". Gate lines are never cut or dropped.
+function expectDotGateSoulLines(build: Build, lib: Library, result: CompileResult): void {
+  const profile = resolveProfile(build, lib);
+  const gates = gatesOf(build, lib);
+  const ids = result.soulLines.map((l) => l.id);
+  let checked = 0;
+  for (const gate of lib.gates) {
+    if (!Object.hasOwn(gates, gate.id) || gate.soulLine[gates[gate.id]] === null) continue;
+    const setting = gates[gate.id];
+    const key = `gate.${gate.id}.soul.${setting}`;
+    const variant = profile.gateSoulVariants !== undefined && Object.hasOwn(profile.gateSoulVariants, key)
+      ? profile.gateSoulVariants[key]
+      : undefined;
+    const traced = result.soulLines.filter((l) => l.id === gateSoulIdOf(profile, gate.id, setting));
+    expect(traced.map((l) => l.text), `${key} on ${profile.id}`).toEqual([`- ${variant ?? gate.soulLine[setting]}`]);
+    checked += 1;
+  }
+  expect(checked, 'gate soul lines checked').toBeGreaterThan(0);
+  if (Object.hasOwn(gates, 'trade')) {
+    expect(ids).toContain('gate.trade.soul.forbid');
+    expect(ids).not.toContain('gate.trade.soul.approve');
+    expect(ids).not.toContain('gate.trade.soul.auto');
+  }
+  if (gates.send === 'approve') {
+    expect(ids).toContain('gate.send.soul.approve@chatgpt-dot');
+    expect(ids).not.toContain('gate.send.soul.approve');
   }
 }
 
@@ -994,26 +1058,70 @@ const SHORT_JUDGE = 'This file is judgment, memory is facts. No facts here.';
 const SHORT_REFINE = 'If you refine this, tell me what and why. Never drop rules for ease.';
 const SHORT_NO_SELF_EDIT = 'You never edit this file. Lessons go to memory.';
 const SHORT_OUTRANK = 'AGENTS.md rules outrank this file in a conflict.';
-const DOT_OUTRANK = 'Your custom rules in Settings outrank anything I say in chat.';
+// The dot's own permission wording (docs/DOT-FIX-PLAN.md section 2), full and short, written out.
+const DOT_APPROVAL_FULL =
+  "Anything that spends, sends, posts, signs or can't be undone waits for my yes, unless a setting below lets you go ahead. When you ask, give me the decision, the cost and your pick in three lines.";
+const DOT_REVERSIBLE_FULL =
+  "Act only on what I asked for, within the permissions I've given you. Being able to undo something doesn't make it OK to do.";
+const DOT_OUTRANK_FULL =
+  "Follow my saved settings and the platform's requirements. If something I say in chat conflicts with them, ask me before you act.";
+const DOT_APPROVAL_SHORT =
+  'Spend, send, post, sign, irreversible: my yes first, unless a setting below allows it. Ask in 3 lines: decision, cost, pick.';
+const DOT_REVERSIBLE_SHORT =
+  "Act only on what I asked, within the permissions I gave you. Undoable isn't the same as allowed.";
+const DOT_OUTRANK_SHORT =
+  'Follow my saved settings and platform requirements. If chat conflicts with them, ask before acting.';
+const DOT_CLASH_FULL = 'Honesty first, then my instructions and saved settings, then brevity, then jokes.';
+const DOT_CLASH_SHORT = 'Honesty, then my instructions and settings, then brevity, then jokes.';
+const SHORT_REVERSIBLE = 'Reversible: do it, tell me in one line. Only irreversible waits for a yes.';
+const DOT_WORDING = [
+  DOT_APPROVAL_FULL,
+  DOT_REVERSIBLE_FULL,
+  DOT_OUTRANK_FULL,
+  DOT_APPROVAL_SHORT,
+  DOT_REVERSIBLE_SHORT,
+  DOT_OUTRANK_SHORT,
+  DOT_CLASH_FULL,
+  DOT_CLASH_SHORT,
+];
 const DOT_CHECK = "Before you say you can't, check what you have on: web, files, code, your connected apps.";
 const DOT_JUDGE = 'This message is how you judge. Memory is what you know. Never put a fact here.';
 
+// The dot says approve, reversible, outrank and the clash order in its own short words (it has short
+// variants for exactly those four); check and judge keep the dot's full wording on a short chassis
+// (V29). None of the generic short texts for those six, and none of the dot's full permission
+// wording, appears.
 const SHORT_FORM_TEXT: Record<string, { present: string[]; absent: string[] }> = {
   muse: {
     present: [SHORT_APPROVAL, SHORT_NEVER_DONE, SHORT_CLASH, SHORT_CHECK, SHORT_JUDGE, SHORT_REFINE],
-    absent: [FULL_APPROVAL, FULL_CLASH, SHORT_NO_SELF_EDIT, SHORT_OUTRANK, DOT_OUTRANK],
+    absent: [FULL_APPROVAL, FULL_CLASH, SHORT_NO_SELF_EDIT, SHORT_OUTRANK, ...DOT_WORDING],
   },
   openclaw: {
     present: [SHORT_APPROVAL, SHORT_NEVER_DONE, SHORT_CLASH, SHORT_CHECK, SHORT_JUDGE, SHORT_NO_SELF_EDIT, SHORT_OUTRANK],
-    absent: [FULL_APPROVAL, FULL_CLASH, SHORT_REFINE, DOT_OUTRANK],
+    absent: [FULL_APPROVAL, FULL_CLASH, SHORT_REFINE, ...DOT_WORDING],
   },
   hermes: {
     present: [SHORT_APPROVAL, SHORT_NEVER_DONE, SHORT_CLASH, SHORT_CHECK, SHORT_JUDGE, SHORT_NO_SELF_EDIT, SHORT_OUTRANK],
-    absent: [FULL_APPROVAL, FULL_CLASH, SHORT_REFINE, DOT_OUTRANK],
+    absent: [FULL_APPROVAL, FULL_CLASH, SHORT_REFINE, ...DOT_WORDING],
   },
   'chatgpt-dot': {
-    present: [SHORT_APPROVAL, SHORT_NEVER_DONE, SHORT_CLASH, DOT_OUTRANK, DOT_CHECK, DOT_JUDGE],
-    absent: [FULL_APPROVAL, FULL_CLASH, SHORT_OUTRANK, SHORT_CHECK, SHORT_JUDGE, SHORT_NO_SELF_EDIT, SHORT_REFINE],
+    present: [DOT_APPROVAL_SHORT, DOT_REVERSIBLE_SHORT, DOT_OUTRANK_SHORT, SHORT_NEVER_DONE, DOT_CLASH_SHORT, DOT_CHECK, DOT_JUDGE],
+    absent: [
+      FULL_APPROVAL,
+      FULL_CLASH,
+      SHORT_CLASH,
+      SHORT_APPROVAL,
+      SHORT_REVERSIBLE,
+      DOT_APPROVAL_FULL,
+      DOT_REVERSIBLE_FULL,
+      DOT_OUTRANK_FULL,
+      DOT_CLASH_FULL,
+      SHORT_OUTRANK,
+      SHORT_CHECK,
+      SHORT_JUDGE,
+      SHORT_NO_SELF_EDIT,
+      SHORT_REFINE,
+    ],
   },
 };
 
@@ -1329,12 +1437,27 @@ describe('Length', () => {
           expect(shortRecords.length).toBeGreaterThan(0);
           expectChassisForm(result, resolveProfile(build, sc.lib), sc.lib, 'short');
           if (profile === CHATGPT_DOT) {
-            // Dot has its own text for three chassis lines; the generic short forms must not replace it.
+            // Dot has its own full text for six chassis lines (approve, reversible, outrank, check,
+            // judge, clash order) and its own short text for four of them (DOT-FIX-PLAN section 2).
+            // The generic short forms must not replace either: approve, reversible, outrank and the
+            // clash order trace as "#short@chatgpt-dot", check and judge keep their full dot wording
+            // as "@chatgpt-dot".
             const dot = resolveProfile(build, sc.lib);
-            for (const id of ['chassis.rules.outrank', 'chassis.act.check', 'chassis.memory.judge']) {
+            const ids = result.soulLines.map((l) => l.id);
+            const dotShort = ['chassis.act.approval', 'chassis.act.reversible', 'chassis.rules.outrank', 'chassis.clash.order'];
+            const dotFullOnly = ['chassis.act.check', 'chassis.memory.judge'];
+            for (const id of [...dotShort, ...dotFullOnly]) {
               expect(typeof dot.chassisVariants[id], `${id} is a dot variant`).toBe('string');
-              expect(result.soulLines.map((l) => l.id)).toContain(`${id}@chatgpt-dot`);
-              expect(result.soulLines.map((l) => l.id)).not.toContain(`${id}#short`);
+              expect(ids).not.toContain(`${id}#short`);
+            }
+            for (const id of dotShort) {
+              expect(typeof dot.chassisShortVariants?.[id], `${id} is a dot short variant`).toBe('string');
+              expect(ids).toContain(`${id}#short@chatgpt-dot`);
+              expect(ids).not.toContain(`${id}@chatgpt-dot`);
+            }
+            for (const id of dotFullOnly) {
+              expect(dot.chassisShortVariants?.[id], `${id} has no dot short variant`).toBeUndefined();
+              expect(ids).toContain(`${id}@chatgpt-dot`);
             }
           }
         });
@@ -1480,6 +1603,7 @@ describe('Length', () => {
             `length: soul is ${result.length} characters, over ${cap} with nothing left to drop`,
           );
           expect(result.length).toBe(cap + 25);
+          if (profile === CHATGPT_DOT) expectDotGateSoulLines(build, sc.lib, result);
         });
       }
     }
